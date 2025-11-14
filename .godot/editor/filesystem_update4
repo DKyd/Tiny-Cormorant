@@ -1,0 +1,17 @@
+res://data/CommodityDB.gd
+res://SystemList.tscn
+res://ui/SystemList.gd
+res://ui/MarketPanel.gd
+res://MarketPanel.tscn
+res://singletons/GameState.gd
+res://singletons/Log.gd
+res://singletons/Galaxy.gd
+res://ui/MapPanel.gd
+res://MapPanel.tscn
+res://Scenes/SystemList.tscn
+res://scenes/SystemList.tscn
+res://scenes/MarketPanel.tscn
+res://scenes/MapPanel.tscn
+res://singletons/Contracts.gd
+res://ui/JobBoardPanel.gd
+res://scenes/JobBoardPanel.tscn

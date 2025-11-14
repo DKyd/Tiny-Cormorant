@@ -1,0 +1,93 @@
+# ------------------------------------------------------------------------------
+# Godot-specific
+# ------------------------------------------------------------------------------
+
+# Godot import / export metadata
+.import/
+export_presets.cfg
+
+# Auto-generated Godot cache (safe to ignore)
+.cache/
+
+# Auto-generated import files
+*.import
+
+# Editor settings — should not be committed
+.editor_settings-*.tres
+.editor_settings.tres
+
+# ------------------------------------------------------------------------------
+# OS-specific junk
+# ------------------------------------------------------------------------------
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+__MACOSX/
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+Desktop.ini
+
+# Linux
+.trash/
+
+# ------------------------------------------------------------------------------
+# IDE / Editor files
+# ------------------------------------------------------------------------------
+
+# VSCode
+.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# JetBrains / IntelliJ / Rider
+.idea/
+*.iml
+
+# ------------------------------------------------------------------------------
+# Build artifacts
+# ------------------------------------------------------------------------------
+
+# Executables / builds
+*.exe
+*.dll
+*.so
+*.dylib
+*.pck
+*.apk
+*.aab
+*.zip
+*.tar.gz
+
+# Godot's temporary exported project files
+export/
+build/
+bin/
+
+# ------------------------------------------------------------------------------
+# Large media files (project-specific)
+# ------------------------------------------------------------------------------
+
+# Optional: ignore video files
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+
+# ------------------------------------------------------------------------------
+# Logs / debug
+# ------------------------------------------------------------------------------
+
+*.log
+
+# ------------------------------------------------------------------------------
+# Python / scripting (optional)
+# ------------------------------------------------------------------------------
+
+__pycache__/
+*.pyc
