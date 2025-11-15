@@ -80,6 +80,10 @@ text = "Open Job Board"
 layout_mode = 2
 text = "Open Contracts"
 
+[node name="ShipButton" type="Button" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Ship"
+
 [connection signal="item_selected" from="MarginContainer/VBoxContainer/CommoditiesList" to="." method="_on_CommoditiesList_item_selected"]
 [connection signal="pressed" from="MarginContainer/VBoxContainer/HBoxContainer2/BuyButton" to="." method="_on_BuyButton_pressed"]
 [connection signal="pressed" from="MarginContainer/VBoxContainer/HBoxContainer2/SellButton" to="." method="_on_SellButton_pressed"]

@@ -6,6 +6,8 @@ extends Control
 @onready var system_type_label: Label = $MainSplit/MarginContainer/VBoxContainer/CurrentSystemPanel/VBoxContainer/SystemTypeLabel
 @onready var security_label: Label = $MainSplit/MarginContainer/VBoxContainer/CurrentSystemPanel/VBoxContainer/SecurityLabel
 @onready var population_label: Label = $MainSplit/MarginContainer/VBoxContainer/CurrentSystemPanel/VBoxContainer/PopulationLabel
+@onready var dry_dock_label: Label = $MainSplit/MarginContainer/VBoxContainer/CurrentSystemPanel/VBoxContainer/DryDockLabel
+
 
 @onready var dock_button: Button = $MainSplit/MarginContainer/VBoxContainer/DockButton
 @onready var log_label: Label = $MainSplit/MarginContainer/VBoxContainer/LogLabel
@@ -40,6 +42,7 @@ func _refresh_ui() -> void:
 		system_type_label.text = ""
 		security_label.text = ""
 		population_label.text = ""
+		dry_dock_label.text = ""
 	else:
 		var system: Dictionary = Galaxy.get_system(sys_id)
 		if system.is_empty():
@@ -47,6 +50,7 @@ func _refresh_ui() -> void:
 			system_type_label.text = ""
 			security_label.text = ""
 			population_label.text = ""
+			dry_dock_label.text = ""
 		else:
 			var sys_name: String = system.get("name", "???")
 			var sys_type: String = system.get("system_type", "unknown")
@@ -57,6 +61,9 @@ func _refresh_ui() -> void:
 			system_type_label.text = "Type: %s" % sys_type
 			security_label.text = "Security: %s" % sys_sec
 			population_label.text = "Population: %s" % _format_population(sys_pop)
+
+			var has_drydock: bool = Galaxy.system_has_drydock(sys_id)
+			dry_dock_label.text = "Dry Dock: %s" % ("Yes" if has_drydock else "No")
 
 	# refresh market panel for current system
 	if is_instance_valid(market_panel) and market_panel.has_method("refresh_all"):

@@ -38,12 +38,14 @@ func _build_system_entries() -> void:
 		var name: String = system.get("name", sys_id)
 		var stype: String = system.get("system_type", "unknown")
 		var sec: String = system.get("security_level", "medium")
+		var has_drydock: bool = Galaxy.system_has_drydock(sys_id)
 
 		all_system_entries.append({
 			"id": sys_id,
 			"name": name,
 			"type": stype,
-			"security": sec
+			"security": sec,
+			"drydock": has_drydock
 		})
 
 
@@ -64,7 +66,10 @@ func _refresh_systems_list(filter_text: String) -> void:
 			if not haystack.contains(filter_text):
 				continue
 
+		#format system list entry
 		var label := "%s (%s) - %s" % [name, stype, sec]
+		if entry["drydock"]:
+			label+= " [DRY DOCK]"
 
 		var is_here: bool = (sys_id == current_id)
 		var has_contract: bool = contract_dest_ids.has(sys_id)

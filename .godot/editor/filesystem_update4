@@ -19,3 +19,5 @@ res://ui/ContractPanel.gd
 res://scenes/ContractsPanel.tscn
 res://ui/MainMenuPanel.gd
 res://scenes/MainMenuPanel.tscn
+res://ui/ShipPanel.gd
+res://scenes/ShipPanel.tscn

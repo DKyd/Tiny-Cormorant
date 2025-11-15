@@ -60,6 +60,9 @@ layout_mode = 2
 [node name="PopulationLabel" type="Label" parent="MainSplit/MarginContainer/VBoxContainer/CurrentSystemPanel/VBoxContainer"]
 layout_mode = 2
 
+[node name="DryDockLabel" type="Label" parent="MainSplit/MarginContainer/VBoxContainer/CurrentSystemPanel/VBoxContainer"]
+layout_mode = 2
+
 [node name="DockButton" type="Button" parent="MainSplit/MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Undock / Open Map
