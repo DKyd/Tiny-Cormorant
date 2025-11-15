@@ -73,5 +73,10 @@ text = "Log:"
 layout_mode = 2
 size_flags_vertical = 3
 
+[node name="MenuButton" type="Button" parent="MainSplit/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Menu
+"
+
 [node name="MarketPanel" parent="MainSplit" instance=ExtResource("2_d0ode")]
 layout_mode = 2

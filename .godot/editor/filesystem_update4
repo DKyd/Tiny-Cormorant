@@ -17,3 +17,5 @@ res://ui/JobBoardPanel.gd
 res://scenes/JobBoardPanel.tscn
 res://ui/ContractPanel.gd
 res://scenes/ContractsPanel.tscn
+res://ui/MainMenuPanel.gd
+res://scenes/MainMenuPanel.tscn

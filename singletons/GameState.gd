@@ -160,3 +160,51 @@ func abandon_contract(contract_id: String) -> void:
         remaining.append(c)
 
     active_contracts = remaining
+
+func save_game() -> void:
+    var path := "user://savegame.dat"
+    var file := FileAccess.open(path, FileAccess.WRITE)
+    if file == null:
+        push_error("Failed to open save file for writing.")
+        return
+
+    var data := {
+        "current_system_id": current_system_id,
+        "player_money": player_money,
+        "cargo": cargo,
+        "active_contracts": active_contracts,
+        "galaxy_systems": Galaxy.systems,
+    }
+
+    file.store_var(data, true)
+    Log.add("Game saved.")
+
+
+func load_game() -> void:
+    var path := "user://savegame.dat"
+    if not FileAccess.file_exists(path):
+        Log.add("No save file found.")
+        return
+
+    var file := FileAccess.open(path, FileAccess.READ)
+    if file == null:
+        push_error("Failed to open save file for reading.")
+        return
+
+    var data: Dictionary = file.get_var(true)
+
+    current_system_id = data.get("current_system_id", current_system_id)
+    player_money = data.get("player_money", player_money)
+    cargo = data.get("cargo", {})
+    active_contracts = data.get("active_contracts", [])
+
+    var saved_systems: Dictionary = data.get("galaxy_systems", {})
+    if not saved_systems.is_empty():
+        Galaxy.systems = saved_systems
+
+    # Safety: ensure we end up in a valid system
+    if current_system_id == "" or Galaxy.get_system(current_system_id).is_empty():
+        _ensure_starting_system()
+
+    Log.add("Game loaded.")
+    emit_signal("system_changed", current_system_id)
