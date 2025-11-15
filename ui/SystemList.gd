@@ -1,4 +1,4 @@
-# res://ui/SystemList.gd
+# res://scenes/SystemList.gd
 extends Control
 
 @onready var title_label: Label = $MainSplit/MarginContainer/VBoxContainer/TitleLabel
@@ -19,13 +19,13 @@ func _ready() -> void:
 
     GameState._ensure_starting_system()
 
-	# listne for system changes
+    # react to system changes (travel, auto-travel, etc.)
     GameState.system_changed.connect(_on_system_changed)
 
-    # listen for log updates
+    # react to new log messages
     Log.message_added.connect(_on_log_message_added)
 
-    # dock / open map
+    # open/close map
     dock_button.pressed.connect(_on_DockButton_pressed)
 
     _refresh_ui()
@@ -56,7 +56,7 @@ func _refresh_ui() -> void:
             security_label.text = "Security: %s" % sys_sec
             population_label.text = "Population: %s" % _format_population(sys_pop)
 
-    # refresh market panel for this system
+    # refresh market panel for current system
     if is_instance_valid(market_panel) and market_panel.has_method("refresh_all"):
         market_panel.refresh_all()
 
@@ -68,9 +68,10 @@ func _refresh_log() -> void:
     log_list.clear()
     for msg in Log.messages:
         log_list.add_item(msg)
-    # optional: keep last message in view
-    if log_list.get_item_count() > 0:
-        log_list.select(log_list.get_item_count() - 1)
+
+    var count: int = log_list.get_item_count()
+    if count > 0:
+        log_list.select(count - 1)
         log_list.ensure_current_is_visible()
 
 
@@ -86,6 +87,10 @@ func _on_log_message_added() -> void:
     _refresh_log()
 
 
+func _on_system_changed(new_system_id: String) -> void:
+    _refresh_ui()
+
+
 func _on_DockButton_pressed() -> void:
     var map_panel_scene: PackedScene = load("res://scenes/MapPanel.tscn")
     if map_panel_scene == null:
@@ -95,8 +100,6 @@ func _on_DockButton_pressed() -> void:
     var map_panel: Control = map_panel_scene.instantiate()
     add_child(map_panel)
 
+    # Godot 4: anchors + offsets preset to fill parent
     map_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
     map_panel.set_offsets_preset(Control.PRESET_FULL_RECT)
-
-func _on_system_changed(new_system_id: String) -> void:
-    _refresh_ui()

@@ -8,17 +8,17 @@ extends Control
 @onready var set_course_button: Button = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer2/SetCourseButton
 @onready var close_button: Button = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer2/CloseButton
 @onready var info_label: Label = $PanelContainer/MarginContainer/VBoxContainer/InfoLabel
-@onready var cargo_list: ItemList = $MarginContainer/VBoxContainer/CargoList  # keep this if not already there
 
-var all_system_entries: Array = []  # array of { id, name, type, security }
+var all_system_entries: Array = [] # array of { id, name, type, security }
+var contract_dest_ids: Array = []
 
 func _ready() -> void:
 	title_label.text = "Galaxy Map"
 	close_button.text = "Dock"
 
 	_build_system_entries()
+	_rebuild_contract_destinations()
 	_refresh_systems_list("")
-	
 
 	search_box.text_changed.connect(_on_search_text_changed)
 	search_clear_button.pressed.connect(_on_search_clear_pressed)
@@ -65,11 +65,22 @@ func _refresh_systems_list(filter_text: String) -> void:
 				continue
 
 		var label := "%s (%s) - %s" % [name, stype, sec]
+
+		var is_here: bool = (sys_id == current_id)
+		var has_contract: bool = contract_dest_ids.has(sys_id)
+
+		if has_contract and is_here:
+			label += "  [HERE, CONTRACT]"
+		elif has_contract:
+			label += "  [CONTRACT]"
+		elif is_here:
+			label += "  [HERE]"
+
 		var idx := systems_list.add_item(label)
-		# mark current system visually
-		if sys_id == current_id:
+
+		if is_here:
 			systems_list.set_item_disabled(idx, true)
-			systems_list.set_item_text(idx, label + "  [HERE]")
+
 		systems_list.set_item_metadata(idx, sys_id)
 
 	info_label.text = "Select a system and press Set Course."
@@ -87,13 +98,24 @@ func _on_search_clear_pressed() -> void:
 func _on_system_selected(index: int) -> void:
 	if index < 0:
 		return
+
 	var sys_id: String = str(systems_list.get_item_metadata(index))
 	var path: Array = Galaxy.find_path(GameState.current_system_id, sys_id)
 	if path.is_empty() or path.size() < 2:
 		info_label.text = "No route from here to that system."
-	else:
-		var hops := path.size() - 1
-		info_label.text = "Route found: %d jumps." % hops
+		return
+
+	var hops := path.size() - 1
+	var msg := "Route found: %d jumps." % hops
+
+	var contract_count := _count_contracts_to_system(sys_id)
+	if contract_count > 0:
+		msg += "  (%d active contract%s here.)" % [
+			contract_count,
+			"s" if contract_count != 1 else ""
+		]
+
+	info_label.text = msg
 
 
 func _on_set_course_pressed() -> void:
@@ -124,3 +146,23 @@ func _on_set_course_pressed() -> void:
 
 func _on_close_pressed() -> void:
 	queue_free()
+
+func _rebuild_contract_destinations() -> void:
+	contract_dest_ids.clear()
+
+	for contract_variant in GameState.active_contracts:
+		var c: Dictionary = contract_variant
+		var dest_id: String = str(c.get("destination", ""))
+		if dest_id == "":
+			continue
+		if not contract_dest_ids.has(dest_id):
+			contract_dest_ids.append(dest_id)
+
+
+func _count_contracts_to_system(sys_id: String) -> int:
+	var count := 0
+	for contract_variant in GameState.active_contracts:
+		var c: Dictionary = contract_variant
+		if str(c.get("destination", "")) == sys_id:
+			count += 1
+	return count

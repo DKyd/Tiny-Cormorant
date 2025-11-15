@@ -15,3 +15,5 @@ res://scenes/MapPanel.tscn
 res://singletons/Contracts.gd
 res://ui/JobBoardPanel.gd
 res://scenes/JobBoardPanel.tscn
+res://ui/ContractPanel.gd
+res://scenes/ContractsPanel.tscn

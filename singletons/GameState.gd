@@ -47,13 +47,12 @@ func travel_to_system(new_system_id: String) -> void:
     player_money -= cost
     current_system_id = new_system_id
     
-	# checks for contract fulfillment on arrival
-    check_travel_contracts_at(current_system_id)
-
     Log.add("Traveled to %s (-%.0f cr)" % [new_system_id, cost])
     emit_signal("system_changed", current_system_id)
     print("Traveled to system: %s (cost %.0f, remaining %.0f)" % [new_system_id, cost, player_money])
 
+	# checks for contract fulfillment on arrival
+    check_travel_contracts_at(current_system_id)
 
 func get_cargo_quantity(commodity_id: String) -> int:
     return int(cargo.get(commodity_id, 0))
@@ -143,5 +142,21 @@ func check_travel_contracts_at(system_id: String) -> void:
         var dest_name: String = contract.get("destination_name", dest_id)
         player_money += reward
         Log.add("Completed contract to %s, earned %.0f cr." % [dest_name, reward])
+
+    active_contracts = remaining
+
+func abandon_contract(contract_id: String) -> void:
+    if contract_id == "":
+        return
+
+    var remaining: Array = []
+    for contract_variant in active_contracts:
+        var c: Dictionary = contract_variant
+        var id: String = c.get("id", "")
+        if id == contract_id:
+            var dest_name: String = c.get("destination_name", c.get("destination", "???"))
+            Log.add("Abandoned contract to %s." % dest_name)
+            continue
+        remaining.append(c)
 
     active_contracts = remaining
