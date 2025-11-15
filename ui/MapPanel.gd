@@ -110,17 +110,12 @@ func _on_system_selected(index: int) -> void:
 		info_label.text = "No route from here to that system."
 		return
 
-	var hops := path.size() - 1
-	var msg := "Route found: %d jumps." % hops
+	var hops: int = path.size() - 1
+	var cost: float = _estimate_route_cost(path)
+	var engine_level: int = GameState.ship_engine_level
 
-	var contract_count := _count_contracts_to_system(sys_id)
-	if contract_count > 0:
-		msg += "  (%d active contract%s here.)" % [
-			contract_count,
-			"s" if contract_count != 1 else ""
-		]
-
-	info_label.text = msg
+	info_label.text = "Route found: %d jumps, est cost %.0f cr (Engine L%d)." \
+		% [hops, cost, engine_level]
 
 
 func _on_set_course_pressed() -> void:
@@ -171,3 +166,17 @@ func _count_contracts_to_system(sys_id: String) -> int:
 		if str(c.get("destination", "")) == sys_id:
 			count += 1
 	return count
+
+func _estimate_route_cost(path: Array) -> float:
+	# path is an array of system IDs in order
+	if path.size() < 2:
+		return 0.0
+
+	var total_cost: float = 0.0
+
+	# For each hop, cost is based on the destination system of that hop
+	for i in range(1, path.size()):
+		var dest_id: String = str(path[i])
+		total_cost += GameState.get_travel_cost(dest_id)
+
+	return total_cost

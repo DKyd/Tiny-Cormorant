@@ -5,9 +5,9 @@ var current_system_id: String = ""
 var player_money: float = 10_000.0  # starter money
 
 # travel cost tuning
-var low_security_travel_cost: float = 30.0
-var medium_security_travel_cost: float = 50.0
-var high_security_travel_cost: float = 80.0
+var low_security_travel_cost: float = 50.0
+var medium_security_travel_cost: float = 100.0
+var high_security_travel_cost: float = 150.0
 
 # Contracts offered in system
 var active_contracts: Array = []  # array of contract dictionaries
@@ -111,13 +111,14 @@ func get_travel_cost(dest_system_id: String) -> float:
 		_:
 			base_cost = medium_security_travel_cost
 
-	# Apply engine discount: each level reduces cost up to a floor of 50%
+	# Engine discount: each level above 1 reduces cost by engine_discount_per_level
+	# Example with 0.1:
+	#   L1 -> 1.0x, L2 -> 0.9x, L3 -> 0.8x, ...
 	var level: int = ship_engine_level
 	var discount: float = engine_discount_per_level * float(level - 1)
-	var multiplier: float = max(0.5, 1.0 - discount)
+	var multiplier: float = max(0.5, 1.0 - discount)  # floor at 50% of base
 
 	return base_cost * multiplier
-
 
 
 func auto_travel(path: Array) -> void:
