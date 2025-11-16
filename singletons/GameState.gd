@@ -82,8 +82,23 @@ func get_cargo_quantity(commodity_id: String) -> int:
 func add_cargo(commodity_id: String, quantity: int) -> void:
 	if quantity == 0:
 		return
+
 	var current_qty: int = get_cargo_quantity(commodity_id)
 	cargo[commodity_id] = current_qty + quantity
+
+	# Notify UI that ship state has changed (cargo counts, capacity usage, etc.)
+	emit_signal("ship_changed")
+
+
+func remove_cargo(commodity_id: String, quantity: int) -> void:
+	if quantity <= 0:
+		return
+
+	var current_qty: int = get_cargo_quantity(commodity_id)
+	var new_qty: int = max(0, current_qty - quantity)
+	cargo[commodity_id] = new_qty
+
+	emit_signal("ship_changed")
 
 
 func get_total_cargo_weight() -> float:
@@ -169,12 +184,22 @@ func check_travel_contracts_at(system_id: String) -> void:
 			remaining.append(contract)
 			continue
 
+		# This contract is being completed at this system
 		var reward: float = float(contract.get("reward", 0.0))
 		var dest_name: String = contract.get("destination_name", dest_id)
 		player_money += reward
+
+		# Remove its cargo from the hold
+		clear_contract_cargo(contract)
+
+		# Mark freight docs for this contract as completed
+		var cid: String = contract.get("id", "")
+		_mark_docs_completed_for_contract(cid)
+
 		Log.add("Completed contract to %s, earned %.0f cr." % [dest_name, reward])
 
 	active_contracts = remaining
+
 
 func abandon_contract(contract_id: String) -> void:
 	if contract_id == "":
@@ -214,7 +239,7 @@ func save_game() -> void:
 
 		#freight doc stuff
 		"freight_docs": freight_docs,
-    	"next_freight_doc_id": next_freight_doc_id,
+		"next_freight_doc_id": next_freight_doc_id,
 	}
 
 	file.store_var(data, true)
@@ -322,6 +347,29 @@ func create_freight_doc_for_contract(contract: Dictionary) -> Dictionary:
 	var origin_id: String = contract.get("origin", current_system_id)
 	var dest_id: String = contract.get("destination", "")
 
+	var cargo_lines: Array = []
+
+	# If the contract already has a cargo_lines array, copy it
+	if contract.has("cargo_lines"):
+		for line_variant in contract["cargo_lines"]:
+			var line: Dictionary = line_variant
+			var commodity_id: String = str(line.get("commodity_id", ""))
+			var qty: int = int(line.get("declared_qty", 0))
+			if commodity_id != "" and qty > 0:
+				cargo_lines.append({
+					"commodity_id": commodity_id,
+					"declared_qty": qty,
+				})
+	# Otherwise, fall back to simple single-line cargo
+	elif contract.has("commodity_id") and contract.has("quantity"):
+		var commodity_id: String = str(contract.get("commodity_id", ""))
+		var qty: int = int(contract.get("quantity", 0))
+		if commodity_id != "" and qty > 0:
+			cargo_lines.append({
+				"commodity_id": commodity_id,
+				"declared_qty": qty,
+			})
+
 	var doc := {
 		"doc_id": doc_id,
 		"contract_id": contract.get("id", ""),
@@ -330,14 +378,21 @@ func create_freight_doc_for_contract(contract: Dictionary) -> Dictionary:
 		"origin_system_id": origin_id,
 		"destination_system_id": dest_id,
 
-		# placeholder, we’ll use this when contracts specify cargo
-		"cargo_lines": [],
+		"cargo_lines": cargo_lines,
 	}
+
+	print("Creating freight doc from contract: ", contract)
+	print("Freight doc cargo_lines: ", cargo_lines)
 
 	freight_docs.append(doc)
 
+	print("All freight docs now: ", freight_docs)
+	#Log.add("DEBUG: Created freight doc %s with %d cargo_lines."
+	#% [doc_id, cargo_lines.size()])
+
 	Log.add("Created freight document %s for contract to %s." % [doc_id, dest_id])
 	return doc
+
 
 func get_docs_for_contract(contract_id: String) -> Array:
 	var result: Array = []
@@ -355,3 +410,42 @@ func get_docs_for_destination(system_id: String) -> Array:
 		if doc.get("destination_system_id", "") == system_id and doc.get("status", "active") == "active":
 			result.append(doc)
 	return result
+
+func load_contract_cargo(contract: Dictionary) -> void:
+	# Use same logic as create_freight_doc_for_contract
+	if contract.has("cargo_lines"):
+		for line_variant in contract["cargo_lines"]:
+			var line: Dictionary = line_variant
+			var commodity_id: String = str(line.get("commodity_id", ""))
+			var qty: int = int(line.get("declared_qty", 0))
+			if commodity_id != "" and qty > 0:
+				add_cargo(commodity_id, qty)
+	elif contract.has("commodity_id") and contract.has("quantity"):
+		var commodity_id: String = str(contract.get("commodity_id", ""))
+		var qty: int = int(contract.get("quantity", 0))
+		if commodity_id != "" and qty > 0:
+			add_cargo(commodity_id, qty)
+
+
+func clear_contract_cargo(contract: Dictionary) -> void:
+	# Uses the same cargo_lines structure as the freight doc / contract
+	if contract.has("cargo_lines"):
+		for line_variant in contract["cargo_lines"]:
+			var line: Dictionary = line_variant
+			var cid: String = str(line.get("commodity_id", ""))
+			var qty: int = int(line.get("declared_qty", 0))
+			if cid != "" and qty > 0:
+				# Remove up to the declared amount; if the player sold some,
+				# this will just clamp at 0.
+				remove_cargo(cid, qty)
+
+
+func _mark_docs_completed_for_contract(contract_id: String) -> void:
+	if contract_id == "":
+		return
+
+	for i in range(freight_docs.size()):
+		var doc: Dictionary = freight_docs[i]
+		if doc.get("contract_id", "") == contract_id:
+			doc["status"] = "completed"
+			freight_docs[i] = doc

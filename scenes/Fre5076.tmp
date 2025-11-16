@@ -36,7 +36,6 @@ text = "Active and Archive Docs"
 
 [node name="DocsList" type="ItemList" parent="PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
-size_flags_vertical = 3
 
 [node name="HintLabel" type="Label" parent="PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2

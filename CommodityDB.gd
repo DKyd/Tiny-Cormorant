@@ -227,4 +227,4 @@ static func get_all_ids() -> Array:
     return COMMODITIES.keys()
 
 static func get_commodity(id: String) -> Dictionary:
-    return COMMODITIES.get(id, null)
+    return COMMODITIES.get(id, {})

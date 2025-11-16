@@ -20,7 +20,7 @@ func run_entry_check(system_id: String) -> void:
 	var sec: String = system.get("security_level", "medium")
 	var chance: float = float(inspection_chance.get(sec, 0.3))
 
-	# roll inspection
+	# roll inspection 
 	if randf() > chance:
 		return  # no customs check this time
 

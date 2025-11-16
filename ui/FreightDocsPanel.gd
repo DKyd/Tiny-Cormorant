@@ -10,6 +10,11 @@ extends Control
 
 func _ready() -> void:
 	title_label.text = "Freight Documents"
+
+	docs_list.select_mode = ItemList.SELECT_SINGLE #forces list to be selectable
+	docs_list.focus_mode = Control.FOCUS_ALL #forces keyboard focus
+	docs_list.mouse_filter = Control.MOUSE_FILTER_STOP #ensures that mouse filter responds to click
+
 	_refresh_list()
 	_update_hint()
 
@@ -19,6 +24,8 @@ func _ready() -> void:
 
 func _refresh_list() -> void:
 	docs_list.clear()
+
+	print("FreightDocsPanel: refreshing list. Docs in GameState: ", GameState.freight_docs.size())
 
 	if GameState.freight_docs.is_empty():
 		info_label.text = "No freight documents yet."
@@ -47,21 +54,29 @@ func _refresh_list() -> void:
 		var label := "[%s] %s → %s  (%s)" \
 			% [doc_id, origin_name, dest_name, status]
 
+		print("FreightDocsPanel: adding item ", index, " label=", label)
+
 		var item_index := docs_list.add_item(label)
 
 		# Store the doc index or doc_id as metadata for later selection
 		docs_list.set_item_metadata(item_index, index)
 		index += 1
 
+	print("FreightDocsPanel: added ", docs_list.item_count, " items to docs_list.")	
+	print("FreightDocsPanel: docs_list.item_count = ", docs_list.item_count)
+
 
 func _update_hint() -> void:
 	if GameState.freight_docs.is_empty():
 		hint_label.text = "Docs are created when you accept contracts from the job board."
 	else:
-		hint_label.text = "Select a document to see more details in the log (future feature)."
+		hint_label.text = "Select a document to see more details in the log."
 
 
 func _on_DocsList_item_selected(index: int) -> void:
+
+	#Log.add("_on_DockList_item_selected")
+
 	# For now, we just log a bit of info when the player selects a doc.
 	var meta = docs_list.get_item_metadata(index)
 	if meta == null:
@@ -86,6 +101,19 @@ func _on_DocsList_item_selected(index: int) -> void:
 
 	Log.add("Doc %s (contract %s): %s → %s, status=%s."
 		% [doc_id, contract_id, origin_name, dest_name, status])
+
+	var cargo_lines: Array = doc.get("cargo_lines", [])
+	if cargo_lines.is_empty():
+		Log.add("Doc %s has no declared cargo." % doc_id)
+	else:
+		var parts: Array = []
+		for line_variant in cargo_lines:
+			var line: Dictionary = line_variant
+			var cid: String = line.get("commodity_id", "?")
+			var qty: int = int(line.get("declared_qty", 0))
+			parts.append("%d x %s" % [qty, cid])
+
+		Log.add("Doc %s cargo: %s" % [doc_id, ", ".join(parts)])
 
 
 func _on_CloseButton_pressed() -> void:
