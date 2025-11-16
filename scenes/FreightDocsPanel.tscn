@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://b3a6dx4ocbfmc"]
 
-[ext_resource type="Script" path="res://ui/FreightDocsPanel.gd" id="1_rl64s"]
+[ext_resource type="Script" path="res://scripts/FreightDocsPanel.gd" id="1_rl64s"]
 
 [node name="FreightDocsPanel" type="Control"]
 layout_mode = 3

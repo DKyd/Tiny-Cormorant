@@ -26,3 +26,11 @@ res://ui/FreightDocsPanel.gd
 res://scenes/FreightDocsPanel.tscn
 res://CommodityDB.gd
 res://singletons/Economy.gd
+res://scripts/MainGame.gd
+res://scenes/MainGame.tscn
+res://scenes/CaptainsQuarters.tscn
+res://scripts/Bridge.gd
+res://scripts/Port.gd
+res://scenes/Port.tscn
+res://scenes/Bridge.tscn
+res://scripts/MarketPanel.gd

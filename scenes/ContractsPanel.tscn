@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://pqs4oqyejqo2"]
 
-[ext_resource type="Script" path="res://ui/ContractPanel.gd" id="1_6d6at"]
+[ext_resource type="Script" path="res://scripts/ContractPanel.gd" id="1_6d6at"]
 
 [node name="ContractsPanel" type="Control"]
 layout_mode = 3

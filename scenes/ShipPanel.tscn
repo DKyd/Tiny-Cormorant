@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://ck4tbgf1a6ibl"]
 
-[ext_resource type="Script" path="res://ui/ShipPanel.gd" id="1_asldo"]
+[ext_resource type="Script" path="res://scripts/ShipPanel.gd" id="1_asldo"]
 
 [node name="ShipPanel" type="Control"]
 layout_mode = 3

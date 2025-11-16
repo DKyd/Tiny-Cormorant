@@ -1,0 +1,58 @@
+[gd_scene load_steps=2 format=3 uid="uid://dd7y8ysmugn0q"]
+
+[ext_resource type="Script" path="res://scripts/MainGame.gd" id="1_malu4"]
+
+[node name="MainGame" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_malu4")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TopBar" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 4
+
+[node name="GameTitleLabel" type="Label" parent="VBoxContainer/TopBar"]
+layout_mode = 2
+text = "Tiny Cormorant"
+
+[node name="SystemLabel" type="Label" parent="VBoxContainer/TopBar"]
+layout_mode = 2
+text = "System: -"
+
+[node name="BridgeButton" type="Button" parent="VBoxContainer/TopBar"]
+layout_mode = 2
+text = "Bridge"
+
+[node name="PortButton" type="Button" parent="VBoxContainer/TopBar"]
+layout_mode = 2
+text = "Port"
+
+[node name="QuartersButton" type="Button" parent="VBoxContainer/TopBar"]
+layout_mode = 2
+text = "Captain's Quarters"
+
+[node name="HSeparator" type="HSeparator" parent="VBoxContainer/TopBar"]
+layout_mode = 2
+
+[node name="MoneyLabel" type="Label" parent="VBoxContainer/TopBar"]
+layout_mode = 2
+text = "Credits: 0"
+
+[node name="MainPanel" type="PanelContainer" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="MainViewContainer" type="Control" parent="VBoxContainer/MainPanel"]
+layout_mode = 2

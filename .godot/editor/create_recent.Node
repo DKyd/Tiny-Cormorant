@@ -1,11 +1,12 @@
+Control
+PanelContainer
 Button
+HBoxContainer
 Label
-ItemList
 VBoxContainer
 MarginContainer
-PanelContainer
-Control
-HBoxContainer
+HSeparator
+ItemList
 LineEdit
 HSplitContainer
 SpinBox

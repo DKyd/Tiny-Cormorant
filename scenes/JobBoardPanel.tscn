@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://c8c5ve1uxpxo5"]
 
-[ext_resource type="Script" path="res://ui/JobBoardPanel.gd" id="1_0fgjb"]
+[ext_resource type="Script" path="res://scripts/JobBoardPanel.gd" id="1_0fgjb"]
 
 [node name="JobBoardPanel" type="Control"]
 layout_mode = 3

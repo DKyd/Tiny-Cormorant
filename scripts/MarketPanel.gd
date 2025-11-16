@@ -4,7 +4,6 @@ extends Control
 # --- UI references ---
 
 @onready var title_label: Label = $MarginContainer/VBoxContainer/TitleLabel
-@onready var system_label: Label = $MarginContainer/VBoxContainer/SystemLabel
 
 @onready var commodities_list: ItemList = $MarginContainer/VBoxContainer/CommoditiesList
 @onready var cargo_list: ItemList = $MarginContainer/VBoxContainer/CargoList
@@ -17,11 +16,6 @@ extends Control
 @onready var player_money_label: Label = $MarginContainer/VBoxContainer/PlayerMoneyLabel
 @onready var cargo_weight_label: Label = $MarginContainer/VBoxContainer/CargoWeightLabel
 
-@onready var job_board_button: Button = $MarginContainer/VBoxContainer/JobBoardButton
-@onready var contracts_button: Button = $MarginContainer/VBoxContainer/ContractsButton
-@onready var ship_button: Button = $MarginContainer/VBoxContainer/ShipButton
-@onready var docs_button: Button = $MarginContainer/VBoxContainer/DocsButton
-
 # --- Market data ---
 
 # index in ItemList -> { id, name, price }
@@ -29,14 +23,26 @@ var entries: Array = []              # Array<Dictionary>
 var price_by_commodity: Dictionary = {}  # commodity_id -> price
 
 
+
 func _ready() -> void:
+	print("MarketPanel: _ready. current_system_id =", GameState.current_system_id)
+	
+	print("=== MarketPanel runtime tree ===")
+	print_tree_pretty()
+
 	title_label.text = "Market"
 
 	qty_spin.min_value = 1
 	qty_spin.max_value = 999
 	qty_spin.step = 1
 
-	# basic UX defaults
+	# Make lists expand and actually occupy vertical space
+	commodities_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	commodities_list.custom_minimum_size.y = 160
+
+	cargo_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	cargo_list.custom_minimum_size.y = 100
+
 	commodities_list.select_mode = ItemList.SELECT_SINGLE
 	commodities_list.mouse_filter = Control.MOUSE_FILTER_STOP
 
@@ -45,42 +51,21 @@ func _ready() -> void:
 
 	refresh_all()
 
-	# signals
-	buy_button.pressed.connect(_on_BuyButton_pressed)
-	sell_button.pressed.connect(_on_SellButton_pressed)
-	commodities_list.item_selected.connect(_on_CommoditiesList_item_selected)
-
-	job_board_button.pressed.connect(_on_JobBoardButton_pressed)
-	contracts_button.pressed.connect(_on_ContractsButton_pressed)
-	ship_button.pressed.connect(_on_ShipButton_pressed)
-	docs_button.pressed.connect(_on_DocsButton_pressed)
-
-	# listen for ship/system changes so UI stays in sync
-	GameState.ship_changed.connect(_on_ship_changed)
-	GameState.system_changed.connect(_on_system_changed)
+	print("MarketPanel: size after ready =", size)
+	print("MarketPanel: commodities_list size =", commodities_list.size)
+	print("MarketPanel: cargo_list size =", cargo_list.size)
+	print("MarketPanel: commodities_list rect =", commodities_list.get_rect())
 
 
 # --- Public refresh entrypoint ---
 
 func refresh_all() -> void:
-	_refresh_system_label()
 	_refresh_player_info()
 	_refresh_market_list()
 	_refresh_cargo_list()
 
 
 # --- Refresh helpers ---
-
-func _refresh_system_label() -> void:
-	var sys_id: String = GameState.current_system_id
-	if sys_id == "":
-		system_label.text = "System: (unknown)"
-		return
-
-	var system: Dictionary = Galaxy.get_system(sys_id)
-	var sys_name: String = system.get("name", sys_id)
-	system_label.text = "System: %s" % sys_name
-
 
 func _refresh_player_info() -> void:
 	player_money_label.text = "Credits: %.0f" % GameState.player_money
@@ -100,8 +85,9 @@ func _refresh_market_list() -> void:
 		return
 
 	var price_list: Array = Economy.get_price_list_for_system(sys_id)
-	# sort by commodity name
-	price_list.sort_custom(_sort_price_entries_by_name)
+
+	# Sort alphabetically by commodity name
+	price_list.sort_custom(Callable(self, "_sort_price_entries_by_name"))
 
 	for entry_variant in price_list:
 		var entry: Dictionary = entry_variant
@@ -121,7 +107,6 @@ func _refresh_market_list() -> void:
 			"price": price
 		}
 
-		# used by SELL, based on cargo selection
 		price_by_commodity[id] = price
 
 
@@ -147,14 +132,10 @@ func _refresh_cargo_list() -> void:
 
 # --- Sorting helper ---
 
-func _sort_price_entries_by_name(a: Dictionary, b: Dictionary) -> int:
+func _sort_price_entries_by_name(a: Dictionary, b: Dictionary) -> bool:
 	var name_a: String = a.get("name", "")
 	var name_b: String = b.get("name", "")
-	if name_a < name_b:
-		return -1
-	if name_a > name_b:
-		return 1
-	return 0
+	return name_a < name_b
 
 
 # --- BUY / SELL logic ---
@@ -279,69 +260,3 @@ func _on_ship_changed() -> void:
 func _on_system_changed(new_system_id: String) -> void:
 	# prices and system label change
 	refresh_all()
-
-
-# --- Buttons to open other panels ---
-
-func _on_JobBoardButton_pressed() -> void:
-	var scene: PackedScene = load("res://scenes/JobBoardPanel.tscn")
-	if scene == null:
-		push_error("Failed to load JobBoardPanel.tscn")
-		return
-
-	var panel: Control = scene.instantiate()
-	var root: Node = get_tree().current_scene
-	if root == null:
-		root = get_tree().root
-	root.add_child(panel)
-
-	if panel is Control:
-		panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-
-
-func _on_ContractsButton_pressed() -> void:
-	var scene: PackedScene = load("res://scenes/ContractsPanel.tscn")
-	if scene == null:
-		push_error("Failed to load ContractsPanel.tscn")
-		return
-
-	var panel: Control = scene.instantiate()
-	var root: Node = get_tree().current_scene
-	if root == null:
-		root = get_tree().root
-	root.add_child(panel)
-
-	if panel is Control:
-		panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-
-
-func _on_ShipButton_pressed() -> void:
-	var scene: PackedScene = load("res://scenes/ShipPanel.tscn")
-	if scene == null:
-		push_error("Failed to load ShipPanel.tscn")
-		return
-
-	var panel: Control = scene.instantiate()
-	var root: Node = get_tree().current_scene
-	if root == null:
-		root = get_tree().root
-	root.add_child(panel)
-
-	if panel is Control:
-		panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-
-
-func _on_DocsButton_pressed() -> void:
-	var scene: PackedScene = load("res://scenes/FreightDocsPanel.tscn")
-	if scene == null:
-		push_error("Failed to load FreightDocsPanel.tscn")
-		return
-
-	var panel: Control = scene.instantiate()
-	var root: Node = get_tree().current_scene
-	if root == null:
-		root = get_tree().root
-	root.add_child(panel)
-
-	if panel is Control:
-		panel.set_anchors_preset(Control.PRESET_FULL_RECT)

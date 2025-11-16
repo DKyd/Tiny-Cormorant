@@ -1,0 +1,73 @@
+[gd_scene load_steps=2 format=3 uid="uid://cv3mbmkoqnw6o"]
+
+[ext_resource type="Script" path="res://scripts/Port.gd" id="1_k33gy"]
+
+[node name="Port" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_k33gy")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="HeaderRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 4
+
+[node name="TitleLabel" type="Label" parent="MarginContainer/VBoxContainer/HeaderRow"]
+layout_mode = 2
+text = "Port"
+
+[node name="SystemInfoLabel" type="Label" parent="MarginContainer/VBoxContainer/HeaderRow"]
+layout_mode = 2
+
+[node name="Spacer" type="Control" parent="MarginContainer/VBoxContainer/HeaderRow"]
+layout_mode = 2
+
+[node name="ToBridgeButton" type="Button" parent="MarginContainer/VBoxContainer/HeaderRow"]
+layout_mode = 2
+text = "To Bridge"
+
+[node name="FacilitiesRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 4
+
+[node name="MarketButton" type="Button" parent="MarginContainer/VBoxContainer/FacilitiesRow"]
+layout_mode = 2
+text = "Market"
+
+[node name="ContractsButton" type="Button" parent="MarginContainer/VBoxContainer/FacilitiesRow"]
+layout_mode = 2
+text = "Contracts"
+
+[node name="ShipButton" type="Button" parent="MarginContainer/VBoxContainer/FacilitiesRow"]
+layout_mode = 2
+text = "Ship"
+
+[node name="DocsButton" type="Button" parent="MarginContainer/VBoxContainer/FacilitiesRow"]
+layout_mode = 2
+text = "Docs"
+
+[node name="FacilityPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="FacilityHost" type="Control" parent="MarginContainer/VBoxContainer/FacilityPanel"]
+layout_mode = 2

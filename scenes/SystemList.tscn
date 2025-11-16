@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://cjx38sqalbs4m"]
 
-[ext_resource type="Script" path="res://ui/SystemList.gd" id="1_xooho"]
+[ext_resource type="Script" path="res://scripts/SystemList.gd" id="1_xooho"]
 [ext_resource type="PackedScene" uid="uid://toalpfhdja6u" path="res://scenes/MarketPanel.tscn" id="2_d0ode"]
 
 [node name="SystemList (Control)" type="Control"]

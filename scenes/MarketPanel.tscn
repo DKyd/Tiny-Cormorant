@@ -1,8 +1,8 @@
 [gd_scene load_steps=2 format=3 uid="uid://toalpfhdja6u"]
 
-[ext_resource type="Script" path="res://ui/MarketPanel.gd" id="1_6t2nx"]
+[ext_resource type="Script" path="res://scripts/MarketPanel.gd" id="1_6t2nx"]
 
-[node name="MarketPanel (Control)" type="Control"]
+[node name="MarketPanel" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -29,9 +29,6 @@ layout_mode = 2
 [node name="TitleLabel" type="Label" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Market"
-
-[node name="SystemLabel" type="Label" parent="MarginContainer/VBoxContainer"]
-layout_mode = 2
 
 [node name="CommoditiesList" type="ItemList" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
@@ -71,23 +68,6 @@ text = "Currently in Cargo Hold:"
 [node name="CargoList" type="ItemList" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
-
-[node name="JobBoardButton" type="Button" parent="MarginContainer/VBoxContainer"]
-layout_mode = 2
-text = "Open Job Board"
-
-[node name="ContractsButton" type="Button" parent="MarginContainer/VBoxContainer"]
-layout_mode = 2
-text = "Open Contracts"
-
-[node name="DocsButton" type="Button" parent="MarginContainer/VBoxContainer"]
-layout_mode = 2
-text = "Freight Docs
-"
-
-[node name="ShipButton" type="Button" parent="MarginContainer/VBoxContainer"]
-layout_mode = 2
-text = "Ship"
 
 [connection signal="item_selected" from="MarginContainer/VBoxContainer/CommoditiesList" to="." method="_on_CommoditiesList_item_selected"]
 [connection signal="pressed" from="MarginContainer/VBoxContainer/HBoxContainer2/BuyButton" to="." method="_on_BuyButton_pressed"]
