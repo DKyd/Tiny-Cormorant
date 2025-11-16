@@ -80,6 +80,11 @@ text = "Open Job Board"
 layout_mode = 2
 text = "Open Contracts"
 
+[node name="DocsButton" type="Button" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Freight Docs
+"
+
 [node name="ShipButton" type="Button" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Ship"

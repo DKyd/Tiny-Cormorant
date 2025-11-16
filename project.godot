@@ -22,6 +22,7 @@ Galaxy="*res://singletons/Galaxy.gd"
 GameState="*res://singletons/GameState.gd"
 Economy="*res://singletons/Economy.gd"
 Contracts="*res://singletons/Contracts.gd"
+Customs="*res://singletons/Customs.gd"
 Log="*res://singletons/Log.gd"
 
 [dotnet]

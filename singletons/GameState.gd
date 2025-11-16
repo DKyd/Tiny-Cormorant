@@ -29,6 +29,10 @@ var cargo_hold_upgrade_base_cost: float = 1500.0
 var cargo_hold_capacity_bonus_per_level: float = 25.0
 var engine_discount_per_level: float = 0.1  # 10% travel cost discount per level
 
+# freight documentation models
+var freight_docs: Array = []          # array of freight doc dictionaries
+var next_freight_doc_id: int = 1
+
 signal system_changed(new_system_id: String)
 signal ship_changed
 
@@ -62,11 +66,14 @@ func travel_to_system(new_system_id: String) -> void:
 	current_system_id = new_system_id
 	
 	Log.add("Traveled to %s (-%.0f cr)" % [new_system_id, cost])
+	# customs runs entry check
+	Customs.run_entry_check(current_system_id)
+	# checks for contract fulfillment on arrival
+	check_travel_contracts_at(current_system_id)
+	#update ui  
 	emit_signal("system_changed", current_system_id)
 	print("Traveled to system: %s (cost %.0f, remaining %.0f)" % [new_system_id, cost, player_money])
 
-	# checks for contract fulfillment on arrival
-	check_travel_contracts_at(current_system_id)
 
 func get_cargo_quantity(commodity_id: String) -> int:
 	return int(cargo.get(commodity_id, 0))
@@ -204,6 +211,10 @@ func save_game() -> void:
 		"ship_engine_level": ship_engine_level,
 		"cargo_capacity_weight": cargo_capacity_weight,
 		"cargo_hold_level": cargo_hold_level,
+
+		#freight doc stuff
+		"freight_docs": freight_docs,
+    	"next_freight_doc_id": next_freight_doc_id,
 	}
 
 	file.store_var(data, true)
@@ -240,6 +251,10 @@ func load_game() -> void:
 
 	if current_system_id == "" or Galaxy.get_system(current_system_id).is_empty():
 		_ensure_starting_system()
+
+	#freight doc stuff
+	freight_docs = data.get("freight_docs", [])
+	next_freight_doc_id = int(data.get("next_freight_doc_id", next_freight_doc_id))
 
 	Log.add("Game loaded.")
 	emit_signal("system_changed", current_system_id)
@@ -299,3 +314,44 @@ func upgrade_cargo_hold() -> void:
 		% [cargo_hold_level, cargo_hold_capacity_bonus_per_level, cost])
 
 	emit_signal("ship_changed")
+
+func create_freight_doc_for_contract(contract: Dictionary) -> Dictionary:
+	var doc_id: String = "FDOC-%04d" % next_freight_doc_id
+	next_freight_doc_id += 1
+
+	var origin_id: String = contract.get("origin", current_system_id)
+	var dest_id: String = contract.get("destination", "")
+
+	var doc := {
+		"doc_id": doc_id,
+		"contract_id": contract.get("id", ""),
+		"status": "active",
+
+		"origin_system_id": origin_id,
+		"destination_system_id": dest_id,
+
+		# placeholder, we’ll use this when contracts specify cargo
+		"cargo_lines": [],
+	}
+
+	freight_docs.append(doc)
+
+	Log.add("Created freight document %s for contract to %s." % [doc_id, dest_id])
+	return doc
+
+func get_docs_for_contract(contract_id: String) -> Array:
+	var result: Array = []
+	for doc_variant in freight_docs:
+		var doc: Dictionary = doc_variant
+		if doc.get("contract_id", "") == contract_id:
+			result.append(doc)
+	return result
+
+
+func get_docs_for_destination(system_id: String) -> Array:
+	var result: Array = []
+	for doc_variant in freight_docs:
+		var doc: Dictionary = doc_variant
+		if doc.get("destination_system_id", "") == system_id and doc.get("status", "active") == "active":
+			result.append(doc)
+	return result

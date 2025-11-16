@@ -12,6 +12,7 @@ extends Control
 @onready var cargo_list: ItemList = $MarginContainer/VBoxContainer/CargoList
 @onready var job_board_button: Button = $MarginContainer/VBoxContainer/JobBoardButton
 @onready var contracts_button: Button = $MarginContainer/VBoxContainer/ContractsButton
+@onready var docs_button: Button = $MarginContainer/VBoxContainer/DocsButton
 @onready var ship_button: Button = $MarginContainer/VBoxContainer/ShipButton
 
 # index in ItemList -> commodity entry { id, name, price }
@@ -31,6 +32,7 @@ func _ready() -> void:
 	sell_button.pressed.connect(_on_SellButton_pressed)
 	job_board_button.pressed.connect(_on_JobBoardButton_pressed)
 	contracts_button.pressed.connect(_on_ContractsButton_pressed)
+	docs_button.pressed.connect(_on_DocsButton_pressed)
 	ship_button.pressed.connect(_on_ShipButton_pressed)
 	commodities_list.item_selected.connect(_on_CommoditiesList_item_selected)
 
@@ -262,3 +264,21 @@ func _on_ShipButton_pressed() -> void:
 
 func _on_ship_changed() -> void:
 	refresh_all()
+
+func _on_DocsButton_pressed() -> void:
+	var scene: PackedScene = load("res://scenes/FreightDocsPanel.tscn")
+	if scene == null:
+		push_error("Failed to load FreightDocsPanel.tscn")
+		return
+
+	var panel: Control = scene.instantiate()
+
+	# Add to the root so it overlays the whole UI
+	var root: Node = get_tree().current_scene
+	if root == null:
+		root = get_tree().root
+	root.add_child(panel)
+
+	if panel is Control:
+		panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+		panel.set_offsets_preset(Control.PRESET_FULL_RECT)

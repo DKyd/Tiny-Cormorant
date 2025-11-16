@@ -21,3 +21,6 @@ res://ui/MainMenuPanel.gd
 res://scenes/MainMenuPanel.tscn
 res://ui/ShipPanel.gd
 res://scenes/ShipPanel.tscn
+res://singletons/Customs.gd
+res://ui/FreightDocsPanel.gd
+res://scenes/FreightDocsPanel.tscn
