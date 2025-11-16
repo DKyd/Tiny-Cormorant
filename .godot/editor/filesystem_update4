@@ -25,3 +25,4 @@ res://singletons/Customs.gd
 res://ui/FreightDocsPanel.gd
 res://scenes/FreightDocsPanel.tscn
 res://CommodityDB.gd
+res://singletons/Economy.gd
