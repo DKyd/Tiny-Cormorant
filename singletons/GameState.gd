@@ -2,6 +2,8 @@
 extends Node
 
 var current_system_id: String = ""
+var current_location_id: String = ""
+
 var player_money: float = 10_000.0  # starter money
 
 # travel cost tuning
@@ -34,6 +36,7 @@ var freight_docs: Array = []          # array of freight doc dictionaries
 var next_freight_doc_id: int = 1
 
 signal system_changed(new_system_id: String)
+signal location_changed(new_location_id: String)
 signal ship_changed
 
 func _ready() -> void:
@@ -47,6 +50,24 @@ func _ensure_starting_system() -> void:
 	var ids: Array = Galaxy.get_all_system_ids()
 	if ids.size() > 0:
 		current_system_id = ids[0]
+
+	_ensure_starting_location() #Ensure location next
+
+
+func _ensure_starting_location() -> void:
+	if current_location_id != "":
+		return
+
+	if current_system_id == "":
+		return
+
+	var loc_ids: Array = Galaxy.get_location_ids_for_system(current_system_id)
+	if loc_ids.size() > 0:
+		# Take the first location as default “dock”
+		current_location_id = String(loc_ids[0])
+		emit_signal("location_changed", current_location_id)
+
+		check_travel_contracts_at(current_system_id, current_location_id)
 
 
 func travel_to_system(new_system_id: String) -> void:
@@ -64,14 +85,15 @@ func travel_to_system(new_system_id: String) -> void:
 
 	player_money -= cost
 	current_system_id = new_system_id
-	
+
+	# Reset & pick a default location in the new system
+	current_location_id = ""
+	_ensure_starting_location()
+
 	Log.add("Traveled to %s (-%.0f cr)" % [new_system_id, cost])
-	# customs runs entry check
-	Customs.run_entry_check(current_system_id)
-	# checks for contract fulfillment on arrival
-	check_travel_contracts_at(current_system_id)
-	#update ui  
 	emit_signal("system_changed", current_system_id)
+	emit_signal("location_changed", current_location_id)
+
 	print("Traveled to system: %s (cost %.0f, remaining %.0f)" % [new_system_id, cost, player_money])
 
 
@@ -143,6 +165,32 @@ func get_travel_cost(dest_system_id: String) -> float:
 	return base_cost * multiplier
 
 
+func set_current_location(loc_id: String) -> void:
+	if loc_id == "":
+		return
+
+	var loc: Dictionary = Galaxy.get_location(loc_id)
+	if loc.is_empty():
+		push_warning("Unknown location: %s" % loc_id)
+		return
+
+	var sys_id: String = loc.get("system_id", "")
+	if sys_id != "":
+		current_system_id = sys_id
+
+	current_location_id = loc_id
+	Log.add("Docked at %s." % loc.get("name", loc_id))
+	emit_signal("location_changed", current_location_id)
+
+	check_travel_contracts_at(current_system_id, current_location_id)
+
+
+func get_current_location() -> Dictionary:
+	if current_location_id == "":
+		return {}
+	return Galaxy.get_location(current_location_id)
+
+
 func auto_travel(path: Array) -> void:
 	# path is an array of system ids, including current and destination
 	if path.size() < 2:
@@ -172,28 +220,48 @@ func add_contract(contract: Dictionary) -> void:
 		int(contract.get("jumps", 0)),
 		float(contract.get("reward", 0.0))])
 
-func check_travel_contracts_at(system_id: String) -> void:
+
+func check_travel_contracts_at(system_id: String, location_id: String) -> void:
 	if active_contracts.is_empty():
 		return
 
 	var remaining: Array = []
+
 	for contract_variant in active_contracts:
 		var contract: Dictionary = contract_variant
-		var dest_id: String = contract.get("destination", "")
-		if dest_id == "" or dest_id != system_id:
+
+		var dest_sys_id: String = String(contract.get("destination", ""))
+		var dest_loc_id: String = String(contract.get("destination_location_id", ""))
+
+		var is_match := false
+
+		# If the contract specifies a destination location, require that.
+		if dest_loc_id != "":
+			is_match = (dest_loc_id == location_id)
+		else:
+			# Legacy / fallback: system-level match only
+			is_match = (dest_sys_id == system_id)
+
+		if not is_match:
 			remaining.append(contract)
 			continue
 
-		# This contract is being completed at this system
+		# This contract is being completed at this dock
 		var reward: float = float(contract.get("reward", 0.0))
-		var dest_name: String = contract.get("destination_name", dest_id)
+
+		var dest_name: String = String(
+			contract.get("destination_location_name",
+				contract.get("destination_name",
+					dest_sys_id))
+		)
+
 		player_money += reward
 
 		# Remove its cargo from the hold
 		clear_contract_cargo(contract)
 
 		# Mark freight docs for this contract as completed
-		var cid: String = contract.get("id", "")
+		var cid: String = String(contract.get("id", ""))
 		_mark_docs_completed_for_contract(cid)
 
 		Log.add("Completed contract to %s, earned %.0f cr." % [dest_name, reward])
@@ -225,21 +293,22 @@ func save_game() -> void:
 		return
 
 	var data := {
-		"current_system_id": current_system_id,
-		"player_money": player_money,
-		"cargo": cargo,
-		"active_contracts": active_contracts,
-		"galaxy_systems": Galaxy.systems,
+	"current_system_id": current_system_id,
+	"current_location_id": current_location_id,
+	"player_money": player_money,
+	"cargo": cargo,
+	"active_contracts": active_contracts,
+	"galaxy_systems": Galaxy.systems,
 
-		# ship-related
-		"ship_name": ship_name,
-		"ship_engine_level": ship_engine_level,
-		"cargo_capacity_weight": cargo_capacity_weight,
-		"cargo_hold_level": cargo_hold_level,
+	# ship-related
+	"ship_name": ship_name,
+	"ship_engine_level": ship_engine_level,
+	"cargo_capacity_weight": cargo_capacity_weight,
+	"cargo_hold_level": cargo_hold_level,
 
-		#freight doc stuff
-		"freight_docs": freight_docs,
-		"next_freight_doc_id": next_freight_doc_id,
+	# freight doc stuff
+	"freight_docs": freight_docs,
+	"next_freight_doc_id": next_freight_doc_id,
 	}
 
 	file.store_var(data, true)
@@ -260,6 +329,7 @@ func load_game() -> void:
 	var data: Dictionary = file.get_var(true)
 
 	current_system_id = data.get("current_system_id", current_system_id)
+	current_location_id = data.get("current_location_id", current_location_id)
 	player_money = data.get("player_money", player_money)
 	cargo = data.get("cargo", {})
 	active_contracts = data.get("active_contracts", [])
@@ -281,8 +351,16 @@ func load_game() -> void:
 	freight_docs = data.get("freight_docs", [])
 	next_freight_doc_id = int(data.get("next_freight_doc_id", next_freight_doc_id))
 
+	# Ensure we’re in a valid place
+	if current_system_id == "" or Galaxy.get_system(current_system_id).is_empty():
+		_ensure_starting_system()
+
+	if current_location_id == "" or Galaxy.get_location(current_location_id).is_empty():
+		_ensure_starting_location()
+
 	Log.add("Game loaded.")
 	emit_signal("system_changed", current_system_id)
+	emit_signal("location_changed", current_location_id)
 
 
 func get_engine_upgrade_cost() -> float:

@@ -1,51 +1,182 @@
 # res://singletons/Galaxy.gd
 extends Node
 
-var systems: Dictionary = {}  # id -> system dict
+##
+# Galaxy model:
+# - systems: star systems (warp graph, security, population)
+# - locations: stations/colonies within systems
+#
+# System structure (example):
+# {
+#   "id": "SYS_000",
+#   "name": "Forge-00",
+#   "system_type": "industrial",   # kept for compatibility
+#   "security_level": "medium",
+#   "population": 3_000_000,
+#   "neighbors": ["SYS_001", ...],
+#   "locations": ["LOC_000_00", "LOC_000_01"],
+#   "has_drydock": true
+# }
+#
+# Location structure (example):
+# {
+#   "id": "LOC_000_00",
+#   "system_id": "SYS_000",
+#   "name": "Forge Orbital Docks",
+#   "type": "industrial_refinery",
+#   "spaces": ["market", "gov_office", "dry_dock"],
+#   "economy_type": "industrial",
+#   "tariff_rate": 0.05,
+#   "factions": {},
+#   "description": "Flavor text"
+# }
+##
 
-# Tunables for MVP
+var systems: Dictionary = {}   # system_id -> system dict
+var locations: Dictionary = {} # location_id -> location dict
+
+# Tunables for MVP / early full-game work
 var target_system_count: int = 25
 var min_locations_per_system: int = 1
 var max_locations_per_system: int = 3
 
+# Location types you defined
+const LOCATION_TYPES := [
+	"corporate_colony",
+	"trade_hub",
+	"core_world",
+	"agricultural",
+	"mining",
+	"industrial_refinery",
+	"military",
+	"shipyard",
+	"tourist_hub",
+	"monastic",
+	"colony"
+]
+
+# Space weights by location type
+const SPACE_WEIGHTS := {
+	"corporate_colony": {
+		"market": 3,
+		"gov_office": 2,
+		"cantina": 2,
+		"back_room": 2,
+		"corp_office": 4,
+		"dry_dock": 2,
+	},
+	"trade_hub": {
+		"market": 4,
+		"gov_office": 2,
+		"cantina": 3,
+		"back_room": 3,
+		"corp_office": 2,
+		"dry_dock": 2,
+	},
+	"core_world": {
+		"market": 3,
+		"gov_office": 3,
+		"cantina": 2,
+		"back_room": 1,
+		"corp_office": 4,
+		"dry_dock": 2,
+	},
+	"agricultural": {
+		"market": 2,
+		"gov_office": 1,
+		"cantina": 2,
+		"back_room": 2,
+		"corp_office": 1,
+		"dry_dock": 1,
+	},
+	"mining": {
+		"market": 2,
+		"gov_office": 1,
+		"cantina": 3,
+		"back_room": 3,
+		"corp_office": 0,
+		"dry_dock": 2,
+	},
+	"industrial_refinery": {
+		"market": 2,
+		"gov_office": 2,
+		"cantina": 2,
+		"back_room": 2,
+		"corp_office": 2,
+		"dry_dock": 4,
+	},
+	"military": {
+		"market": 1,
+		"gov_office": 4,
+		"cantina": 1,
+		"back_room": 1,
+		"corp_office": 1,
+		"dry_dock": 4,
+	},
+	"shipyard": {
+		"market": 2,
+		"gov_office": 2,
+		"cantina": 2,
+		"back_room": 2,
+		"corp_office": 1,
+		"dry_dock": 4,
+	},
+	"tourist_hub": {
+		"market": 3,
+		"gov_office": 1,
+		"cantina": 4,
+		"back_room": 2,
+		"corp_office": 0,
+		"dry_dock": 1,
+	},
+	"monastic": {
+		"market": 1,
+		"gov_office": 1,
+		"cantina": 1,
+		"back_room": 1,
+		"corp_office": 0,
+		"dry_dock": 0,
+	},
+	"colony": {
+		"market": 2,
+		"gov_office": 1,
+		"cantina": 2,
+		"back_room": 2,
+		"corp_office": 0,
+		"dry_dock": 1,
+	},
+}
+
+
 func _ready() -> void:
-	# For now, generate on startup. Later you can load a seed/save.
+	# For now, generate on startup. Later you can load a seed/save instead.
 	generate_galaxy(target_system_count)
 
 
 func generate_galaxy(count: int) -> void:
 	systems.clear()
+	locations.clear()
 
-	# 1) Create systems with basic properties
+	# 1) Create systems with basic properties (similar to your old version)
 	for i in count:
 		var sys_id := "SYS_%03d" % i
 
-		var system_type := _pick_system_type(i, count)
+		var system_type := _pick_system_type(i, count) # kept for compatibility
 		var security := _pick_security(system_type)
 		var population := _generate_population(system_type)
-
-		# 👇 use your naming function
-		var sys_name := _generate_system_name(system_type, i)
-
-		# Decide if this system has a dry dock
-		var has_drydock: bool = false
-		if system_type in ["industrial", "core", "hub"]:
-			has_drydock = randf() < 0.5
-		else:
-			has_drydock = randf() < 0.05
+		var name := _generate_system_name(system_type, i)
 
 		var system: Dictionary = {
 			"id": sys_id,
-			"name": sys_name,          # 👈 now uses Pit-00 / Harvest-01 / etc
-			"system_type": system_type,
+			"name": name,
+			"system_type": system_type,     # still used by Economy / UI today
 			"security_level": security,
 			"population": population,
 			"neighbors": [],
-			"has_drydock": has_drydock,
+			"locations": [],                # filled after location generation
+			"has_drydock": false,           # updated based on locations
+			"factions": {},                 # reserved for later
 		}
-
-		# generate locations for this system
-		system["locations"] = _generate_locations_for_system(system)
 
 		systems[sys_id] = system
 
@@ -53,10 +184,31 @@ func generate_galaxy(count: int) -> void:
 	_connect_systems_line()
 	_add_extra_connections(2)
 
+	# 3) Generate locations for each system
+	for sys_id in systems.keys():
+		var sys: Dictionary = systems[sys_id]
+		var loc_ids: Array = _generate_locations_for_system(sys_id, sys)
+		sys["locations"] = loc_ids
+
+		# System-level has_drydock is true if ANY location has a dry_dock space
+		var has_drydock := false
+		for loc_id in loc_ids:
+			var loc: Dictionary = locations.get(loc_id, {})
+			if not loc.is_empty():
+				var spaces: Array = loc.get("spaces", [])
+				if "dry_dock" in spaces:
+					has_drydock = true
+					break
+
+		sys["has_drydock"] = has_drydock
+		systems[sys_id] = sys
+
+
 ## ----------- SYSTEM PROPERTY GENERATION -----------
 
 func _pick_system_type(index: int, total: int) -> String:
-	# Simple distribution: about 1/3 each, with some bias if you want.
+	# Simple distribution kept from earlier version for compatibility
+	# You can later refactor this away once everything uses locations instead.
 	var r := randi() % 5
 	match r:
 		0:
@@ -65,14 +217,13 @@ func _pick_system_type(index: int, total: int) -> String:
 			return "agri"
 		2:
 			return "industrial"
-		3: 
+		3:
 			return "hub"
 		_:
 			return "core"
-		
+
 
 func _pick_security(system_type: String) -> String:
-	# Simple heuristic: industrial a bit safer, mining/agri more mixed
 	var roll := randi() % 100
 	match system_type:
 		"industrial":
@@ -101,7 +252,6 @@ func _pick_security(system_type: String) -> String:
 
 
 func _generate_population(system_type: String) -> int:
-	# Very rough ranges by type
 	match system_type:
 		"mining":
 			return randi_range(200_000, 3_000_000)
@@ -110,7 +260,7 @@ func _generate_population(system_type: String) -> int:
 		"industrial":
 			return randi_range(2_000_000, 12_000_000)
 		_:
-			return randi_range(500_000, 5_000_000)
+			return randi_range(500_000, 8_000_000)
 
 
 func _generate_system_name(system_type: String, index: int) -> String:
@@ -122,68 +272,243 @@ func _generate_system_name(system_type: String, index: int) -> String:
 			prefix = "Harvest"
 		"industrial":
 			prefix = "Forge"
-		_:
+		"hub":
 			prefix = "Node"
+		"core":
+			prefix = "Core"
+		_:
+			prefix = "Sys"
 
 	return "%s-%02d" % [prefix, index]
 
 
 ## ----------- LOCATION GENERATION -----------
 
-func _generate_locations_for_system(system: Dictionary) -> Array:
-	var locations: Array = []
+func _generate_locations_for_system(system_id: String, system: Dictionary) -> Array:
+	var loc_ids: Array = []
 	var count := randi_range(min_locations_per_system, max_locations_per_system)
 
 	for i in count:
-		var loc_id := "%s_LOC_%02d" % [system["id"], i]
-		var loc_name := _generate_location_name(system, i)
+		var loc_id := "%s_LOC_%02d" % [system_id, i]
 
-		var has_dry_dock := false
-		var has_crew := false
+		var loc_type := _pick_location_type(system, i)
+		var spaces: Array = _pick_spaces_for_location(loc_type)
+		if spaces.is_empty():
+			# Guarantee at least a market for now.
+			spaces.append("market")
 
-		# Simple rules: some systems get dry docks, some get crew hubs
-		if i == 0 and system["system_type"] == "industrial":
-			has_dry_dock = true
-		elif i == 0 and system["system_type"] == "mining":
-			has_crew = true
-		else:
-			# small random chance anywhere
-			has_dry_dock = (randi() % 100) < 15
-			has_crew = (randi() % 100) < 25
+		var economy_type := _infer_economy_type_from_location_type(loc_type)
+		var name := _generate_location_name(system, loc_type, i)
+		var tariff_rate := _pick_tariff_rate(loc_type)
+		var description := _generate_location_flavor_text(loc_type, spaces)
 
 		var loc: Dictionary = {
 			"id": loc_id,
-			"name": loc_name,
-			"has_market": true,
-			"has_contracts_board": true,
-			"has_dry_dock": has_dry_dock,
-			"has_crew_hiring": has_crew
+			"system_id": system_id,
+			"name": name,
+			"type": loc_type,
+			"spaces": spaces,
+			"economy_type": economy_type,
+			"tariff_rate": tariff_rate,
+			"factions": {},      # filled later when we add factions
+			"description": description,
 		}
 
-		locations.append(loc)
+		locations[loc_id] = loc
+		loc_ids.append(loc_id)
 
-	return locations
+	return loc_ids
 
 
-func _generate_location_name(system: Dictionary, index: int) -> String:
-	var base := ""
-	match system["system_type"]:
+func _pick_location_type(system: Dictionary, index: int) -> String:
+	# Simple first pass:
+	# - bias based on system_type, but still allow all location types.
+	var sys_type: String = system.get("system_type", "mixed")
+
+	var candidates: Array = LOCATION_TYPES.duplicate()
+	# Tiny tweak: for now we just random-pick, but we could weight based on sys_type later.
+	var idx := randi() % candidates.size()
+	return candidates[idx]
+
+
+func _pick_spaces_for_location(loc_type: String) -> Array:
+	var result: Array = []
+
+	var weights: Dictionary = SPACE_WEIGHTS.get(loc_type, {})
+	var all_spaces: Array = [
+		"market",
+		"gov_office",
+		"cantina",
+		"back_room",
+		"corp_office",
+		"dry_dock"
+	]
+
+	for space_name in all_spaces:
+		var w := int(weights.get(space_name, 0))
+		var chance: float = 0.0
+
+		match w:
+			0:
+				chance = 0.0
+			1:
+				chance = 0.2
+			2:
+				chance = 0.4
+			3:
+				chance = 0.7
+			4:
+				chance = 0.9
+			_:
+				chance = 0.0
+
+		# Tiny global "weird chance" so rare combos can appear anywhere
+		if w == 0:
+			if randf() < 0.02:
+				result.append(space_name)
+		else:
+			if randf() < chance:
+				result.append(space_name)
+
+	# 🔷 Ensure uniqueness
+	var dict := {}
+	for item in result:
+		dict[item] = true
+
+	var keys: Array = dict.keys()
+	keys.sort()
+	result = keys
+
+	# 🔷 Make markets very common across all types
+	# If this location doesn't have a market, give it one ~85% of the time.
+	if not result.has("market"):
+		if randf() < 0.85:
+			result.append("market")
+			result.sort()
+
+	return result
+
+
+func _infer_economy_type_from_location_type(loc_type: String) -> String:
+	match loc_type:
+		"agricultural":
+			return "agri"
+		"mining":
+			return "mining"
+		"industrial_refinery":
+			return "industrial"
+		"corporate_colony", "trade_hub", "core_world":
+			return "mixed"
+		"shipyard":
+			return "industrial"
+		"military":
+			return "military"
+		"tourist_hub":
+			return "tourism"
+		"monastic":
+			return "religious"
+		"colony":
+			return "frontier"
+		_:
+			return "mixed"
+
+
+func _pick_tariff_rate(loc_type: String) -> float:
+	match loc_type:
+		"trade_hub", "core_world", "corporate_colony":
+			return 0.06
+		"military":
+			return 0.08
+		"shipyard", "industrial_refinery":
+			return 0.05
+		"tourist_hub":
+			return 0.04
+		"agricultural", "mining", "colony":
+			return 0.03
+		"monastic":
+			return 0.01
+		_:
+			return 0.04
+
+
+func _generate_location_name(system: Dictionary, loc_type: String, index: int) -> String:
+	var base: String = ""
+	match loc_type:
+		"corporate_colony":
+			base = "Colony"
+		"trade_hub":
+			base = "Exchange"
+		"core_world":
+			base = "Spire"
+		"agricultural":
+			base = "Agriport"
 		"mining":
 			base = "Station"
-		"agri":
-			base = "Agriport"
-		"industrial":
-			base = "Dock"
+		"industrial_refinery":
+			base = "Refinery"
+		"military":
+			base = "Garrison"
+		"shipyard":
+			base = "Yards"
+		"tourist_hub":
+			base = "Promenade"
+		"monastic":
+			base = "Cloister"
+		"colony":
+			base = "Outpost"
 		_:
 			base = "Port"
 
-	return "%s %d" % [base, index + 1]
+	var sys_name: String = system.get("name", "SYS")
+	return "%s %s-%02d" % [base, sys_name, index + 1]
+
+
+func _generate_location_flavor_text(loc_type: String, spaces: Array) -> String:
+	var has_market := "market" in spaces
+	var has_cantina := "cantina" in spaces
+	var has_back_room := "back_room" in spaces
+	var has_drydock := "dry_dock" in spaces
+	var has_gov := "gov_office" in spaces
+
+	match loc_type:
+		"mining":
+			if has_cantina:
+				return "Miners in dust-streaked jumpsuits crowd the bar, trading rumors between shifts."
+			else:
+				return "Ore haulers drift in lazy arcs outside, their holds full and hulls scored by rock fragments."
+		"agricultural":
+			if has_market:
+				return "Freight pallets of grain and produce line the concourse, bound for hungry core worlds."
+			else:
+				return "Local growers amble through a quiet terminal that smells faintly of soil and fertilizer."
+		"industrial_refinery":
+			if has_drydock:
+				return "Welders’ arcs flicker over half-skinned hulls while refined product moves in sealed containers."
+			else:
+				return "Pipelines and loading arms loom over the docks, pumping processed feedstock into waiting freighters."
+		"shipyard":
+			return "Skeletons of starships hang in scaffolding, every deck alive with the sound of tools and shouted orders."
+		"trade_hub":
+			return "Voices, signage, and cargo from a dozen systems collide in a restless, noisy exchange."
+		"core_world":
+			return "Polished decks, clean lighting, and uniformed staff give the terminal a veneer of effortless order."
+		"corporate_colony":
+			return "Company logos dominate every surface, from bulkheads to boarding passes."
+		"military":
+			return "Armed patrols and checkpoint scanners make it clear: this port answers to the chain of command."
+		"tourist_hub":
+			return "Holoads promise wonders beyond the airlock, while vendors hawk trinkets to passing travelers."
+		"monastic":
+			return "Quiet corridors echo with soft footsteps and the distant murmur of ritual chants."
+		"colony":
+			return "Half-finished bulkheads and improvised kiosks mark this as a frontier station still finding its shape."
+		_:
+			return "A functional but forgettable port, where cargo moves and nobody asks too many questions."
 
 
 ## ----------- WARP LANE CONNECTIONS -----------
 
 func _connect_systems_line() -> void:
-	# Connect all systems in a simple line so the graph is definitely connected.
 	var ids := systems.keys()
 	ids.sort()
 
@@ -237,11 +562,10 @@ func get_all_system_ids() -> Array:
 func get_neighbors(id: String) -> Array:
 	if not systems.has(id):
 		return []
-	return systems[id]["neighbors"]
+	return systems[id].get("neighbors", [])
 
 
 func find_path(start_id: String, target_id: String) -> Array:
-	# Breadth-first search on the systems graph.
 	if start_id == target_id:
 		return [start_id]
 
@@ -259,7 +583,7 @@ func find_path(start_id: String, target_id: String) -> Array:
 		if current == target_id:
 			break
 
-		var neighbors: Array = systems[current].get("neighbors", []) as Array
+		var neighbors: Array = systems[current].get("neighbors", [])
 		for neighbor_variant in neighbors:
 			var neighbor: String = str(neighbor_variant)
 			if not came_from.has(neighbor):
@@ -267,10 +591,8 @@ func find_path(start_id: String, target_id: String) -> Array:
 				queue.append(neighbor)
 
 	if not came_from.has(target_id):
-		# no path
 		return []
 
-	# Reconstruct path from target back to start
 	var path: Array = []
 	var node: String = target_id
 	while node != "":
@@ -284,4 +606,40 @@ func system_has_drydock(system_id: String) -> bool:
 	var system: Dictionary = get_system(system_id)
 	if system.is_empty():
 		return false
+
+	# Prefer location-based check now
+	var loc_ids: Array = system.get("locations", [])
+	for loc_id_variant in loc_ids:
+		var loc_id: String = str(loc_id_variant)
+		var loc: Dictionary = locations.get(loc_id, {})
+		if not loc.is_empty():
+			var spaces: Array = loc.get("spaces", [])
+			if "dry_dock" in spaces:
+				return true
+
+	# Fallback to old field, for safety
 	return bool(system.get("has_drydock", false))
+
+
+## ----------- LOCATION HELPERS -----------
+
+func get_location(loc_id: String) -> Dictionary:
+	return locations.get(loc_id, {})
+
+
+func get_location_ids_for_system(system_id: String) -> Array:
+	var system: Dictionary = get_system(system_id)
+	if system.is_empty():
+		return []
+	return system.get("locations", [])
+
+
+func get_locations_for_system(system_id: String) -> Array:
+	var result: Array = []
+	var ids: Array = get_location_ids_for_system(system_id)
+	for loc_id_variant in ids:
+		var loc_id: String = str(loc_id_variant)
+		var loc: Dictionary = locations.get(loc_id, {})
+		if not loc.is_empty():
+			result.append(loc)
+	return result

@@ -78,8 +78,64 @@ func generate_contracts_for_system(system_id: String, count: int = 3) -> Array:
 
 	return result
 
-# For now, a simple list of commodity IDs that exist in your CommodityDB.
-# 👉 You should replace these with real IDs from your CommodityDB.
+
+func generate_contracts_for_location(origin_loc_id: String, count: int = 3) -> Array:
+	var result: Array = []
+
+	# Look up the origin location
+	var origin_loc: Dictionary = Galaxy.get_location(origin_loc_id)
+	if origin_loc.is_empty():
+		# Fallback: use system-based generation if something goes wrong
+		var sys_id: String = GameState.current_system_id
+		return generate_contracts_for_system(sys_id, count)
+
+	var origin_sys_id: String = String(origin_loc.get("system_id", ""))
+	if origin_sys_id == "":
+		var sys_id: String = GameState.current_system_id
+		return generate_contracts_for_system(sys_id, count)
+
+	# Re-use the system-level generator for destinations / jumps / reward / cargo
+	var system_level_contracts: Array = generate_contracts_for_system(origin_sys_id, count)
+
+	for c_variant in system_level_contracts:
+		var c: Dictionary = c_variant
+		var dest_sys_id: String = String(c.get("destination", ""))
+		if dest_sys_id == "":
+			continue
+
+		var dest_locs: Array = Galaxy.get_locations_for_system(dest_sys_id)
+		if dest_locs.is_empty():
+			continue
+
+		# Prefer locations with a market
+		var market_locs: Array = []
+		for loc_variant in dest_locs:
+			var loc: Dictionary = loc_variant
+			var spaces: Array = loc.get("spaces", [])
+			if "market" in spaces:
+				market_locs.append(loc)
+
+		var chosen_dest_loc: Dictionary
+		if market_locs.size() > 0:
+			chosen_dest_loc = market_locs[randi() % market_locs.size()]
+		else:
+			chosen_dest_loc = dest_locs[randi() % dest_locs.size()]
+
+		var dest_loc_id: String = String(chosen_dest_loc.get("id", ""))
+		var dest_loc_name: String = String(chosen_dest_loc.get("name", dest_loc_id))
+
+		# Copy original contract and enrich it with location info
+		var enriched: Dictionary = c.duplicate(true)
+		enriched["origin_location_id"] = origin_loc_id
+		enriched["origin_location_name"] = String(origin_loc.get("name", origin_loc_id))
+		enriched["destination_location_id"] = dest_loc_id
+		enriched["destination_location_name"] = dest_loc_name
+
+		result.append(enriched)
+
+	return result
+
+
 const CONTRACT_COMMODITY_IDS := [
 	"chem_industrial",
 	"art_objects",

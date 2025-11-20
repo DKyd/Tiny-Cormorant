@@ -16,7 +16,9 @@ func _ready() -> void:
 	print("Port: _ready called")
 
 	title_label.text = "Port"
-	_refresh_system_info()
+
+	_refresh_header()
+	_refresh_facility_buttons()
 
 	# Debug prints to confirm the buttons are not null
 	print("Port: market_button =", market_button)
@@ -33,24 +35,91 @@ func _ready() -> void:
 	docs_button.pressed.connect(_on_DocsButton_pressed)
 
 	GameState.system_changed.connect(_on_system_changed)
+	GameState.location_changed.connect(_on_location_changed)
 
-	# Default view: Market
-	_show_market()
+	# Default view: show Market only if available at current location
+	if _location_has_space("market"):
+		_show_market()
+	else:
+		_clear_facility_host()
 
 
-func _refresh_system_info() -> void:
+# ---------------------------------------------------
+# INFO / HEADER
+# ---------------------------------------------------
+
+func _refresh_header() -> void:
 	var sys_id: String = GameState.current_system_id
+	var loc: Dictionary = GameState.get_current_location()
+
 	if sys_id == "":
 		system_info_label.text = "(unknown system)"
 		return
 
 	var system: Dictionary = Galaxy.get_system(sys_id)
-	var name: String = system.get("name", sys_id)
-	var stype: String = system.get("system_type", "unknown")
+	var sys_name: String = system.get("name", sys_id)
+	var sys_type: String = system.get("system_type", "unknown")
 	var sec: String = system.get("security_level", "medium")
 
-	system_info_label.text = "%s  [%s, %s]" % [name, stype.capitalize(), sec.capitalize()]
+	var loc_name: String = ""
+	var loc_type: String = ""
+	if not loc.is_empty():
+		loc_name = loc.get("name", "")
+		loc_type = loc.get("type", "")
 
+	if loc_name != "":
+		system_info_label.text = "%s / %s  [%s, %s]" % [
+			sys_name,
+			loc_name,
+			sys_type.capitalize(),
+			sec.capitalize()
+		]
+	else:
+		system_info_label.text = "%s  [%s, %s]" % [
+			sys_name,
+			sys_type.capitalize(),
+			sec.capitalize()
+		]
+
+
+func _location_has_space(space_name: String) -> bool:
+	var loc: Dictionary = GameState.get_current_location()
+	if loc.is_empty():
+		return false
+	var spaces: Array = loc.get("spaces", []) as Array
+	return space_name in spaces
+
+
+func _refresh_facility_buttons() -> void:
+	# Enable/disable buttons based on location spaces.
+	# This is where "location type" starts to matter.
+
+	var has_market := _location_has_space("market")
+	var has_gov := _location_has_space("gov_office")
+	var has_dry_dock := _location_has_space("dry_dock")
+	var has_cantina := _location_has_space("cantina")
+	var has_back_room := _location_has_space("back_room")
+
+	# Market: only if location has "market"
+	market_button.disabled = not has_market
+
+	# Contracts: for now, assume regular contracts board lives with market
+	# Later we can add separate Gov vs Smuggler boards.
+	contracts_button.disabled = not has_market
+
+	# Ship: only if location has dry dock
+	ship_button.disabled = not has_dry_dock
+
+	# Docs: always accessible (ship’s paperwork travels with the ship)
+	docs_button.disabled = false
+
+	# You can also add visual hints later, like changing button text color
+	# or tooltips based on which spaces exist.
+
+
+# ---------------------------------------------------
+# FACILITY HOST MANAGEMENT
+# ---------------------------------------------------
 
 func _clear_facility_host() -> void:
 	for child in facility_host.get_children():
@@ -58,6 +127,10 @@ func _clear_facility_host() -> void:
 
 
 func _show_market() -> void:
+	if market_button.disabled:
+		Log.add("No market facilities at this location.")
+		return
+
 	print("Port: _show_market called")
 	_clear_facility_host()
 
@@ -74,7 +147,63 @@ func _show_market() -> void:
 		panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 
 
-# ---- Button handlers ----
+func _show_contracts() -> void:
+	if contracts_button.disabled:
+		Log.add("No public contract boards at this location.")
+		return
+
+	print("Port: _show_contracts called")
+	_clear_facility_host()
+
+	# Use the existing job board scene for now
+	var packed: PackedScene = load("res://scenes/JobBoardPanel.tscn")
+	if packed == null:
+		push_error("Port: failed to load JobBoardPanel.tscn")
+		return
+
+	var panel := packed.instantiate()
+	facility_host.add_child(panel)
+	if panel is Control:
+		panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+
+func _show_ship() -> void:
+	if ship_button.disabled:
+		Log.add("No dry dock facilities at this location.")
+		return
+
+	print("Port: _show_ship called")
+	_clear_facility_host()
+
+	var packed: PackedScene = load("res://scenes/ShipPanel.tscn")
+	if packed == null:
+		push_error("Port: failed to load ShipPanel.tscn")
+		return
+
+	var panel := packed.instantiate()
+	facility_host.add_child(panel)
+	if panel is Control:
+		panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+
+func _show_docs() -> void:
+	print("Port: _show_docs called")
+	_clear_facility_host()
+
+	var packed: PackedScene = load("res://scenes/FreightDocsPanel.tscn")
+	if packed == null:
+		push_error("Port: failed to load FreightDocsPanel.tscn")
+		return
+
+	var panel := packed.instantiate()
+	facility_host.add_child(panel)
+	if panel is Control:
+		panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+
+# ---------------------------------------------------
+# BUTTON HANDLERS
+# ---------------------------------------------------
 
 func _on_MarketButton_pressed() -> void:
 	print("Port: Market button pressed")
@@ -82,15 +211,18 @@ func _on_MarketButton_pressed() -> void:
 
 
 func _on_ContractsButton_pressed() -> void:
-	print("Port: Contracts button pressed (stub)")
+	print("Port: Contracts button pressed")
+	_show_contracts()
 
 
 func _on_ShipButton_pressed() -> void:
-	print("Port: Ship button pressed (stub)")
+	print("Port: Ship button pressed")
+	_show_ship()
 
 
 func _on_DocsButton_pressed() -> void:
-	print("Port: Docs button pressed (stub)")
+	print("Port: Docs button pressed")
+	_show_docs()
 
 
 func _on_ToBridgeButton_pressed() -> void:
@@ -99,5 +231,21 @@ func _on_ToBridgeButton_pressed() -> void:
 		root.call_deferred("goto_bridge")
 
 
+# ---------------------------------------------------
+# SIGNAL HANDLERS
+# ---------------------------------------------------
+
 func _on_system_changed(new_system_id: String) -> void:
-	_refresh_system_info()
+	_refresh_header()
+	_refresh_facility_buttons()
+
+
+func _on_location_changed(new_location_id: String) -> void:
+	_refresh_header()
+	_refresh_facility_buttons()
+
+	# Optional: if you want Port to auto-switch away from a facility
+	# that no longer exists at the new location, you can:
+	# _clear_facility_host()
+	# if _location_has_space("market"):
+	#     _show_market()
