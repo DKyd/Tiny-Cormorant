@@ -148,12 +148,12 @@ func _on_CommoditiesList_item_selected(index: int) -> void:
 func _on_BuyButton_pressed() -> void:
 	var selected: PackedInt32Array = commodities_list.get_selected_items()
 	if selected.size() == 0:
-		Log.add("No market commodity selected to buy.")
+		Log.add_entry("No market commodity selected to buy.")
 		return
 
 	var idx: int = selected[0]
 	if idx < 0 or idx >= entries.size():
-		Log.add("Invalid market selection.")
+		Log.add_entry("Invalid market selection.")
 		return
 
 	var entry: Dictionary = entries[idx]
@@ -161,7 +161,7 @@ func _on_BuyButton_pressed() -> void:
 	var price: float = float(entry.get("price", 0.0))
 
 	if commodity_id == "":
-		Log.add("Selected market entry has no commodity id.")
+		Log.add_entry("Selected market entry has no commodity id.")
 		return
 
 	var qty_to_buy: int = int(qty_spin.value)
@@ -171,13 +171,13 @@ func _on_BuyButton_pressed() -> void:
 	# Check money
 	var total_cost: float = price * float(qty_to_buy)
 	if total_cost > GameState.player_money:
-		Log.add("Not enough credits to buy %d units." % qty_to_buy)
+		Log.add_entry("Not enough credits to buy %d units." % qty_to_buy)
 		return
 
 	# Check cargo capacity by weight
 	var commodity: Dictionary = CommodityDB.get_commodity(commodity_id)
 	if commodity.is_empty():
-		Log.add("Unknown commodity: %s" % commodity_id)
+		Log.add_entry("Unknown commodity: %s" % commodity_id)
 		return
 
 	var per_unit_weight: float = float(commodity.get("weight_per_unit", 1.0))
@@ -186,14 +186,14 @@ func _on_BuyButton_pressed() -> void:
 	var capacity: float = GameState.cargo_capacity_weight
 
 	if current_weight + added_weight > capacity:
-		Log.add("Not enough cargo capacity for that purchase.")
+		Log.add_entry("Not enough cargo capacity for that purchase.")
 		return
 
 	# Apply transaction
 	GameState.player_money -= total_cost
 	GameState.add_cargo(commodity_id, qty_to_buy)
 
-	Log.add("Bought %d x %s for %.0f cr."
+	Log.add_entry("Bought %d x %s for %.0f cr."
 		% [qty_to_buy, commodity.get("name", commodity_id), total_cost])
 
 	refresh_all()
@@ -203,7 +203,7 @@ func _on_SellButton_pressed() -> void:
 	# SELL is based on cargo selection, not market list
 	var selected: PackedInt32Array = cargo_list.get_selected_items()
 	if selected.size() == 0:
-		Log.add("No cargo selected to sell.")
+		Log.add_entry("No cargo selected to sell.")
 		return
 
 	var idx: int = selected[0]
@@ -212,7 +212,7 @@ func _on_SellButton_pressed() -> void:
 
 	var meta = cargo_list.get_item_metadata(idx)
 	if meta == null:
-		Log.add("Selected cargo has no commodity metadata.")
+		Log.add_entry("Selected cargo has no commodity metadata.")
 		return
 
 	var commodity_id: String = str(meta)
@@ -220,7 +220,7 @@ func _on_SellButton_pressed() -> void:
 	# How much do we own?
 	var have_qty: int = GameState.get_cargo_quantity(commodity_id)
 	if have_qty <= 0:
-		Log.add("You have no units of that cargo to sell.")
+		Log.add_entry("You have no units of that cargo to sell.")
 		return
 
 	var qty_to_sell: int = int(qty_spin.value)
@@ -232,7 +232,7 @@ func _on_SellButton_pressed() -> void:
 
 	# Get price for this commodity in the current system
 	if not price_by_commodity.has(commodity_id):
-		Log.add("No market price available here for that cargo.")
+		Log.add_entry("No market price available here for that cargo.")
 		return
 
 	var price: float = float(price_by_commodity[commodity_id])
@@ -244,7 +244,7 @@ func _on_SellButton_pressed() -> void:
 	var commodity: Dictionary = CommodityDB.get_commodity(commodity_id)
 	var name: String = commodity.get("name", commodity_id)
 
-	Log.add("Sold %d x %s for %.0f cr."
+	Log.add_entry("Sold %d x %s for %.0f cr."
 		% [qty_to_sell, name, revenue])
 
 	refresh_all()
@@ -260,3 +260,4 @@ func _on_ship_changed() -> void:
 func _on_system_changed(new_system_id: String) -> void:
 	# prices and system label change
 	refresh_all()
+

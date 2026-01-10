@@ -32,6 +32,9 @@ layout_mode = 2
 [node name="SystemLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusRow"]
 layout_mode = 2
 
+[node name="LocationLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusRow"]
+layout_mode = 2
+
 [node name="SecurityLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusRow"]
 layout_mode = 2
 

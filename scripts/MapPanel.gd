@@ -223,6 +223,10 @@ func _show_route_info_to_system(sys_id: String) -> void:
 		info_label.text = "Invalid destination."
 		return
 
+	if sys_id == GameState.current_system_id:
+		info_label.text = "Destination is in the current system."
+		return
+
 	var path: Array = Galaxy.find_path(GameState.current_system_id, sys_id)
 	if path.is_empty() or path.size() < 2:
 		info_label.text = "No route from here to that system."
@@ -269,7 +273,7 @@ func _set_course_to_system(dest_id: String) -> void:
 		return
 
 	var hops: int = path.size() - 1
-	Log.add("Setting course to %s (%d jumps)." % [dest_id, hops])
+	Log.add_entry("Setting course to %s (%d jumps)." % [dest_id, hops])
 	GameState.auto_travel(path)
 
 	info_label.text = "Arrived or stopped en route."
@@ -280,6 +284,19 @@ func _set_course_to_location(dest_sys: String, dest_loc: String) -> void:
 	if dest_sys == "":
 		info_label.text = "Invalid destination system."
 		return
+	if dest_loc == "":
+		info_label.text = "Invalid destination location."
+		return
+
+	var loc: Dictionary = Galaxy.get_location(dest_loc)
+	if loc.is_empty():
+		info_label.text = "Unknown destination location."
+		return
+
+	var loc_system_id: String = String(loc.get("system_id", ""))
+	if loc_system_id != "" and loc_system_id != dest_sys:
+		info_label.text = "Location is not in that system."
+		return
 
 	#  Intersystem movment- if dest_sys != current_sys then we need to travel between systems
 	if dest_sys != GameState.current_system_id:
@@ -289,14 +306,14 @@ func _set_course_to_location(dest_sys: String, dest_loc: String) -> void:
 			return
 	
 		var hops: int = path.size() - 1
-		Log.add("Setting course to %s (%d jumps)." % [dest_sys, hops])
+		Log.add_entry("Setting course to %s (%d jumps)." % [dest_sys, hops])
 		GameState.auto_travel(path)
-
+		if GameState.current_system_id != dest_sys:
+			info_label.text = "Could not reach destination system."
+			return
 	GameState.set_current_location(dest_loc)
 
-	var loc: Dictionary = Galaxy.get_location(dest_loc)
 	var loc_name: String = String(loc.get("name", dest_loc))
-
 	info_label.text = "Docked at %s." % loc_name
 
 	queue_free() #for now let's close map after dock 
@@ -360,3 +377,7 @@ func _estimate_route_cost(path: Array) -> float:
 		total_cost += GameState.get_travel_cost(dest_id)
 
 	return total_cost
+
+
+
+

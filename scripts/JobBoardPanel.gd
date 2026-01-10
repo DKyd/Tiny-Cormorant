@@ -158,7 +158,7 @@ func _on_accept_pressed() -> void:
 
 	print("Accepting contract: ", contract)
 	#prints to game log for added player info
-	#Log.add("DEBUG: Accepting contract %s with %d cargo_lines." 
+	#Log.add_entry("DEBUG: Accepting contract %s with %d cargo_lines." 
     #% [contract.get("id", "?"), contract.get("cargo_lines", []).size()])
 
 	GameState.add_contract(contract)
@@ -173,3 +173,4 @@ func _on_accept_pressed() -> void:
 
 func _on_close_pressed() -> void:
 	queue_free()
+

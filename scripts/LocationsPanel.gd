@@ -120,7 +120,7 @@ func _on_LocationsList_item_selected(index: int) -> void:
 func _on_DockButton_pressed() -> void:
 	var idx := locations_list.get_selected_items()
 	if idx.is_empty():
-		Log.add("No location selected to dock at.")
+		Log.add_entry("No location selected to dock at.")
 		return
 
 	var row: int = int(idx[0])
@@ -135,3 +135,4 @@ func _on_DockButton_pressed() -> void:
 
 func _on_CloseButton_pressed() -> void:
 	queue_free()
+

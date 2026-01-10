@@ -5,6 +5,7 @@
 # Godot import / export metadata
 .import/
 export_presets.cfg
+.godot/
 
 # Auto-generated Godot cache (safe to ignore)
 .cache/
@@ -91,3 +92,4 @@ bin/
 
 __pycache__/
 *.pyc
+

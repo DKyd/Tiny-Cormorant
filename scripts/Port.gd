@@ -128,7 +128,7 @@ func _clear_facility_host() -> void:
 
 func _show_market() -> void:
 	if market_button.disabled:
-		Log.add("No market facilities at this location.")
+		Log.add_entry("No market facilities at this location.")
 		return
 
 	print("Port: _show_market called")
@@ -149,7 +149,7 @@ func _show_market() -> void:
 
 func _show_contracts() -> void:
 	if contracts_button.disabled:
-		Log.add("No public contract boards at this location.")
+		Log.add_entry("No public contract boards at this location.")
 		return
 
 	print("Port: _show_contracts called")
@@ -169,7 +169,7 @@ func _show_contracts() -> void:
 
 func _show_ship() -> void:
 	if ship_button.disabled:
-		Log.add("No dry dock facilities at this location.")
+		Log.add_entry("No dry dock facilities at this location.")
 		return
 
 	print("Port: _show_ship called")
@@ -249,3 +249,4 @@ func _on_location_changed(new_location_id: String) -> void:
 	# _clear_facility_host()
 	# if _location_has_space("market"):
 	#     _show_market()
+

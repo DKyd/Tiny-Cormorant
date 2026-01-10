@@ -27,7 +27,7 @@ func run_entry_check(system_id: String) -> void:
 	var docs: Array = GameState.get_docs_for_destination(system_id)
 	if docs.is_empty():
 		# You arrived with no destination docs; later this could matter.
-		Log.add("Customs at %s briefly reviews your ship but finds no active freight docs." % system.get("name", system_id))
+		Log.add_entry("Customs at %s briefly reviews your ship but finds no active freight docs." % system.get("name", system_id))
 		return
 
 	var num_docs: int = docs.size()
@@ -42,11 +42,12 @@ func run_entry_check(system_id: String) -> void:
 		GameState.player_money -= fee_paid
 
 		if fee_paid > 0.0:
-			Log.add("Customs at %s processed %d freight document(s), charging %.0f cr in fees."
+			Log.add_entry("Customs at %s processed %d freight document(s), charging %.0f cr in fees."
 				% [system.get("name", system_id), num_docs, fee_paid])
 		else:
-			Log.add("Customs at %s attempted to levy fees, but you lacked funds."
+			Log.add_entry("Customs at %s attempted to levy fees, but you lacked funds."
 				% system.get("name", system_id))
 	else:
-		Log.add("Customs at %s reviews your freight documents and waves you through."
+		Log.add_entry("Customs at %s reviews your freight documents and waves you through."
 			% system.get("name", system_id))
+

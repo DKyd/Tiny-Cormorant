@@ -74,12 +74,12 @@ func travel_to_system(new_system_id: String) -> void:
 	var system: Dictionary = Galaxy.get_system(new_system_id)
 	if system.is_empty():
 		push_warning("Unknown system.")
-		Log.add("Travel failed: unknown system.")
+		Log.add_entry("Travel failed: unknown system.")
 		return
 
 	var cost := get_travel_cost(new_system_id)
 	if cost > player_money:
-		Log.add("Not enough credits to travel (need %.0f)." % cost)
+		Log.add_entry("Not enough credits to travel (need %.0f)." % cost)
 		push_warning("Not enough credits to travel.")
 		return
 
@@ -90,7 +90,7 @@ func travel_to_system(new_system_id: String) -> void:
 	current_location_id = ""
 	_ensure_starting_location()
 
-	Log.add("Traveled to %s (-%.0f cr)" % [new_system_id, cost])
+	Log.add_entry("Traveled to %s (-%.0f cr)" % [new_system_id, cost])
 	emit_signal("system_changed", current_system_id)
 	emit_signal("location_changed", current_location_id)
 
@@ -179,7 +179,7 @@ func set_current_location(loc_id: String) -> void:
 		current_system_id = sys_id
 
 	current_location_id = loc_id
-	Log.add("Docked at %s." % loc.get("name", loc_id))
+	Log.add_entry("Docked at %s." % loc.get("name", loc_id))
 	emit_signal("location_changed", current_location_id)
 
 	check_travel_contracts_at(current_system_id, current_location_id)
@@ -207,7 +207,7 @@ func auto_travel(path: Array) -> void:
 
 		var cost: float = get_travel_cost(dest_id)
 		if cost > player_money:
-			Log.add("Auto-travel stopped: not enough credits to reach %s." % dest_id)
+			Log.add_entry("Auto-travel stopped: not enough credits to reach %s." % dest_id)
 			break
 
 		travel_to_system(dest_id)
@@ -215,7 +215,7 @@ func auto_travel(path: Array) -> void:
 
 func add_contract(contract: Dictionary) -> void:
 	active_contracts.append(contract.duplicate(true))
-	Log.add("Accepted contract to %s (%d jumps) for %.0f cr."
+	Log.add_entry("Accepted contract to %s (%d jumps) for %.0f cr."
 	  % [contract.get("destination_name", contract.get("destination", "?")),
 		int(contract.get("jumps", 0)),
 		float(contract.get("reward", 0.0))])
@@ -264,7 +264,7 @@ func check_travel_contracts_at(system_id: String, location_id: String) -> void:
 		var cid: String = String(contract.get("id", ""))
 		_mark_docs_completed_for_contract(cid)
 
-		Log.add("Completed contract to %s, earned %.0f cr." % [dest_name, reward])
+		Log.add_entry("Completed contract to %s, earned %.0f cr." % [dest_name, reward])
 
 	active_contracts = remaining
 
@@ -279,7 +279,7 @@ func abandon_contract(contract_id: String) -> void:
 		var id: String = c.get("id", "")
 		if id == contract_id:
 			var dest_name: String = c.get("destination_name", c.get("destination", "???"))
-			Log.add("Abandoned contract to %s." % dest_name)
+			Log.add_entry("Abandoned contract to %s." % dest_name)
 			continue
 		remaining.append(c)
 
@@ -312,13 +312,13 @@ func save_game() -> void:
 	}
 
 	file.store_var(data, true)
-	Log.add("Game saved.")
+	Log.add_entry("Game saved.")
 
 
 func load_game() -> void:
 	var path := "user://savegame.dat"
 	if not FileAccess.file_exists(path):
-		Log.add("No save file found.")
+		Log.add_entry("No save file found.")
 		return
 
 	var file := FileAccess.open(path, FileAccess.READ)
@@ -358,7 +358,7 @@ func load_game() -> void:
 	if current_location_id == "" or Galaxy.get_location(current_location_id).is_empty():
 		_ensure_starting_location()
 
-	Log.add("Game loaded.")
+	Log.add_entry("Game loaded.")
 	emit_signal("system_changed", current_system_id)
 	emit_signal("location_changed", current_location_id)
 
@@ -376,44 +376,44 @@ func get_cargo_hold_upgrade_cost() -> float:
 
 func upgrade_engine() -> void:
 	if not Galaxy.system_has_drydock(current_system_id):
-		Log.add("No dry dock available at this system.")
+		Log.add_entry("No dry dock available at this system.")
 		return
 
 	if ship_engine_level >= MAX_ENGINE_LEVEL:
-		Log.add("Engine is already at maximum level.")
+		Log.add_entry("Engine is already at maximum level.")
 		return
 
 	var cost: float = get_engine_upgrade_cost()
 	if player_money < cost:
-		Log.add("Not enough credits to upgrade engine (need %.0f cr)." % cost)
+		Log.add_entry("Not enough credits to upgrade engine (need %.0f cr)." % cost)
 		return
 
 	player_money -= cost
 	ship_engine_level += 1
-	Log.add("Upgraded engine to level %d (-%.0f cr)." % [ship_engine_level, cost])
+	Log.add_entry("Upgraded engine to level %d (-%.0f cr)." % [ship_engine_level, cost])
 
 	emit_signal("ship_changed")
 
 
 func upgrade_cargo_hold() -> void:
 	if not Galaxy.system_has_drydock(current_system_id):
-		Log.add("No dry dock available at this system.")
+		Log.add_entry("No dry dock available at this system.")
 		return
 
 	if cargo_hold_level >= MAX_CARGO_HOLD_LEVEL:
-		Log.add("Cargo hold is already at maximum level.")
+		Log.add_entry("Cargo hold is already at maximum level.")
 		return
 
 	var cost: float = get_cargo_hold_upgrade_cost()
 	if player_money < cost:
-		Log.add("Not enough credits to upgrade cargo hold (need %.0f cr)." % cost)
+		Log.add_entry("Not enough credits to upgrade cargo hold (need %.0f cr)." % cost)
 		return
 
 	player_money -= cost
 	cargo_hold_level += 1
 	cargo_capacity_weight += cargo_hold_capacity_bonus_per_level
 
-	Log.add("Upgraded cargo hold to level %d (+%.1f capacity, -%.0f cr)."
+	Log.add_entry("Upgraded cargo hold to level %d (+%.1f capacity, -%.0f cr)."
 		% [cargo_hold_level, cargo_hold_capacity_bonus_per_level, cost])
 
 	emit_signal("ship_changed")
@@ -465,10 +465,10 @@ func create_freight_doc_for_contract(contract: Dictionary) -> Dictionary:
 	freight_docs.append(doc)
 
 	print("All freight docs now: ", freight_docs)
-	#Log.add("DEBUG: Created freight doc %s with %d cargo_lines."
+	#Log.add_entry("DEBUG: Created freight doc %s with %d cargo_lines."
 	#% [doc_id, cargo_lines.size()])
 
-	Log.add("Created freight document %s for contract to %s." % [doc_id, dest_id])
+	Log.add_entry("Created freight document %s for contract to %s." % [doc_id, dest_id])
 	return doc
 
 
@@ -527,3 +527,4 @@ func _mark_docs_completed_for_contract(contract_id: String) -> void:
 		if doc.get("contract_id", "") == contract_id:
 			doc["status"] = "completed"
 			freight_docs[i] = doc
+

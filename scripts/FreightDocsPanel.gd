@@ -75,7 +75,7 @@ func _update_hint() -> void:
 
 func _on_DocsList_item_selected(index: int) -> void:
 
-	#Log.add("_on_DockList_item_selected")
+	#Log.add_entry("_on_DockList_item_selected")
 
 	# For now, we just log a bit of info when the player selects a doc.
 	var meta = docs_list.get_item_metadata(index)
@@ -99,12 +99,12 @@ func _on_DocsList_item_selected(index: int) -> void:
 	var dest_name: String = dest_sys.get("name", dest_id)
 	var status: String = doc.get("status", "unknown")
 
-	Log.add("Doc %s (contract %s): %s → %s, status=%s."
+	Log.add_entry("Doc %s (contract %s): %s → %s, status=%s."
 		% [doc_id, contract_id, origin_name, dest_name, status])
 
 	var cargo_lines: Array = doc.get("cargo_lines", [])
 	if cargo_lines.is_empty():
-		Log.add("Doc %s has no declared cargo." % doc_id)
+		Log.add_entry("Doc %s has no declared cargo." % doc_id)
 	else:
 		var parts: Array = []
 		for line_variant in cargo_lines:
@@ -113,8 +113,9 @@ func _on_DocsList_item_selected(index: int) -> void:
 			var qty: int = int(line.get("declared_qty", 0))
 			parts.append("%d x %s" % [qty, cid])
 
-		Log.add("Doc %s cargo: %s" % [doc_id, ", ".join(parts)])
+		Log.add_entry("Doc %s cargo: %s" % [doc_id, ", ".join(parts)])
 
 
 func _on_CloseButton_pressed() -> void:
 	queue_free()
+

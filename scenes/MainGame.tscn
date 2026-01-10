@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://dd7y8ysmugn0q"]
+[gd_scene load_steps=3 format=3 uid="uid://dd7y8ysmugn0q"]
 
 [ext_resource type="Script" path="res://scripts/MainGame.gd" id="1_malu4"]
+[ext_resource type="PackedScene" uid="uid://b6r6sqk3t6yvt" path="res://scenes/ui/LogPanel.tscn" id="2_y2x6s"]
 
 [node name="MainGame" type="Control"]
 layout_mode = 3
@@ -56,3 +57,5 @@ size_flags_vertical = 3
 
 [node name="MainViewContainer" type="Control" parent="VBoxContainer/MainPanel"]
 layout_mode = 2
+
+[node name="LogPanel" parent="VBoxContainer" instance=ExtResource("2_y2x6s")]

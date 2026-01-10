@@ -73,7 +73,7 @@ func generate_contracts_for_system(system_id: String, count: int = 3) -> Array:
 		print("Generated contract: ", last_contract)
 
 		#prints to game log for additional player info
-		#Log.add("DEBUG: Generated contract with cargo_lines for %s" % dest_name)
+		#Log.add_entry("DEBUG: Generated contract with cargo_lines for %s" % dest_name)
 
 
 	return result
@@ -155,3 +155,4 @@ func _pick_contract_quantity(jumps: int) -> int:
 	var base := 20
 	var extra := jumps * 5
 	return randi_range(base, base + extra)
+
