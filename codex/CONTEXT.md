@@ -46,6 +46,21 @@ Do not invent new top-level folders without approval.
 
 ---
 
+## Godot Version Pin (Required for Accuracy)
+
+- Current engine major version: Godot 4.x
+- Pin the exact minor version (e.g., 4.2.2) in this document when known.
+- Until pinned: Codex must avoid version-sensitive APIs unless verified in repo usage.
+
+## Protected Areas (Default)
+
+These areas are protected by default unless explicitly whitelisted by a job:
+
+- `data/**` (static/semi-static data)
+- `scenes/MainGame.tscn` (gameplay root UI composition)
+
+---
+
 ## Singletons & Global State
 
 Global systems are implemented as **autoload singletons** under `singletons/`.

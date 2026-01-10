@@ -28,6 +28,14 @@ Authority order:
 - Modify ONLY files listed in **Allowed to Modify**.
 - If a change requires touching a file outside the whitelist, STOP and ask.
 
+### Active Run Resolution
+- If `codex/runs/ACTIVE_RUN.txt` exists, treat its contents as the active run folder name.
+- Otherwise, STOP and ask the human for the run folder path. Do not guess.
+
+### results.md Creation Exception
+- If `results.md` does not exist in the active run folder, you are permitted to create it.
+- No other new files may be created under `codex/` beyond `job.md` and `results.md` in the active run folder.
+
 ---
 
 ## Output Requirements

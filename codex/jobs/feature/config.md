@@ -9,12 +9,15 @@
     "prefer explicit, readable code over abstraction"
   ],
   "required_sections_in_job_md": [
-    "Goal",
-    "Non-Goals",
-    "Files: Allowed to Modify (Whitelist)",
-    "Files: Forbidden to Modify (Blacklist)",
-    "Acceptance Criteria (Must Be Testable)",
-    "Manual Test Plan"
+  "Goal",
+  "Non-Goals",
+  "Context",
+  "Files: Allowed to Modify (Whitelist)",
+  "Files: Forbidden to Modify (Blacklist)",
+  "Acceptance Criteria (Must Be Testable)",
+  "Manual Test Plan",
+  "Public API Changes",
+  "Codex Output Requirements"
   ],
   "diff_policy": {
     "prefer_minimal_changes": true,

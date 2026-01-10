@@ -8,14 +8,16 @@
     "behavior change only where necessary",
     "protect against regressions"
   ],
-  "required_sections_in_job_md": [
-    "Bug Description",
-    "Expected Behavior",
-    "Repro Steps",
-    "Files: Allowed to Modify (Whitelist)",
-    "Acceptance Criteria (Must Be Testable)",
-    "Regression Checks",
-    "Manual Test Plan"
+ "required_sections_in_job_md": [
+  "Bug Description",
+  "Expected Behavior",
+  "Repro Steps",
+  "Observed Output / Error Text",
+  "Files: Allowed to Modify (Whitelist)",
+  "Acceptance Criteria (Must Be Testable)",
+  "Regression Checks",
+  "Manual Test Plan",
+  "Codex Output Requirements"
   ],
   "diff_policy": {
     "prefer_minimal_changes": true,

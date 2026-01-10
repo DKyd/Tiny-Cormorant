@@ -27,6 +27,64 @@ func get_contracts_for_location(location_id: String) -> Array:
 		return []
 	return contracts_by_location_id[location_id]
 
+func accept_contract(contract_id: String) -> Dictionary:
+	var result := {
+		"ok": false,
+		"error": "",
+		"contract": {},
+	}
+
+	if contract_id == "":
+		result.error = "Invalid contract."
+		Log.add_entry("Contract acceptance failed: invalid contract id.")
+		return result
+
+	var dock_loc_id: String = GameState.current_location_id
+	if dock_loc_id == "":
+		result.error = "You must be docked to accept contracts."
+		Log.add_entry("Contract acceptance failed: not docked.")
+		return result
+
+	var contract: Dictionary = _find_contract_in_location(dock_loc_id, contract_id)
+	if contract.is_empty():
+		result.error = "Contract is no longer available."
+		Log.add_entry("Contract acceptance failed: contract missing.")
+		return result
+
+	if _is_contract_active(contract_id):
+		result.error = "Contract is already active."
+		Log.add_entry("Contract acceptance failed: contract already active.")
+		return result
+
+	if not _is_contract_at_location(contract, dock_loc_id):
+		result.error = "You must be docked at the origin to accept this contract."
+		Log.add_entry("Contract acceptance failed: wrong dock location.")
+		return result
+
+	var required_space: int = _get_required_cargo_space(contract)
+	var available_space: float = GameState.get_free_cargo_space()
+	if float(required_space) > available_space:
+		result.error = "Not enough cargo space."
+		Log.add_entry("Contract acceptance failed: insufficient cargo space.")
+		return result
+
+	if GameState.get_docs_for_contract(contract_id).size() > 0:
+		result.error = "Contract already has a freight document."
+		Log.add_entry("Contract acceptance failed: freight doc already exists.")
+		return result
+
+	var accept_result: Dictionary = GameState.accept_contract(contract)
+	if not bool(accept_result.get("ok", false)):
+		result.error = String(accept_result.get("error", "Failed to accept contract."))
+		Log.add_entry("Contract acceptance failed: %s" % result.error)
+		return result
+
+	_remove_contract_from_location(dock_loc_id, contract_id)
+
+	result.ok = true
+	result.contract = contract
+	return result
+
 
 func refresh_contracts_for_location(location_id: String, count: int = 3) -> Array:
 	if location_id == "":
@@ -173,4 +231,60 @@ func _pick_contract_quantity(jumps: int) -> int:
 	var base := 20
 	var extra := jumps * 5
 	return randi_range(base, base + extra)
+
+func _find_contract_in_location(location_id: String, contract_id: String) -> Dictionary:
+	if location_id == "" or contract_id == "":
+		return {}
+	if not contracts_by_location_id.has(location_id):
+		return {}
+	var contracts: Array = contracts_by_location_id[location_id]
+	for contract_variant in contracts:
+		var contract: Dictionary = contract_variant
+		if String(contract.get("id", "")) == contract_id:
+			return contract
+	return {}
+
+func _remove_contract_from_location(location_id: String, contract_id: String) -> void:
+	if location_id == "" or contract_id == "":
+		return
+	if not contracts_by_location_id.has(location_id):
+		return
+	var contracts: Array = contracts_by_location_id[location_id]
+	for i in range(contracts.size()):
+		var contract: Dictionary = contracts[i]
+		if String(contract.get("id", "")) == contract_id:
+			contracts.remove_at(i)
+			contracts_by_location_id[location_id] = contracts
+			return
+
+func _is_contract_active(contract_id: String) -> bool:
+	if contract_id == "":
+		return false
+	for contract_variant in GameState.active_contracts:
+		var contract: Dictionary = contract_variant
+		if String(contract.get("id", "")) == contract_id:
+			return true
+	return false
+
+func _is_contract_at_location(contract: Dictionary, location_id: String) -> bool:
+	var origin_loc_id: String = String(contract.get("origin_location_id", ""))
+	if origin_loc_id != "":
+		return origin_loc_id == location_id
+
+	var origin_sys_id: String = String(contract.get("origin", ""))
+	if origin_sys_id == "":
+		return false
+	return origin_sys_id == GameState.current_system_id
+
+func _get_required_cargo_space(contract: Dictionary) -> int:
+	var total := 0
+	if contract.has("cargo_lines"):
+		for line_variant in contract["cargo_lines"]:
+			var line: Dictionary = line_variant
+			var cargo_space: int = int(line.get("cargo_space", line.get("declared_qty", 0)))
+			if cargo_space > 0:
+				total += cargo_space
+	elif contract.has("commodity_id") and contract.has("quantity"):
+		total = int(contract.get("quantity", 0))
+	return total
 

@@ -137,6 +137,9 @@ func get_total_cargo_weight() -> float:
 
 	return total
 
+func get_free_cargo_space() -> float:
+	return cargo_capacity_weight - get_total_cargo_weight()
+
 func get_travel_cost(dest_system_id: String) -> float:
 	var system: Dictionary = Galaxy.get_system(dest_system_id)
 	if system.is_empty():
@@ -218,6 +221,58 @@ func add_contract(contract: Dictionary) -> void:
 	  % [contract.get("destination_name", contract.get("destination", "?")),
 		int(contract.get("jumps", 0)),
 		float(contract.get("reward", 0.0))])
+
+func accept_contract(contract: Dictionary) -> Dictionary:
+	var result := {
+		"ok": false,
+		"error": "",
+	}
+
+	if contract.is_empty():
+		result.error = "Invalid contract."
+		Log.add_entry("Contract acceptance failed: invalid contract data.")
+		return result
+
+	var contract_id: String = String(contract.get("id", ""))
+	if contract_id == "":
+		result.error = "Invalid contract."
+		Log.add_entry("Contract acceptance failed: missing contract id.")
+		return result
+
+	if current_location_id == "":
+		result.error = "You must be docked to accept contracts."
+		Log.add_entry("Contract acceptance failed: not docked.")
+		return result
+
+	if not _is_contract_at_location(contract):
+		result.error = "You must be docked at the origin to accept this contract."
+		Log.add_entry("Contract acceptance failed: wrong dock location.")
+		return result
+
+	for contract_variant in active_contracts:
+		var active_contract: Dictionary = contract_variant
+		if String(active_contract.get("id", "")) == contract_id:
+			result.error = "Contract is already active."
+			Log.add_entry("Contract acceptance failed: contract already active.")
+			return result
+
+	if get_docs_for_contract(contract_id).size() > 0:
+		result.error = "Contract already has a freight document."
+		Log.add_entry("Contract acceptance failed: freight doc already exists.")
+		return result
+
+	var required_space: int = _get_required_cargo_space(contract)
+	if float(required_space) > get_free_cargo_space():
+		result.error = "Not enough cargo space."
+		Log.add_entry("Contract acceptance failed: insufficient cargo space.")
+		return result
+
+	add_contract(contract)
+	create_freight_doc_for_contract(contract)
+	load_contract_cargo(contract)
+
+	result.ok = true
+	return result
 
 
 func check_travel_contracts_at(system_id: String, location_id: String) -> void:
@@ -518,6 +573,28 @@ func clear_contract_cargo(contract: Dictionary) -> void:
 				# Remove up to the declared amount; if the player sold some,
 				# this will just clamp at 0.
 				remove_cargo(cid, qty)
+
+func _is_contract_at_location(contract: Dictionary) -> bool:
+	var origin_loc_id: String = String(contract.get("origin_location_id", ""))
+	if origin_loc_id != "":
+		return origin_loc_id == current_location_id
+
+	var origin_sys_id: String = String(contract.get("origin", ""))
+	if origin_sys_id == "":
+		return false
+	return origin_sys_id == current_system_id
+
+func _get_required_cargo_space(contract: Dictionary) -> int:
+	var total := 0
+	if contract.has("cargo_lines"):
+		for line_variant in contract["cargo_lines"]:
+			var line: Dictionary = line_variant
+			var cargo_space: int = int(line.get("cargo_space", line.get("declared_qty", 0)))
+			if cargo_space > 0:
+				total += cargo_space
+	elif contract.has("commodity_id") and contract.has("quantity"):
+		total = int(contract.get("quantity", 0))
+	return total
 
 
 func _mark_docs_completed_for_contract(contract_id: String) -> void:

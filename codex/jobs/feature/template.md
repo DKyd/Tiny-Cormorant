@@ -6,29 +6,48 @@
 - Author (human):
 - Date:
 
+---
+
 ## Goal
-Describe the desired outcome in 1–3 sentences. Focus on player-facing or system-facing behavior, not implementation.
+Describe the desired outcome in 1–3 sentences.
+Focus on player-facing or system-facing behavior, not implementation.
+
+---
 
 ## Non-Goals
-Explicitly list what this job must NOT do (scope boundaries).
+Explicitly list what this job must NOT do.
+These are hard scope boundaries.
+
+---
 
 ## Context
-What existing systems/scenes/scripts are involved? What is already implemented? What is missing?
+Describe relevant existing systems, scenes, or scripts.
+Include what already exists and what is missing.
+Do not propose solutions here.
+
+---
 
 ## Proposed Approach
-A short plan (3–8 bullets). Keep it concrete.
+A short, high-level plan (3–6 bullets).
+Describe intent and boundaries, not specific code structure.
+
+---
 
 ## Files: Allowed to Modify (Whitelist)
-List exact paths. If a file is not listed here, it must not be edited.
+Only these files may be edited.
 
-- 
-- 
+-
+-
+
+---
 
 ## Files: Forbidden to Modify (Blacklist)
-List any sensitive areas Codex must not touch.
+These files/directories must not be touched.
 
-- 
-- 
+-
+-
+
+---
 
 ## New Files Allowed?
 - [ ] Yes (must list exact paths below)
@@ -36,44 +55,65 @@ List any sensitive areas Codex must not touch.
 
 If Yes, list exact new file paths:
 
-- 
-- 
+-
+-
+
+---
 
 ## Public API Changes
-List any new/changed public methods/signals/resources and where they live.
+List any new or modified public methods, signals, or resources.
 If none, write “None”.
 
-- 
+-
+-
+
+---
 
 ## Acceptance Criteria (Must Be Testable)
-Write as checkboxes. These are the “definition of done”.
+These define “done” and must be objectively verifiable.
 
-- [ ] 
-- [ ] 
-- [ ] 
+- [ ]
+- [ ]
+- [ ]
+
+---
 
 ## Manual Test Plan
-Step-by-step instructions a human can follow in Godot to verify the change.
+Step-by-step instructions a human can follow in Godot to verify the feature.
 
-1. 
-2. 
-3. 
+1.
+2.
+3.
+
+---
 
 ## Edge Cases / Failure Modes
-List a few ways this could break or behave unexpectedly.
+List known edge cases or scenarios that must fail gracefully.
 
-- 
-- 
+-
+-
+
+---
 
 ## Risks / Notes
-Anything likely to cause merge conflicts, regressions, or architectural concerns.
+Anything that could cause regressions, merge conflicts,
+or architectural concerns.
 
-- 
+-
+-
+
+---
 
 ## Codex Output Requirements
-Codex must paste into `codex/runs/<job>/results.md`:
-This is the ONLY permitted write location under `codex/`.
-- Summary (what changed and why)
-- Files changed (with brief rationale per file)
+Codex must write results to:
+
+- `codex/runs/<job>/results.md`
+
+If `results.md` does not exist, Codex is permitted to create it.
+No other new files may be created.
+
+Results must include:
+- Summary of changes and rationale
+- Files changed with brief explanation per file
 - Assumptions made
-- Known limitations / TODOs (ideally none)
+- Known limitations or TODOs

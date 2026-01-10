@@ -141,15 +141,20 @@ func _on_accept_pressed() -> void:
 		return
 
 	var contract: Dictionary = contracts[idx]
+	var contract_id: String = String(contract.get("id", ""))
+	if contract_id == "":
+		info_label.text = "Invalid contract."
+		return
 
 	print("Accepting contract: ", contract)
 	#prints to game log for added player info
 	#Log.add_entry("DEBUG: Accepting contract %s with %d cargo_lines." 
     #% [contract.get("id", "?"), contract.get("cargo_lines", []).size()])
 
-	GameState.add_contract(contract)
-	GameState.create_freight_doc_for_contract(contract)
-	GameState.load_contract_cargo(contract)
+	var result: Dictionary = Contracts.accept_contract(contract_id)
+	if not bool(result.get("ok", false)):
+		info_label.text = String(result.get("error", "Unable to accept contract."))
+		return
 
 	# remove it from local list so you can't take it twice
 	contracts.remove_at(idx)
