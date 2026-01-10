@@ -7,6 +7,8 @@ All work must be performed through a **job** created from a predefined **job typ
 
 If Codex is unsure which job type applies, it must **stop and ask** rather than guess.
 
+Note: `codex/` is treated as governance and is read-only to Codex, except for the active run folder where `job.md` and `results.md` live.
+
 ---
 
 ## High-Level Workflow

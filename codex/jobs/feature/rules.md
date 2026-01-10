@@ -22,10 +22,14 @@ If any instruction conflicts:
 
 ## File Access Rules
 
+- The `codex/` directory is read-only by default.
+- Exception: Codex MAY write to the active run folder only:
+  - `codex/runs/<active-job>/job.md`
+  - `codex/runs/<active-job>/results.md`
+- Codex must NOT modify any other files under `codex/` (including other runs, templates, configs, or governance files).
+
 - Modify ONLY files listed in **Allowed to Modify**.
-- Create ONLY files explicitly listed under **New Files Allowed**.
-- Do not touch Forbidden files.
-- If you believe an unlisted file must be changed, STOP and request an update to `job.md`.
+- If a change requires touching a file outside the whitelist, STOP and ask.
 
 ---
 

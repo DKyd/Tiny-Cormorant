@@ -59,6 +59,7 @@ List a couple things that must still work after the fix.
 
 ## Codex Output Requirements
 Codex must paste into `codex/runs/<job>/results.md`:
+This is the ONLY permitted write location under `codex/`.
 - Root cause summary (brief)
 - Fix summary
 - Files changed (and why)

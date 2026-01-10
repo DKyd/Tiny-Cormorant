@@ -72,7 +72,7 @@ Anything likely to cause merge conflicts, regressions, or architectural concerns
 
 ## Codex Output Requirements
 Codex must paste into `codex/runs/<job>/results.md`:
-
+This is the ONLY permitted write location under `codex/`.
 - Summary (what changed and why)
 - Files changed (with brief rationale per file)
 - Assumptions made
