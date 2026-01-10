@@ -18,3 +18,4 @@ res://scripts/MainGame.gd
 res://singletons/Log.gd
 res://singletons/GameState.gd
 res://scripts/MapPanel.gd
+res://singletons/Contracts.gd

@@ -64,10 +64,8 @@ func _ensure_starting_location() -> void:
 	var loc_ids: Array = Galaxy.get_location_ids_for_system(current_system_id)
 	if loc_ids.size() > 0:
 		# Take the first location as default “dock”
-		current_location_id = String(loc_ids[0])
-		emit_signal("location_changed", current_location_id)
-
-		check_travel_contracts_at(current_system_id, current_location_id)
+		var loc_id: String = String(loc_ids[0])
+		set_current_location(loc_id)
 
 
 func travel_to_system(new_system_id: String) -> void:
@@ -179,6 +177,7 @@ func set_current_location(loc_id: String) -> void:
 		current_system_id = sys_id
 
 	current_location_id = loc_id
+	Contracts.refresh_contracts_for_location(current_location_id, 4)
 	Log.add_entry("Docked at %s." % loc.get("name", loc_id))
 	emit_signal("location_changed", current_location_id)
 
@@ -433,10 +432,12 @@ func create_freight_doc_for_contract(contract: Dictionary) -> Dictionary:
 			var line: Dictionary = line_variant
 			var commodity_id: String = str(line.get("commodity_id", ""))
 			var qty: int = int(line.get("declared_qty", 0))
+			var cargo_space: int = int(line.get("cargo_space", qty))
 			if commodity_id != "" and qty > 0:
 				cargo_lines.append({
 					"commodity_id": commodity_id,
 					"declared_qty": qty,
+					"cargo_space": cargo_space,
 				})
 	# Otherwise, fall back to simple single-line cargo
 	elif contract.has("commodity_id") and contract.has("quantity"):
@@ -446,6 +447,7 @@ func create_freight_doc_for_contract(contract: Dictionary) -> Dictionary:
 			cargo_lines.append({
 				"commodity_id": commodity_id,
 				"declared_qty": qty,
+				"cargo_space": qty,
 			})
 
 	var doc := {

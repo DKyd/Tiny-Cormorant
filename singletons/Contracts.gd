@@ -13,10 +13,27 @@ extends Node
 # }
 
 var _id_counter: int = 0
+var contracts_by_location_id: Dictionary = {}
 
 func _next_id() -> String:
 	_id_counter += 1
 	return "CON_%04d" % _id_counter
+
+
+func get_contracts_for_location(location_id: String) -> Array:
+	if location_id == "":
+		return []
+	if not contracts_by_location_id.has(location_id):
+		return []
+	return contracts_by_location_id[location_id]
+
+
+func refresh_contracts_for_location(location_id: String, count: int = 3) -> Array:
+	if location_id == "":
+		return []
+	var generated: Array = generate_contracts_for_location(location_id, count)
+	contracts_by_location_id[location_id] = generated
+	return generated
 
 
 func generate_contracts_for_system(system_id: String, count: int = 3) -> Array:
@@ -54,6 +71,7 @@ func generate_contracts_for_system(system_id: String, count: int = 3) -> Array:
 			{
 				"commodity_id": commodity_id,
 				"declared_qty": quantity,
+				"cargo_space": quantity,
 			}
 		]
 
