@@ -27,6 +27,20 @@ func get_contracts_for_location(location_id: String) -> Array:
 		return []
 	return contracts_by_location_id[location_id]
 
+func get_contract_count_for_location(location_id: String) -> int:
+	if location_id == "":
+		return 0
+	if not contracts_by_location_id.has(location_id):
+		return 0
+
+	var contracts_variant = contracts_by_location_id[location_id]
+	if not (contracts_variant is Array):
+		push_warning("Contracts: unexpected data for location %s." % location_id)
+		return 0
+
+	var contracts: Array = contracts_variant
+	return contracts.size()
+
 func accept_contract(contract_id: String) -> Dictionary:
 	var result := {
 		"ok": false,

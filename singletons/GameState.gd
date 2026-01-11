@@ -1,4 +1,4 @@
-# res://singletons/GameState.gd
+﻿# res://singletons/GameState.gd
 extends Node
 
 var current_system_id: String = ""
@@ -63,7 +63,7 @@ func _ensure_starting_location() -> void:
 
 	var loc_ids: Array = Galaxy.get_location_ids_for_system(current_system_id)
 	if loc_ids.size() > 0:
-		# Take the first location as default “dock”
+		# Take the first location as default â€œdockâ€
 		var loc_id: String = String(loc_ids[0])
 		set_current_location(loc_id)
 
@@ -84,9 +84,8 @@ func travel_to_system(new_system_id: String) -> void:
 	player_money -= cost
 	current_system_id = new_system_id
 
-	# Reset & pick a default location in the new system
+	# Reset to an explicit "not docked" state on system arrival.
 	current_location_id = ""
-	_ensure_starting_location()
 
 	Log.add_entry("Traveled to %s (-%.0f cr)" % [new_system_id, cost])
 	emit_signal("system_changed", current_system_id)
@@ -286,17 +285,14 @@ func check_travel_contracts_at(system_id: String, location_id: String) -> void:
 
 		var dest_sys_id: String = String(contract.get("destination", ""))
 		var dest_loc_id: String = String(contract.get("destination_location_id", ""))
+		var contract_id: String = String(contract.get("id", ""))
 
-		var is_match := false
+		if dest_sys_id == "" or dest_loc_id == "":
+			Log.add_entry("Contract completion failed: missing destination for %s." % contract_id)
+			remaining.append(contract)
+			continue
 
-		# If the contract specifies a destination location, require that.
-		if dest_loc_id != "":
-			is_match = (dest_loc_id == location_id)
-		else:
-			# Legacy / fallback: system-level match only
-			is_match = (dest_sys_id == system_id)
-
-		if not is_match:
+		if dest_sys_id != system_id or dest_loc_id != location_id:
 			remaining.append(contract)
 			continue
 
@@ -315,10 +311,10 @@ func check_travel_contracts_at(system_id: String, location_id: String) -> void:
 		clear_contract_cargo(contract)
 
 		# Mark freight docs for this contract as completed
-		var cid: String = String(contract.get("id", ""))
-		_mark_docs_completed_for_contract(cid)
+		_mark_docs_completed_for_contract(contract_id)
 
-		Log.add_entry("Completed contract to %s, earned %.0f cr." % [dest_name, reward])
+
+		Log.add_entry("Completed contract %s to %s, earned %.0f cr." % [contract_id, dest_name, reward])
 
 	active_contracts = remaining
 
@@ -405,7 +401,7 @@ func load_game() -> void:
 	freight_docs = data.get("freight_docs", [])
 	next_freight_doc_id = int(data.get("next_freight_doc_id", next_freight_doc_id))
 
-	# Ensure we’re in a valid place
+	# Ensure weâ€™re in a valid place
 	if current_system_id == "" or Galaxy.get_system(current_system_id).is_empty():
 		_ensure_starting_system()
 

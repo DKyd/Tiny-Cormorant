@@ -33,6 +33,8 @@ func _ready() -> void:
 	set_course_button.pressed.connect(_on_set_course_pressed)
 	close_button.pressed.connect(_on_close_pressed)
 
+	GameState.system_changed.connect(_on_system_changed)
+
 	systems_tree.hide_root = true
 	systems_tree.columns = 1
 	systems_tree.custom_minimum_size = Vector2(0, 300)
@@ -93,6 +95,7 @@ func _refresh_systems_list(filter_text: String) -> void:
 
 		# Contract & Doc markers (system-level)
 		var contracts_to_sys: int = _count_contracts_to_system(sys_id)
+		var active_dest_to_sys: int = _count_active_destinations_to_system(sys_id)
 		var has_doc_dest: bool = _system_has_docs(sys_id)
 
 		# ------------------------
@@ -112,6 +115,9 @@ func _refresh_systems_list(filter_text: String) -> void:
 		elif is_here:
 			label += "  [HERE]"
 
+		if active_dest_to_sys > 0:
+			label += "  [Dest: %d]" % active_dest_to_sys
+
 		if has_doc_dest:
 			label += "  [DOC DEST]"
 
@@ -123,7 +129,7 @@ func _refresh_systems_list(filter_text: String) -> void:
 			"system_id": sys_id,
 		})
 
-		sys_item.collapsed = true
+		sys_item.collapsed = contracts_to_sys <= 0 and active_dest_to_sys <= 0
 
 		total_rows += 1
 
@@ -153,7 +159,11 @@ func _refresh_systems_list(filter_text: String) -> void:
 
 			var loc_contracts: int = _count_contracts_to_location(loc_id)
 			if loc_contracts > 0:
-				markers.append("CONTRACT")
+				markers.append("Contracts: %d" % loc_contracts)
+
+			var loc_destinations: int = _count_active_destinations_to_location(loc_id)
+			if loc_destinations > 0:
+				markers.append("Dest: %d" % loc_destinations)
 
 			if has_doc_dest:
 				markers.append("DOC")
@@ -323,6 +333,10 @@ func _on_close_pressed() -> void:
 	queue_free()
 
 
+func _on_system_changed(new_system_id: String) -> void:
+	_refresh_systems_list(search_box.text)
+
+
 func _rebuild_contract_destinations() -> void:
 	contract_dest_ids.clear()
 
@@ -337,6 +351,21 @@ func _rebuild_contract_destinations() -> void:
 
 func _count_contracts_to_system(sys_id: String) -> int:
 	var count: int = 0
+	var locs: Array = Galaxy.get_locations_for_system(sys_id)
+	for loc_variant in locs:
+		var loc: Dictionary = loc_variant
+		var loc_id: String = String(loc.get("id", ""))
+		if loc_id == "":
+			continue
+		count += Contracts.get_contract_count_for_location(loc_id)
+	return count
+
+
+func _count_contracts_to_location(loc_id: String) -> int:
+	return Contracts.get_contract_count_for_location(loc_id)
+
+func _count_active_destinations_to_system(sys_id: String) -> int:
+	var count: int = 0
 	for contract_variant in GameState.active_contracts:
 		var c: Dictionary = contract_variant
 		var dest: String = String(c.get("destination", ""))
@@ -344,8 +373,7 @@ func _count_contracts_to_system(sys_id: String) -> int:
 			count += 1
 	return count
 
-
-func _count_contracts_to_location(loc_id: String) -> int:
+func _count_active_destinations_to_location(loc_id: String) -> int:
 	var count: int = 0
 	for contract_variant in GameState.active_contracts:
 		var c: Dictionary = contract_variant

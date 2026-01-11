@@ -14,6 +14,7 @@ extends Control
 
 # We’ll track what scene is currently loaded (optional, for debugging)
 var current_view_path: String = ""
+var _pending_port_open: bool = false
 
 
 func _ready() -> void:
@@ -25,6 +26,7 @@ func _ready() -> void:
 
 	GameState.system_changed.connect(_on_system_changed)
 	GameState.ship_changed.connect(_on_ship_changed)
+	GameState.location_changed.connect(_on_location_changed)
 
 	_refresh_top_bar()
 
@@ -98,9 +100,26 @@ func _on_system_changed(new_system_id: String) -> void:
 func _on_ship_changed() -> void:
 	_refresh_top_bar()
 
+func _on_location_changed(new_location_id: String) -> void:
+	if not _pending_port_open:
+		return
+
+	if new_location_id == "":
+		return
+
+	_pending_port_open = false
+	goto_port()
+
 func goto_bridge() -> void:
 	_show_view("res://scenes/Bridge.tscn")
 
 
 func goto_port() -> void:
+	if GameState.current_location_id == "":
+		_pending_port_open = true
+		Log.add_entry("Select a location to dock.")
+		_show_view("res://scenes/MapPanel.tscn")
+		return
+
+	_pending_port_open = false
 	_show_view("res://scenes/Port.tscn")
