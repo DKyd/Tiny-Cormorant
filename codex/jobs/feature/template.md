@@ -117,3 +117,13 @@ Results must include:
 - Files changed with brief explanation per file
 - Assumptions made
 - Known limitations or TODOs
+
+## Logging Checklist
+
+- [ ] All explicit player actions that succeed or fail emit a clear log entry
+- [ ] All time advancement paths log a reason and tick delta
+- [ ] No UI-only interactions produce log entries
+- [ ] No per-frame or loop-driven spam was introduced
+- [ ] Log messages are human-readable (no raw structs or IDs unless necessary)
+- [ ] `print()` usage is debug-only or removed in favor of `Log.add_entry()`
+- [ ] Log volume feels appropriate for a capped, recent-history log

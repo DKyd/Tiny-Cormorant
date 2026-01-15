@@ -1,5 +1,9 @@
-# res://ui/MapPanel.gd
+# res://scripts/MapPanel.gd
 extends Control
+
+signal navigate_to_system_requested(dest_system_id: String)
+signal navigate_to_location_requested(dest_system_id: String, dest_location_id: String)
+signal close_requested()
 
 @onready var title_label: Label = $PanelContainer/MarginContainer/VBoxContainer/TitleLabel
 @onready var search_box: LineEdit = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/SearchBox
@@ -11,6 +15,17 @@ extends Control
 
 var all_system_entries: Array = [] # array of { id, name, type, security, drydock }
 var contract_dest_ids: Array = []   # system-level destinations for now
+var _did_empty_retry: bool = false
+
+const _MAP_DEBUG: bool = false # flip to true for debug logging
+
+func _dbg(msg: String) -> void:
+	if _MAP_DEBUG and OS.is_debug_build():
+		Log.add_entry(msg)
+
+func _assert_true(cond: bool, fail_msg: String) -> void:
+	if not cond:
+		_dbg("ASSERT FAIL: " + fail_msg)
 
 
 func _ready() -> void:
@@ -20,9 +35,8 @@ func _ready() -> void:
 	print("MapPanel: _ready. current_system_id =", GameState.current_system_id)
 	print("MapPanel: Galaxy.systems size =", Galaxy.systems.size())
 
-	_build_system_entries()
-	_rebuild_contract_destinations()
-	_refresh_systems_list("")
+	search_box.text = ""
+	_refresh_all()
 
 	search_box.text_changed.connect(_on_search_text_changed)
 	search_clear_button.pressed.connect(_on_search_clear_pressed)
@@ -34,12 +48,54 @@ func _ready() -> void:
 	close_button.pressed.connect(_on_close_pressed)
 
 	GameState.system_changed.connect(_on_system_changed)
+	visibility_changed.connect(_on_visibility_changed)
 
 	systems_tree.hide_root = true
 	systems_tree.columns = 1
-	systems_tree.custom_minimum_size = Vector2(0, 300)
+
+	systems_tree.set_column_expand(0, true)
+	systems_tree.set_column_custom_minimum_width(0, 600)
+
+	systems_tree.z_index = 10
+	systems_tree.z_as_relative = true
+
+	systems_tree.custom_minimum_size = Vector2(0, 600)
 	systems_tree.size_flags_vertical = Control.SIZE_EXPAND | Control.SIZE_FILL
+
+	systems_tree.add_theme_font_size_override("font_size", 16)
+
+	systems_tree.add_theme_constant_override("item_margin", 4)
+	systems_tree.add_theme_constant_override("h_separation", 4)
+
+
 	print("MapPanel: systems_tree size after setup =", systems_tree.size)
+
+
+func _refresh_all() -> void:
+
+	_dbg("MapPanel refresh: visible=%s in_tree=%s systems=%d" % [
+		
+	str(visible),
+	str(is_visible_in_tree()),
+	Galaxy.get_all_system_ids().size()
+	])
+
+	_dbg("MapPanel instance id=%d path=%s" % [get_instance_id(), str(get_path())])
+	
+	_build_system_entries()
+	_rebuild_contract_destinations()
+	if is_visible_in_tree() and all_system_entries.is_empty():
+		if not _did_empty_retry:
+			_did_empty_retry = true
+			call_deferred("_refresh_all")
+		return
+
+	_did_empty_retry = false
+	_refresh_systems_list(search_box.text.strip_edges())
+
+
+func request_refresh() -> void:
+	call_deferred("_refresh_all")
 
 
 func _build_system_entries() -> void:
@@ -50,13 +106,19 @@ func _build_system_entries() -> void:
 
 	for id_variant in ids:
 		var sys_id: String = String(id_variant)
+		# NEW (fix)
 		var system: Dictionary = Galaxy.get_system(sys_id)
-		if system.is_empty():
-			continue
 
-		var name: String = String(system.get("name", sys_id))
-		var stype: String = String(system.get("system_type", "unknown"))
-		var sec: String = String(system.get("security_level", "medium"))
+		var name: String = sys_id
+		var stype: String = "unknown"
+		var sec: String = "medium"
+
+		if not system.is_empty():
+			name = String(system.get("name", sys_id))
+			stype = String(system.get("system_type", "unknown"))
+			sec = String(system.get("security_level", "medium"))
+
+
 		var has_drydock: bool = Galaxy.system_has_drydock(sys_id)
 
 		all_system_entries.append({
@@ -64,21 +126,26 @@ func _build_system_entries() -> void:
 			"name": name,
 			"type": stype,
 			"security": sec,
-			"drydock": has_drydock
+			"drydock": has_drydock,
 		})
 
 	print("MapPanel: all_system_entries size =", all_system_entries.size())
+	_dbg("MapPanel entries built: %d" % all_system_entries.size())
 
 
 func _refresh_systems_list(filter_text: String) -> void:
+	_dbg("MapPanel filter='%s' entries=%d" % [filter_text, all_system_entries.size()])
 	print("MapPanel: _refresh_systems_list. filter =", filter_text)
 	systems_tree.clear()
 
 	var root: TreeItem = systems_tree.create_item()  # hidden root (set Hide Root = true)
 
-	filter_text = filter_text.to_lower()
+	filter_text = filter_text.strip_edges().to_lower()
 	var current_id: String = GameState.current_system_id
 	var total_rows: int = 0
+	var system_items: Dictionary = {}
+	var system_contract_counts: Dictionary = {}
+	var system_is_current: Dictionary = {}
 
 	for entry_variant in all_system_entries:
 		var entry: Dictionary = entry_variant
@@ -129,7 +196,11 @@ func _refresh_systems_list(filter_text: String) -> void:
 			"system_id": sys_id,
 		})
 
-		sys_item.collapsed = contracts_to_sys <= 0 and active_dest_to_sys <= 0
+		sys_item.set_custom_color(0, Color(1, 0, 0))
+
+		system_items[sys_id] = sys_item
+		system_contract_counts[sys_id] = contracts_to_sys
+		system_is_current[sys_id] = is_here
 
 		total_rows += 1
 
@@ -185,6 +256,61 @@ func _refresh_systems_list(filter_text: String) -> void:
 
 	print("MapPanel: _refresh_systems_list created rows =", total_rows)
 	info_label.text = "Select a system or location and press Set Course."
+
+	_sanity_check_tree(total_rows)
+
+	for sys_id in system_items.keys():
+		var sys_item: TreeItem = system_items[sys_id]
+		var is_current: bool = bool(system_is_current.get(sys_id, false))
+		var contract_count: int = int(system_contract_counts.get(sys_id, 0))
+		sys_item.collapsed = not (is_current or contract_count > 0)
+
+	var root_item := systems_tree.get_root()
+	var child_count := 0
+	if root_item != null:
+		child_count = root_item.get_child_count()
+
+	_dbg("MapPanel TreeState: size=%s min=%s children=%d visible=%s" % [
+		str(systems_tree.size),
+		str(systems_tree.custom_minimum_size),
+		child_count,
+		str(systems_tree.visible)
+	])
+
+	systems_tree.queue_redraw()
+
+	systems_tree.select_mode = Tree.SELECT_ROW
+	systems_tree.grab_focus()
+	systems_tree.set_selected(systems_tree.get_root().get_first_child(), 0)
+
+	
+	#systems_tree.queue_sort()
+
+func _sanity_check_tree(total_rows: int) -> void:
+	# Basic invariants after a rebuild
+	_assert_true(systems_tree != null, "systems_tree is null")
+	_assert_true(systems_tree.visible, "systems_tree not visible")
+	_assert_true(systems_tree.size.y > 0.0, "systems_tree height is 0")
+	_assert_true(all_system_entries.size() > 0, "all_system_entries is empty")
+
+	var root := systems_tree.get_root()
+	_assert_true(root != null, "Tree root is null (no root item)")
+
+	if root == null:
+		return
+
+	var root_children := root.get_child_count()
+	_assert_true(root_children == all_system_entries.size(),
+		"root child count (%d) != entries (%d)" % [root_children, all_system_entries.size()])
+
+	_assert_true(total_rows >= root_children,
+		"total_rows (%d) < root_children (%d)" % [total_rows, root_children])
+
+	# Selection sanity: if we have rows, we should be able to select something.
+	if root_children > 0:
+		var first := root.get_child(0)
+		_assert_true(first != null, "first root child is null")
+
 
 
 func _on_search_text_changed(new_text: String) -> void:
@@ -282,12 +408,8 @@ func _set_course_to_system(dest_id: String) -> void:
 		info_label.text = "No route from here to that system."
 		return
 
-	var hops: int = path.size() - 1
-	Log.add_entry("Setting course to %s (%d jumps)." % [dest_id, hops])
-	GameState.auto_travel(path)
-
-	info_label.text = "Arrived or stopped en route."
-	queue_free()
+	info_label.text = "Course requested."
+	emit_signal("navigate_to_system_requested", dest_id)
 
 
 func _set_course_to_location(dest_sys: String, dest_loc: String) -> void:
@@ -315,26 +437,22 @@ func _set_course_to_location(dest_sys: String, dest_loc: String) -> void:
 			info_label.text = "No route from here to that system."
 			return
 	
-		var hops: int = path.size() - 1
-		Log.add_entry("Setting course to %s (%d jumps)." % [dest_sys, hops])
-		GameState.auto_travel(path)
-		if GameState.current_system_id != dest_sys:
-			info_label.text = "Could not reach destination system."
-			return
-	GameState.set_current_location(dest_loc)
-
-	var loc_name: String = String(loc.get("name", dest_loc))
-	info_label.text = "Docked at %s." % loc_name
-
-	queue_free() #for now let's close map after dock 
+	info_label.text = "Docking requested."
+	emit_signal("navigate_to_location_requested", dest_sys, dest_loc)
 	return
 
 func _on_close_pressed() -> void:
-	queue_free()
+	emit_signal("close_requested")
 
 
 func _on_system_changed(new_system_id: String) -> void:
-	_refresh_systems_list(search_box.text)
+	call_deferred("_refresh_all")
+
+func _on_visibility_changed() -> void:
+	if not is_visible_in_tree():
+		return
+	call_deferred("_refresh_all")
+
 
 
 func _rebuild_contract_destinations() -> void:
@@ -405,7 +523,6 @@ func _estimate_route_cost(path: Array) -> float:
 		total_cost += GameState.get_travel_cost(dest_id)
 
 	return total_cost
-
 
 
 

@@ -3,6 +3,7 @@ extends Node
 
 var current_system_id: String = ""
 var current_location_id: String = ""
+var time_tick: int = 0
 
 var player_money: float = 10_000.0  # starter money
 
@@ -25,6 +26,8 @@ var cargo_hold_level: int = 1
 
 const MAX_ENGINE_LEVEL: int = 5
 const MAX_CARGO_HOLD_LEVEL: int = 5
+const INTER_SYSTEM_TRAVEL_TICKS: int = 2
+const INTRA_SYSTEM_TRAVEL_TICKS: int = 5
 
 var ship_engine_upgrade_base_cost: float = 2000.0
 var cargo_hold_upgrade_base_cost: float = 1500.0
@@ -34,13 +37,34 @@ var engine_discount_per_level: float = 0.1  # 10% travel cost discount per level
 # freight documentation models
 var freight_docs: Array = []          # array of freight doc dictionaries
 var next_freight_doc_id: int = 1
+var _has_initialized_location: bool = false
 
 signal system_changed(new_system_id: String)
 signal location_changed(new_location_id: String)
 signal ship_changed
+signal time_advanced(new_tick: int, reason: String)
 
 func _ready() -> void:
 	_ensure_starting_system()
+
+
+func advance_time(reason: String) -> void:
+	time_tick += 1
+	var message: String = reason.strip_edges()
+	if message == "":
+		message = "Time advanced"
+	if message.ends_with("."):
+		message = message.substr(0, message.length() - 1)
+	Log.add_entry("%s. +1 tick." % message)
+	emit_signal("time_advanced", time_tick, reason)
+
+
+func _advance_time_ticks(ticks: int, reason: String) -> void:
+	if ticks <= 0:
+		return
+
+	for _i in range(ticks):
+		advance_time(reason)
 
 
 func _ensure_starting_system() -> void:
@@ -87,11 +111,15 @@ func travel_to_system(new_system_id: String) -> void:
 	# Reset to an explicit "not docked" state on system arrival.
 	current_location_id = ""
 
-	Log.add_entry("Traveled to %s (-%.0f cr)" % [new_system_id, cost])
+	var system_name: String = String(system.get("name", new_system_id))
+	_advance_time_ticks(
+		INTER_SYSTEM_TRAVEL_TICKS,
+		"Inter-system travel to %s" % system_name
+	)
+
+	Log.add_entry("Traveled to %s. +%d ticks." % [system_name, INTER_SYSTEM_TRAVEL_TICKS])
 	emit_signal("system_changed", current_system_id)
 	emit_signal("location_changed", current_location_id)
-
-	print("Traveled to system: %s (cost %.0f, remaining %.0f)" % [new_system_id, cost, player_money])
 
 
 func get_cargo_quantity(commodity_id: String) -> int:
@@ -169,6 +197,9 @@ func set_current_location(loc_id: String) -> void:
 	if loc_id == "":
 		return
 
+	var previous_system_id: String = current_system_id
+	var previous_location_id: String = current_location_id
+
 	var loc: Dictionary = Galaxy.get_location(loc_id)
 	if loc.is_empty():
 		push_warning("Unknown location: %s" % loc_id)
@@ -178,9 +209,18 @@ func set_current_location(loc_id: String) -> void:
 	if sys_id != "":
 		current_system_id = sys_id
 
+	var loc_name: String = String(loc.get("name", loc_id))
+	if _has_initialized_location and sys_id != "" and sys_id == previous_system_id:
+		if loc_id != previous_location_id:
+			_advance_time_ticks(
+				INTRA_SYSTEM_TRAVEL_TICKS,
+				"In-system travel to %s" % loc_name
+			)
+
+	_has_initialized_location = true
 	current_location_id = loc_id
 	Contracts.refresh_contracts_for_location(current_location_id, 4)
-	Log.add_entry("Docked at %s." % loc.get("name", loc_id))
+	Log.add_entry("Docked at %s." % loc_name)
 	emit_signal("location_changed", current_location_id)
 
 	check_travel_contracts_at(current_system_id, current_location_id)
@@ -512,12 +552,9 @@ func create_freight_doc_for_contract(contract: Dictionary) -> Dictionary:
 		"cargo_lines": cargo_lines,
 	}
 
-	print("Creating freight doc from contract: ", contract)
-	print("Freight doc cargo_lines: ", cargo_lines)
 
 	freight_docs.append(doc)
 
-	print("All freight docs now: ", freight_docs)
 	#Log.add_entry("DEBUG: Created freight doc %s with %d cargo_lines."
 	#% [doc_id, cargo_lines.size()])
 
@@ -603,3 +640,20 @@ func _mark_docs_completed_for_contract(contract_id: String) -> void:
 			doc["status"] = "completed"
 			freight_docs[i] = doc
 
+func _unhandled_input(event: InputEvent) -> void:
+	if not OS.is_debug_build():
+		return
+
+	if event is InputEventKey and event.pressed and not event.echo:
+		var key : int = event.keycode
+
+		# T = advance time by 1 tick
+		if key == KEY_T:
+			advance_time("manual test: T key")
+
+		# Y = copy current system market (legal) to clipboard
+		if key == KEY_Y:
+			if current_system_id == "":
+				return
+			var text := Economy.get_price_list_text_for_system_at(current_system_id, time_tick, "legal")
+			DisplayServer.clipboard_set(text)

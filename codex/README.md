@@ -34,23 +34,23 @@ codex/
 - CONTEXT.md       (project-wide truths and conventions)
 - jobs/            (job TYPES)
   - feature/
-    - template.md
-    - rules.md
-    - config.json
+	- template.md
+	- rules.md
+	- config.json
   - bugfix/
-    - template.md
-    - rules.md
-    - config.json
+	- template.md
+	- rules.md
+	- config.json
   - refactor/
-    - template.md
-    - rules.md
-    - config.json
+	- template.md
+	- rules.md
+	- config.json
 - runs/            (job INSTANCES)
   - ACTIVE_RUN.txt (name of the active run folder; optional but recommended)
   - issue-XXXX-short-title/
-    - job.md
-    - results.md
-    - notes.md (optional)
+	- job.md
+	- results.md
+	- notes.md (optional)
 
 ---
 

@@ -9,6 +9,9 @@ extends Control
 @onready var to_port_button: Button = $MarginContainer/VBoxContainer/StatusRow/ToPortButton
 @onready var map_host: Control = $MarginContainer/VBoxContainer/MainPanel/MapHost
 
+const WAIT_TICKS: int = 3
+
+var _map_panel: Node = null
 
 func _ready() -> void:
 	title_label.text = "Bridge"
@@ -63,9 +66,29 @@ func _load_map_panel() -> void:
 		return
 
 	var panel: Control = packed.instantiate()
+	_map_panel = panel
 	map_host.add_child(panel)
 	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_wire_map_panel(panel)
 
+func _ensure_map_panel() -> void:
+	if not is_instance_valid(_map_panel) or _map_panel.get_parent() != map_host:
+		_load_map_panel()
+
+	Log.add_entry("Bridge ensure map: children=%d has_panel=%s" % [
+	map_host.get_child_count(),
+	str(is_instance_valid(_map_panel))
+	])
+
+func _wire_map_panel(panel: Node) -> void:
+	if panel == null:
+		return
+	if panel.has_signal("navigate_to_system_requested"):
+		panel.connect("navigate_to_system_requested", Callable(self, "_on_map_navigate_to_system_requested"))
+	if panel.has_signal("navigate_to_location_requested"):
+		panel.connect("navigate_to_location_requested", Callable(self, "_on_map_navigate_to_location_requested"))
+	if panel.has_signal("close_requested"):
+		panel.connect("close_requested", Callable(self, "_on_map_close_requested"))
 
 func _on_DocsButton_pressed() -> void:
 	var packed: PackedScene = load("res://scenes/FreightDocsPanel.tscn")
@@ -90,8 +113,101 @@ func _on_ToPortButton_pressed() -> void:
 
 func _on_system_changed(new_system_id: String) -> void:
 	_refresh_status()
-	# map_panel already listens to system changes for travel, so no reload needed
+	_ensure_map_panel()
+
+	if _map_panel != null and is_instance_valid(_map_panel) and _map_panel.has_method("request_refresh"):
+		_map_panel.call_deferred("request_refresh")
+	else:
+		# Fallback: if the reference is missing or method not found, reload the panel
+		_load_map_panel()
 
 
 func _on_location_changed(new_location_id: String) -> void:
 	_refresh_status()
+
+func _on_map_navigate_to_system_requested(dest_system_id: String) -> void:
+	if dest_system_id == "":
+		Log.add_entry("Travel failed: invalid destination.")
+		return
+
+	if dest_system_id == GameState.current_system_id:
+		Log.add_entry("Already in that system.")
+		return
+
+	var path: Array = Galaxy.find_path(GameState.current_system_id, dest_system_id)
+	if path.is_empty() or path.size() < 2:
+		Log.add_entry("No route from here to that system.")
+		return
+
+	var hops: int = path.size() - 1
+	Log.add_entry("Setting course to %s (%d jumps)." % [dest_system_id, hops])
+	GameState.auto_travel(path)
+	_refresh_status()
+	_ensure_map_panel()
+	if _map_panel != null and is_instance_valid(_map_panel) and _map_panel.has_method("request_refresh"):
+		_map_panel.call_deferred("request_refresh")
+
+func _on_map_navigate_to_location_requested(dest_system_id: String, dest_location_id: String) -> void:
+	if dest_location_id == "":
+		Log.add_entry("Docking failed: invalid destination.")
+		return
+
+	var loc: Dictionary = Galaxy.get_location(dest_location_id)
+	if loc.is_empty():
+		Log.add_entry("Docking failed: unknown destination.")
+		return
+
+	var loc_system_id: String = String(loc.get("system_id", ""))
+	if dest_system_id != "" and loc_system_id != "" and dest_system_id != loc_system_id:
+		Log.add_entry("Docking failed: location is not in that system.")
+		return
+
+	var target_system_id := dest_system_id
+	if target_system_id == "":
+		target_system_id = loc_system_id
+
+	if target_system_id == "":
+		Log.add_entry("Docking failed: unknown destination.")
+		return
+
+	if target_system_id != GameState.current_system_id:
+		var path: Array = Galaxy.find_path(GameState.current_system_id, target_system_id)
+		if path.is_empty() or path.size() < 2:
+			Log.add_entry("No route from here to that system.")
+			return
+
+		var hops: int = path.size() - 1
+		Log.add_entry("Setting course to %s (%d jumps)." % [target_system_id, hops])
+		GameState.auto_travel(path)
+		_refresh_status()
+		_ensure_map_panel()
+		if _map_panel != null and is_instance_valid(_map_panel) and _map_panel.has_method("request_refresh"):
+			_map_panel.call_deferred("request_refresh")
+		if GameState.current_system_id != target_system_id:
+			Log.add_entry("Auto-travel stopped before reaching destination.")
+			return
+
+	var loc_name: String = String(loc.get("name", dest_location_id))
+	Log.add_entry("Docking at %s." % loc_name)
+	GameState.set_current_location(dest_location_id)
+	_refresh_status()
+	_ensure_map_panel()
+	if _map_panel != null and is_instance_valid(_map_panel) and _map_panel.has_method("request_refresh"):
+		_map_panel.call_deferred("request_refresh")
+
+func _on_map_close_requested() -> void:
+	pass
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode != KEY_W:
+			return
+
+		if GameState.current_location_id == "":
+			Log.add_entry("You must be docked to wait.")
+			return
+
+		Log.add_entry("Waited dockside (%d ticks)." % WAIT_TICKS)
+		for _i in range(WAIT_TICKS):
+			GameState.advance_time("Waited dockside")

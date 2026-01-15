@@ -1,4 +1,4 @@
-res://scripts/Bridge.gd
+res://scripts/MapPanel.gd
 res://scenes/SystemList.tscn
 res://scenes/MapPanel.tscn
 res://scenes/JobBoardPanel.tscn
@@ -12,10 +12,7 @@ res://scenes/Bridge.tscn
 res://scenes/Port.tscn
 res://scenes/MarketPanel.tscn
 res://LocationsPanel.tscn
-res://codex/README.md
-res://scripts/ui/LogPanel.gd
+res://scripts/Bridge.gd
 res://scripts/MainGame.gd
-res://singletons/Log.gd
 res://singletons/GameState.gd
-res://scripts/MapPanel.gd
-res://singletons/Contracts.gd
+res://singletons/Log.gd
