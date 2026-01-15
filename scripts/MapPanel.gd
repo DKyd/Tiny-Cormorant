@@ -17,23 +17,10 @@ var all_system_entries: Array = [] # array of { id, name, type, security, drydoc
 var contract_dest_ids: Array = []   # system-level destinations for now
 var _did_empty_retry: bool = false
 
-const _MAP_DEBUG: bool = false # flip to true for debug logging
-
-func _dbg(msg: String) -> void:
-	if _MAP_DEBUG and OS.is_debug_build():
-		Log.add_entry(msg)
-
-func _assert_true(cond: bool, fail_msg: String) -> void:
-	if not cond:
-		_dbg("ASSERT FAIL: " + fail_msg)
-
 
 func _ready() -> void:
 	title_label.text = "Galaxy Map"
 	close_button.text = "Dock"
-
-	print("MapPanel: _ready. current_system_id =", GameState.current_system_id)
-	print("MapPanel: Galaxy.systems size =", Galaxy.systems.size())
 
 	search_box.text = ""
 	_refresh_all()
@@ -68,20 +55,7 @@ func _ready() -> void:
 	systems_tree.add_theme_constant_override("h_separation", 4)
 
 
-	print("MapPanel: systems_tree size after setup =", systems_tree.size)
-
-
 func _refresh_all() -> void:
-
-	_dbg("MapPanel refresh: visible=%s in_tree=%s systems=%d" % [
-		
-	str(visible),
-	str(is_visible_in_tree()),
-	Galaxy.get_all_system_ids().size()
-	])
-
-	_dbg("MapPanel instance id=%d path=%s" % [get_instance_id(), str(get_path())])
-	
 	_build_system_entries()
 	_rebuild_contract_destinations()
 	if is_visible_in_tree() and all_system_entries.is_empty():
@@ -102,7 +76,6 @@ func _build_system_entries() -> void:
 	all_system_entries.clear()
 
 	var ids: Array = Galaxy.get_all_system_ids()
-	print("MapPanel: _build_system_entries. Galaxy.get_all_system_ids() size =", ids.size())
 
 	for id_variant in ids:
 		var sys_id: String = String(id_variant)
@@ -129,13 +102,9 @@ func _build_system_entries() -> void:
 			"drydock": has_drydock,
 		})
 
-	print("MapPanel: all_system_entries size =", all_system_entries.size())
-	_dbg("MapPanel entries built: %d" % all_system_entries.size())
 
 
 func _refresh_systems_list(filter_text: String) -> void:
-	_dbg("MapPanel filter='%s' entries=%d" % [filter_text, all_system_entries.size()])
-	print("MapPanel: _refresh_systems_list. filter =", filter_text)
 	systems_tree.clear()
 
 	var root: TreeItem = systems_tree.create_item()  # hidden root (set Hide Root = true)
@@ -196,8 +165,6 @@ func _refresh_systems_list(filter_text: String) -> void:
 			"system_id": sys_id,
 		})
 
-		sys_item.set_custom_color(0, Color(1, 0, 0))
-
 		system_items[sys_id] = sys_item
 		system_contract_counts[sys_id] = contracts_to_sys
 		system_is_current[sys_id] = is_here
@@ -254,10 +221,7 @@ func _refresh_systems_list(filter_text: String) -> void:
 
 			total_rows += 1
 
-	print("MapPanel: _refresh_systems_list created rows =", total_rows)
 	info_label.text = "Select a system or location and press Set Course."
-
-	_sanity_check_tree(total_rows)
 
 	for sys_id in system_items.keys():
 		var sys_item: TreeItem = system_items[sys_id]
@@ -270,13 +234,6 @@ func _refresh_systems_list(filter_text: String) -> void:
 	if root_item != null:
 		child_count = root_item.get_child_count()
 
-	_dbg("MapPanel TreeState: size=%s min=%s children=%d visible=%s" % [
-		str(systems_tree.size),
-		str(systems_tree.custom_minimum_size),
-		child_count,
-		str(systems_tree.visible)
-	])
-
 	systems_tree.queue_redraw()
 
 	systems_tree.select_mode = Tree.SELECT_ROW
@@ -285,31 +242,6 @@ func _refresh_systems_list(filter_text: String) -> void:
 
 	
 	#systems_tree.queue_sort()
-
-func _sanity_check_tree(total_rows: int) -> void:
-	# Basic invariants after a rebuild
-	_assert_true(systems_tree != null, "systems_tree is null")
-	_assert_true(systems_tree.visible, "systems_tree not visible")
-	_assert_true(systems_tree.size.y > 0.0, "systems_tree height is 0")
-	_assert_true(all_system_entries.size() > 0, "all_system_entries is empty")
-
-	var root := systems_tree.get_root()
-	_assert_true(root != null, "Tree root is null (no root item)")
-
-	if root == null:
-		return
-
-	var root_children := root.get_child_count()
-	_assert_true(root_children == all_system_entries.size(),
-		"root child count (%d) != entries (%d)" % [root_children, all_system_entries.size()])
-
-	_assert_true(total_rows >= root_children,
-		"total_rows (%d) < root_children (%d)" % [total_rows, root_children])
-
-	# Selection sanity: if we have rows, we should be able to select something.
-	if root_children > 0:
-		var first := root.get_child(0)
-		_assert_true(first != null, "first root child is null")
 
 
 
@@ -523,6 +455,4 @@ func _estimate_route_cost(path: Array) -> float:
 		total_cost += GameState.get_travel_cost(dest_id)
 
 	return total_cost
-
-
 

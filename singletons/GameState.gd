@@ -254,12 +254,79 @@ func auto_travel(path: Array) -> void:
 		travel_to_system(dest_id)
 		# travel_to_system already logs and charges
 
+func _get_sorted_location_ids_for_system(system_id: String) -> Array:
+	var ids: Array = Galaxy.get_location_ids_for_system(system_id)
+	var result: Array = []
+	for id_variant in ids:
+		result.append(String(id_variant))
+	result.sort()
+	return result
+
+func _pick_deterministic_location_id(system_id: String, seed: String) -> String:
+	var ids: Array = _get_sorted_location_ids_for_system(system_id)
+	if ids.is_empty():
+		return ""
+
+	var hash_value: int
+	if seed == "":
+		hash_value = system_id.hash()
+	else:
+		hash_value = seed.hash()
+
+	if hash_value < 0:
+		hash_value = -hash_value
+	var index: int = hash_value % ids.size()
+	return String(ids[index])
+
+func _ensure_contract_destination_location(contract: Dictionary) -> Dictionary:
+	if contract.is_empty():
+		return contract
+
+	var dest_loc_id: String = String(contract.get("destination_location_id", ""))
+	var dest_loc_name: String = String(contract.get("destination_location_name", ""))
+	if dest_loc_id != "":
+		if dest_loc_name == "":
+			var dest_loc: Dictionary = Galaxy.get_location(dest_loc_id)
+			if not dest_loc.is_empty():
+				contract["destination_location_name"] = String(dest_loc.get("name", dest_loc_id))
+		return contract
+
+	var dest_sys_id: String = String(contract.get("destination", ""))
+	if dest_sys_id == "":
+		Log.add_entry("Contract repair skipped: missing destination system for %s."
+			% String(contract.get("id", "?")))
+		return contract
+
+	var repaired_loc_id: String = _pick_deterministic_location_id(
+		dest_sys_id,
+		String(contract.get("id", ""))
+	)
+	if repaired_loc_id == "":
+		Log.add_entry("Contract repair failed: no destinations in %s." % dest_sys_id)
+		return contract
+
+	var repaired_loc: Dictionary = Galaxy.get_location(repaired_loc_id)
+	if repaired_loc.is_empty():
+		Log.add_entry("Contract repair failed: unknown destination location.")
+		return contract
+
+	contract["destination_location_id"] = repaired_loc_id
+	contract["destination_location_name"] = String(repaired_loc.get("name", repaired_loc_id))
+
+	if String(contract.get("destination_name", "")) == "":
+		var dest_system: Dictionary = Galaxy.get_system(dest_sys_id)
+		if not dest_system.is_empty():
+			contract["destination_name"] = String(dest_system.get("name", dest_sys_id))
+
+	return contract
+
 func add_contract(contract: Dictionary) -> void:
-	active_contracts.append(contract.duplicate(true))
+	var normalized: Dictionary = _ensure_contract_destination_location(contract.duplicate(true))
+	active_contracts.append(normalized)
 	Log.add_entry("Accepted contract to %s (%d jumps) for %.0f cr."
-	  % [contract.get("destination_name", contract.get("destination", "?")),
-		int(contract.get("jumps", 0)),
-		float(contract.get("reward", 0.0))])
+	  % [normalized.get("destination_name", normalized.get("destination", "?")),
+		int(normalized.get("jumps", 0)),
+		float(normalized.get("reward", 0.0))])
 
 func accept_contract(contract: Dictionary) -> Dictionary:
 	var result := {
@@ -423,6 +490,11 @@ func load_game() -> void:
 	player_money = data.get("player_money", player_money)
 	cargo = data.get("cargo", {})
 	active_contracts = data.get("active_contracts", [])
+	var repaired_contracts: Array = []
+	for contract_variant in active_contracts:
+		var contract: Dictionary = contract_variant
+		repaired_contracts.append(_ensure_contract_destination_location(contract))
+	active_contracts = repaired_contracts
 
 	var saved_systems: Dictionary = data.get("galaxy_systems", {})
 	if not saved_systems.is_empty():

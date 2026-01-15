@@ -134,6 +134,12 @@ func generate_contracts_for_system(system_id: String, count: int = 3) -> Array:
 
 		var dest_system: Dictionary = Galaxy.get_system(dest_id)
 		var dest_name: String = dest_system.get("name", dest_id)
+		var dest_loc: Dictionary = _choose_destination_location(dest_id, true)
+		if dest_loc.is_empty():
+			continue
+
+		var dest_loc_id: String = String(dest_loc.get("id", ""))
+		var dest_loc_name: String = String(dest_loc.get("name", dest_loc_id))
 
 		# 🔹 NEW: pick cargo for this contract
 		var commodity_id: String = _pick_contract_commodity()
@@ -152,6 +158,8 @@ func generate_contracts_for_system(system_id: String, count: int = 3) -> Array:
 			"origin": system_id,
 			"destination": dest_id,
 			"destination_name": dest_name,
+			"destination_location_id": dest_loc_id,
+			"destination_location_name": dest_loc_name,
 			"jumps": jumps,
 			"reward": reward,
 
@@ -193,23 +201,9 @@ func generate_contracts_for_location(origin_loc_id: String, count: int = 3) -> A
 		if dest_sys_id == "":
 			continue
 
-		var dest_locs: Array = Galaxy.get_locations_for_system(dest_sys_id)
-		if dest_locs.is_empty():
+		var chosen_dest_loc: Dictionary = _choose_destination_location(dest_sys_id, true)
+		if chosen_dest_loc.is_empty():
 			continue
-
-		# Prefer locations with a market
-		var market_locs: Array = []
-		for loc_variant in dest_locs:
-			var loc: Dictionary = loc_variant
-			var spaces: Array = loc.get("spaces", [])
-			if "market" in spaces:
-				market_locs.append(loc)
-
-		var chosen_dest_loc: Dictionary
-		if market_locs.size() > 0:
-			chosen_dest_loc = market_locs[randi() % market_locs.size()]
-		else:
-			chosen_dest_loc = dest_locs[randi() % dest_locs.size()]
 
 		var dest_loc_id: String = String(chosen_dest_loc.get("id", ""))
 		var dest_loc_name: String = String(chosen_dest_loc.get("name", dest_loc_id))
@@ -224,6 +218,27 @@ func generate_contracts_for_location(origin_loc_id: String, count: int = 3) -> A
 		result.append(enriched)
 
 	return result
+
+
+func _choose_destination_location(system_id: String, prefer_market: bool) -> Dictionary:
+	var dest_locs: Array = Galaxy.get_locations_for_system(system_id)
+	if dest_locs.is_empty():
+		return {}
+
+	if not prefer_market:
+		return dest_locs[randi() % dest_locs.size()]
+
+	# Prefer locations with a market
+	var market_locs: Array = []
+	for loc_variant in dest_locs:
+		var loc: Dictionary = loc_variant
+		var spaces: Array = loc.get("spaces", [])
+		if "market" in spaces:
+			market_locs.append(loc)
+
+	if market_locs.size() > 0:
+		return market_locs[randi() % market_locs.size()]
+	return dest_locs[randi() % dest_locs.size()]
 
 
 const CONTRACT_COMMODITY_IDS := [

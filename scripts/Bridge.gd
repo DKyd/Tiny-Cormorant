@@ -75,11 +75,6 @@ func _ensure_map_panel() -> void:
 	if not is_instance_valid(_map_panel) or _map_panel.get_parent() != map_host:
 		_load_map_panel()
 
-	Log.add_entry("Bridge ensure map: children=%d has_panel=%s" % [
-	map_host.get_child_count(),
-	str(is_instance_valid(_map_panel))
-	])
-
 func _wire_map_panel(panel: Node) -> void:
 	if panel == null:
 		return

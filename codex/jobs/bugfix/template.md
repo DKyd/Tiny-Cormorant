@@ -1,8 +1,10 @@
 # Bugfix Job
 
-## Metadata
+## Metadata (Required)
 - Issue/Task ID:
 - Short Title:
+- Run Folder Name:            # REQUIRED (e.g. issue-0021-bug-bridge-map-missing)
+- Job Type: bugfix
 - Author (human):
 - Date:
 
@@ -57,8 +59,8 @@ Only these files may be edited.
 ## Files: Forbidden to Modify (Blacklist)
 These files/directories must not be touched.
 
--
--
+- `data/**`
+- `scenes/MainGame.tscn`
 
 ---
 
@@ -99,18 +101,22 @@ Step-by-step instructions a human can follow in Godot to verify the fix.
 
 ---
 
-## Codex Output Requirements
-Codex must write results to:
+## Codex Scaffolding & Output Requirements (Mandatory)
 
-- `codex/runs/<job>/results.md`
+Codex must perform the following before any code changes:
 
-If `results.md` does not exist, Codex is permitted to create it.
-No other new files may be created.
+1) Create `codex/runs/<Run Folder Name>/`
+2) Write this job verbatim to `codex/runs/<Run Folder Name>/job.md`
+3) Create `codex/runs/<Run Folder Name>/results.md` if missing
+4) Write `codex/runs/ACTIVE_RUN.txt` = `<Run Folder Name>`
+
+Codex must write final results only to:
+- `codex/runs/<Run Folder Name>/results.md`
 
 Results must include:
-- Root cause summary (brief)
+- Root cause summary
 - Fix summary
 - Files changed (and why)
-- Manual test steps performed
+- Manual tests performed
 - Regression checks performed
-- Any remaining risks or follow-ups
+- Remaining risks or follow-ups

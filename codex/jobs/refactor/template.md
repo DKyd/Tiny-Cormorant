@@ -1,61 +1,100 @@
-# Refactor Job: <JOB_ID> — <TITLE>
+# Refactor Job
+
+## Metadata (Required)
+- Issue/Task ID:
+- Short Title:
+- Run Folder Name:            # REQUIRED (e.g. issue-0016-refactor-debug-cleanup)
+- Job Type: refactor
+- Author (human):
+- Date:
+
+---
 
 ## Goal
-<1–2 sentences describing what structural improvement will be made and why.>
+Describe the structural improvement being made and why.
+No behavior change.
 
-## Non-goals
-- <Explicitly list what this will NOT do.>
-- <No new gameplay features. No polish beyond required fixes.>
+---
 
-## Invariants (must remain true)
-- Time advances only via `GameState.advance_time(reason)` from explicit actions.
+## Non-Goals
+- No gameplay changes.
+- No feature additions.
+- No behavior changes beyond structure/readability.
+
+---
+
+## Invariants (Must Remain True)
+- Time advances only via `GameState.advance_time(reason)`.
 - Docked UI interactions do not advance time.
-- GameState remains authoritative for system/location/time transitions.
-- UI does not mutate state directly; uses read-only system APIs.
+- GameState remains authoritative for transitions.
+- UI does not mutate state directly.
 - Economy determinism remains keyed by `(system_id, tick, market_kind)`.
 
-<Add any job-specific invariants here.>
+Add job-specific invariants here if needed.
+
+---
 
 ## Scope
-### Files allowed (whitelist)
-- <path/to/file1.gd>
-- <path/to/file2.gd>
-- <etc>
 
-### Prohibited
+### Files Allowed to Modify (Whitelist)
+-
+-
+
+### Files Forbidden to Modify (Blacklist)
 - `data/**`
 - `scenes/MainGame.tscn`
 
-## Approach (high level)
-1) <Step describing restructuring / consolidation / rename strategy.>
-2) <Step describing how call sites will be updated.>
-3) <Step describing how we’ll keep behavior identical and verifiable.>
+---
+
+## Approach (High Level)
+1) Describe structural cleanup or consolidation.
+2) Describe how call sites are updated.
+3) Describe how behavior equivalence is preserved.
+
+---
 
 ## Verification
 
-### Manual test steps
-1) <Deterministic steps to confirm behavior unchanged.>
-2) <Verify logs/signals/time ticks behave as before.>
+### Manual Test Steps
+1.
+2.
 
-### Rename verification (if applicable)
-- Search for old identifier(s): `<OLD_NAME_1>`, `<OLD_NAME_2>` → **0 results**
-- If a schema changed, confirm all producers/consumers updated.
+### Regression Checklist
+- [ ] No UI action advances time
+- [ ] No state mutation moved into UI
+- [ ] Logs still reflect real player actions
+- [ ] No protected paths touched
 
-### Regression checklist
-- [ ] No UI action advances time.
-- [ ] Time-advancing actions still log reason strings.
-- [ ] No new direct state mutation from UI.
-- [ ] No access of protected paths.
+---
+
+## Codex Scaffolding & Output Requirements (Mandatory)
+
+Codex must perform the following before any code changes:
+
+1) Create `codex/runs/<Run Folder Name>/`
+2) Write this job verbatim to `codex/runs/<Run Folder Name>/job.md`
+3) Create `codex/runs/<Run Folder Name>/results.md` if missing
+4) Write `codex/runs/ACTIVE_RUN.txt` = `<Run Folder Name>`
+
+Codex must write final results only to:
+- `codex/runs/<Run Folder Name>/results.md`
+
+Results must include:
+- Summary of refactor
+- Files changed
+- Manual test results
+- Confirmation behavior is unchanged
+- Follow-ups / known gaps (if any)
+
+---
 
 ## Migration Notes
-<Required if any schema/field names or saved/persisted data changes. Otherwise: “None.”>
+None.
+
+---
 
 ## Logging Checklist
-
-- [ ] All explicit player actions that succeed or fail emit a clear log entry
-- [ ] All time advancement paths log a reason and tick delta
-- [ ] No UI-only interactions produce log entries
-- [ ] No per-frame or loop-driven spam was introduced
-- [ ] Log messages are human-readable (no raw structs or IDs unless necessary)
-- [ ] `print()` usage is debug-only or removed in favor of `Log.add_entry()`
-- [ ] Log volume feels appropriate for a capped, recent-history log
+- [ ] No debug spam added
+- [ ] No meaningful logs removed
+- [ ] `print()` removed or debug-only
+- [ ] Log volume appropriate

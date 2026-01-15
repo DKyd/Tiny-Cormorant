@@ -47,10 +47,9 @@ codex/
 	- config.json
 - runs/            (job INSTANCES)
   - ACTIVE_RUN.txt (name of the active run folder; optional but recommended)
-  - issue-XXXX-short-title/
+  - issue-XXXX-jobtype-short-title/
 	- job.md
 	- results.md
-	- notes.md (optional)
 
 ---
 
@@ -135,3 +134,21 @@ If you are about to:
 - add new systems implicitly
 
 Stop and ask for clarification.
+
+## Hard Rules (Enforced)
+
+- Codex must not modify any files under `codex/` **except**:
+  - `codex/runs/<active-run>/job.md`
+  - `codex/runs/<active-run>/results.md`
+- Codex must not create new run folders. Only the human creates run folders.
+- Codex must not write `results.md` anywhere except `codex/runs/<active-run>/results.md`.
+
+## Active Run Resolution (Important)
+
+Codex must locate the active run folder using this order:
+
+1) If `codex/runs/ACTIVE_RUN.txt` exists, use its contents as the active run folder name.
+2) Otherwise, the human must provide the run folder path explicitly.
+
+If neither (1) nor (2) is available, Codex must STOP and ask for the active run folder.
+Codex must not guess which run folder is active.

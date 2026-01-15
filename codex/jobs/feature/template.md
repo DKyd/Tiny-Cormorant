@@ -1,8 +1,10 @@
 # Feature Job
 
-## Metadata
+## Metadata (Required)
 - Issue/Task ID:
 - Short Title:
+- Run Folder Name:            # REQUIRED (e.g. feature-0030-galaxy-map-2d)
+- Job Type: feature
 - Author (human):
 - Date:
 
@@ -44,8 +46,8 @@ Only these files may be edited.
 ## Files: Forbidden to Modify (Blacklist)
 These files/directories must not be touched.
 
--
--
+- `data/**`
+- `scenes/MainGame.tscn`
 
 ---
 
@@ -104,26 +106,31 @@ or architectural concerns.
 
 ---
 
-## Codex Output Requirements
-Codex must write results to:
+## Codex Scaffolding & Output Requirements (Mandatory)
 
-- `codex/runs/<job>/results.md`
+Codex must perform the following before any code changes:
 
-If `results.md` does not exist, Codex is permitted to create it.
-No other new files may be created.
+1) Create `codex/runs/<Run Folder Name>/`
+2) Write this job verbatim to `codex/runs/<Run Folder Name>/job.md`
+3) Create `codex/runs/<Run Folder Name>/results.md` if missing
+4) Write `codex/runs/ACTIVE_RUN.txt` = `<Run Folder Name>`
+
+Codex must write final results only to:
+- `codex/runs/<Run Folder Name>/results.md`
 
 Results must include:
 - Summary of changes and rationale
-- Files changed with brief explanation per file
+- Files changed (with brief explanation per file)
 - Assumptions made
 - Known limitations or TODOs
 
-## Logging Checklist
+---
 
+## Logging Checklist
 - [ ] All explicit player actions that succeed or fail emit a clear log entry
 - [ ] All time advancement paths log a reason and tick delta
 - [ ] No UI-only interactions produce log entries
 - [ ] No per-frame or loop-driven spam was introduced
-- [ ] Log messages are human-readable (no raw structs or IDs unless necessary)
+- [ ] Log messages are human-readable
 - [ ] `print()` usage is debug-only or removed in favor of `Log.add_entry()`
 - [ ] Log volume feels appropriate for a capped, recent-history log
