@@ -159,6 +159,7 @@ func _on_BuyButton_pressed() -> void:
 	var entry: Dictionary = entries[idx]
 	var commodity_id: String = entry.get("id", "")
 	var price: float = float(entry.get("price", 0.0))
+	var market_kind: String = GameState.MARKET_KIND_LEGAL
 
 	if commodity_id == "":
 		Log.add_entry("Selected market entry has no commodity id.")
@@ -192,6 +193,13 @@ func _on_BuyButton_pressed() -> void:
 	# Apply transaction
 	GameState.player_money -= total_cost
 	GameState.add_cargo(commodity_id, qty_to_buy)
+	GameState.record_market_purchase(
+		commodity_id,
+		qty_to_buy,
+		price,
+		total_cost,
+		market_kind
+	)
 
 	Log.add_entry("Bought %d x %s for %.0f cr."
 		% [qty_to_buy, commodity.get("name", commodity_id), total_cost])

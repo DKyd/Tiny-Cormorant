@@ -25,6 +25,10 @@ Contracts="*res://singletons/Contracts.gd"
 Log="*res://singletons/Log.gd"
 Customs="*res://singletons/Customs.gd"
 
+[display]
+
+window/size/mode=3
+
 [dotnet]
 
 project/assembly_name="Tiny Cormorant"

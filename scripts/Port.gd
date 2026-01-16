@@ -7,6 +7,7 @@ extends Control
 @onready var market_button: Button = $MarginContainer/VBoxContainer/FacilitiesRow/MarketButton
 @onready var contracts_button: Button = $MarginContainer/VBoxContainer/FacilitiesRow/ContractsButton
 @onready var ship_button: Button = $MarginContainer/VBoxContainer/FacilitiesRow/ShipButton
+@onready var cantina_button: Button = $MarginContainer/VBoxContainer/FacilitiesRow/CantinaButton
 @onready var docs_button: Button = $MarginContainer/VBoxContainer/FacilitiesRow/DocsButton
 
 @onready var facility_host: Control = $MarginContainer/VBoxContainer/FacilityPanel/FacilityHost
@@ -32,6 +33,7 @@ func _ready() -> void:
 	to_bridge_button.pressed.connect(_on_ToBridgeButton_pressed)
 	contracts_button.pressed.connect(_on_ContractsButton_pressed)
 	ship_button.pressed.connect(_on_ShipButton_pressed)
+	cantina_button.pressed.connect(_on_CantinaButton_pressed)
 	docs_button.pressed.connect(_on_DocsButton_pressed)
 
 	GameState.system_changed.connect(_on_system_changed)
@@ -97,8 +99,7 @@ func _refresh_facility_buttons() -> void:
 	var has_market := _location_has_space("market")
 	var has_gov := _location_has_space("gov_office")
 	var has_dry_dock := _location_has_space("dry_dock")
-	var has_cantina := _location_has_space("cantina")
-	var has_back_room := _location_has_space("back_room")
+	var has_cantina := _location_has_space("cantina") or _location_has_space("back_room")
 
 	# Market: only if location has "market"
 	market_button.disabled = not has_market
@@ -109,6 +110,9 @@ func _refresh_facility_buttons() -> void:
 
 	# Ship: only if location has dry dock
 	ship_button.disabled = not has_dry_dock
+
+	# Cantina: only if location has a cantina space
+	cantina_button.disabled = not has_cantina
 
 	# Docs: always accessible (ship’s paperwork travels with the ship)
 	docs_button.disabled = false
@@ -201,6 +205,45 @@ func _show_docs() -> void:
 		panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 
 
+func _show_cantina() -> void:
+	if cantina_button.disabled:
+		Log.add_entry("No cantina at this location.")
+		return
+
+	_clear_facility_host()
+
+	var packed: PackedScene = load("res://scenes/ui/CantinaPanel.tscn")
+	if packed == null:
+		push_error("Port: failed to load CantinaPanel.tscn")
+		return
+
+	var panel := packed.instantiate()
+	if panel.has_signal("back_room_requested"):
+		panel.connect("back_room_requested", Callable(self, "_show_black_market"))
+	if panel.has_signal("close_requested"):
+		panel.connect("close_requested", Callable(self, "_clear_facility_host"))
+
+	facility_host.add_child(panel)
+	if panel is Control:
+		panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+
+func _show_black_market() -> void:
+	_clear_facility_host()
+
+	var packed: PackedScene = load("res://scenes/ui/BlackMarketPanel.tscn")
+	if packed == null:
+		push_error("Port: failed to load BlackMarketPanel.tscn")
+		return
+
+	var panel := packed.instantiate()
+	if panel.has_signal("close_requested"):
+		panel.connect("close_requested", Callable(self, "_clear_facility_host"))
+	facility_host.add_child(panel)
+	if panel is Control:
+		panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+
 # ---------------------------------------------------
 # BUTTON HANDLERS
 # ---------------------------------------------------
@@ -223,6 +266,9 @@ func _on_ShipButton_pressed() -> void:
 func _on_DocsButton_pressed() -> void:
 	print("Port: Docs button pressed")
 	_show_docs()
+
+func _on_CantinaButton_pressed() -> void:
+	_show_cantina()
 
 
 func _on_ToBridgeButton_pressed() -> void:

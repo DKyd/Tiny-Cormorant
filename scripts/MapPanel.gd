@@ -51,7 +51,7 @@ func _ready() -> void:
 
 	systems_tree.add_theme_font_size_override("font_size", 16)
 
-	systems_tree.add_theme_constant_override("item_margin", 4)
+	systems_tree.add_theme_constant_override("item_margin", 22)
 	systems_tree.add_theme_constant_override("h_separation", 4)
 
 
@@ -139,9 +139,6 @@ func _refresh_systems_list(filter_text: String) -> void:
 		# ------------------------
 		var label: String = "%s (%s) - %s" % [name, stype, sec]
 
-		if entry["drydock"]:
-			label += " [DRY DOCK]"
-
 		var is_here: bool = (sys_id == current_id)
 
 		if contracts_to_sys > 0 and is_here:
@@ -182,10 +179,11 @@ func _refresh_systems_list(filter_text: String) -> void:
 			var loc_name: String = String(loc.get("name", loc_id))
 			var loc_type: String = String(loc.get("type", "unknown"))
 			var spaces: Array = loc.get("spaces", [])
+			var display_spaces: Array = _get_display_spaces(spaces)
 
 			var spaces_str: String = ""
-			if spaces.size() > 0:
-				spaces_str = " [" + ", ".join(spaces) + "]"
+			if display_spaces.size() > 0:
+				spaces_str = " [" + ", ".join(display_spaces) + "]"
 
 			var loc_label: String = "%s (%s)%s" % [loc_name, loc_type, spaces_str]
 
@@ -442,6 +440,16 @@ func _system_has_docs(sys_id: String) -> bool:
 	return false
 
 
+func _get_display_spaces(spaces: Array) -> Array:
+	var display: Array = spaces.duplicate()
+	if display.has("back_room"):
+		if not display.has("cantina"):
+			display.append("cantina")
+		display.erase("back_room")
+	display.sort()
+	return display
+
+
 func _estimate_route_cost(path: Array) -> float:
 	# path is an array of system IDs in order
 	if path.size() < 2:
@@ -455,4 +463,3 @@ func _estimate_route_cost(path: Array) -> float:
 		total_cost += GameState.get_travel_cost(dest_id)
 
 	return total_cost
-

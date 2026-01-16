@@ -61,6 +61,10 @@ text = "Contracts"
 layout_mode = 2
 text = "Ship"
 
+[node name="CantinaButton" type="Button" parent="MarginContainer/VBoxContainer/FacilitiesRow"]
+layout_mode = 2
+text = "Cantina"
+
 [node name="DocsButton" type="Button" parent="MarginContainer/VBoxContainer/FacilitiesRow"]
 layout_mode = 2
 text = "Docs"

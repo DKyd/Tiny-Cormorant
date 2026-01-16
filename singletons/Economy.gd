@@ -172,9 +172,13 @@ func _fnv1a_32(value: String) -> int:
 
 func _normalize_market_kind(market_kind: String) -> String:
 	# Only two supported kinds for now; default to legal for safety.
-	if market_kind == "black":
+	if market_kind == "black" or market_kind == GameState.MARKET_KIND_BLACK_MARKET:
 		return "black"
 	return "legal"
+
+
+func get_black_market_offers_for_system(system_id: String) -> Array:
+	return get_price_list_for_system_at(system_id, GameState.time_tick, GameState.MARKET_KIND_BLACK_MARKET)
 
 
 func _get_cache_key(system_id: String, tick: int, market_kind: String) -> String:

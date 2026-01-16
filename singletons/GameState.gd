@@ -37,7 +37,12 @@ var engine_discount_per_level: float = 0.1  # 10% travel cost discount per level
 # freight documentation models
 var freight_docs: Array = []          # array of freight doc dictionaries
 var next_freight_doc_id: int = 1
+var cargo_lines: Array = []           # array of cargo line dictionaries
+var next_cargo_line_id: int = 1
 var _has_initialized_location: bool = false
+
+const MARKET_KIND_LEGAL: String = "legal"
+const MARKET_KIND_BLACK_MARKET: String = "black_market"
 
 signal system_changed(new_system_id: String)
 signal location_changed(new_location_id: String)
@@ -466,6 +471,8 @@ func save_game() -> void:
 	# freight doc stuff
 	"freight_docs": freight_docs,
 	"next_freight_doc_id": next_freight_doc_id,
+	"cargo_lines": cargo_lines,
+	"next_cargo_line_id": next_cargo_line_id,
 	}
 
 	file.store_var(data, true)
@@ -512,6 +519,13 @@ func load_game() -> void:
 	#freight doc stuff
 	freight_docs = data.get("freight_docs", [])
 	next_freight_doc_id = int(data.get("next_freight_doc_id", next_freight_doc_id))
+	cargo_lines = data.get("cargo_lines", [])
+	next_cargo_line_id = int(data.get("next_cargo_line_id", next_cargo_line_id))
+	for i in range(freight_docs.size()):
+		var doc: Dictionary = freight_docs[i]
+		if String(doc.get("doc_type", "")) == "":
+			doc["doc_type"] = "contract"
+			freight_docs[i] = doc
 
 	# Ensure weâ€™re in a valid place
 	if current_system_id == "" or Galaxy.get_system(current_system_id).is_empty():
@@ -615,6 +629,7 @@ func create_freight_doc_for_contract(contract: Dictionary) -> Dictionary:
 
 	var doc := {
 		"doc_id": doc_id,
+		"doc_type": "contract",
 		"contract_id": contract.get("id", ""),
 		"status": "active",
 
@@ -632,6 +647,111 @@ func create_freight_doc_for_contract(contract: Dictionary) -> Dictionary:
 
 	Log.add_entry("Created freight document %s for contract to %s." % [doc_id, dest_id])
 	return doc
+
+
+func _next_cargo_line_id() -> String:
+	var line_id: String = "CARGO-%04d" % next_cargo_line_id
+	next_cargo_line_id += 1
+	return line_id
+
+
+func _normalize_market_kind(value: String) -> String:
+	if value == MARKET_KIND_BLACK_MARKET:
+		return MARKET_KIND_BLACK_MARKET
+	return MARKET_KIND_LEGAL
+
+
+func _create_bill_of_sale_doc(
+	cargo_line_id: String,
+	commodity_id: String,
+	quantity: int,
+	unit_price: float,
+	total_cost: float,
+	market_kind: String
+) -> Dictionary:
+	var doc_id: String = "FDOC-%04d" % next_freight_doc_id
+	next_freight_doc_id += 1
+
+	var system_id: String = current_system_id
+	var location_id: String = current_location_id
+	var location_name: String = ""
+	var location: Dictionary = get_current_location()
+	if not location.is_empty():
+		location_name = String(location.get("name", location_id))
+
+	var doc := {
+		"doc_id": doc_id,
+		"doc_type": "bill_of_sale",
+		"status": "active",
+
+		"cargo_line_id": cargo_line_id,
+		"commodity_id": commodity_id,
+		"quantity": quantity,
+		"unit_price": unit_price,
+		"total_cost": total_cost,
+		"market_kind": _normalize_market_kind(market_kind),
+
+		"purchase_system_id": system_id,
+		"purchase_location_id": location_id,
+		"purchase_location_name": location_name,
+		"purchase_tick": time_tick,
+
+		# Keep origin/destination fields for existing list rendering.
+		"origin_system_id": system_id,
+		"destination_system_id": system_id,
+
+		"cargo_lines": [
+			{
+				"commodity_id": commodity_id,
+				"declared_qty": quantity,
+				"cargo_space": quantity,
+			}
+		],
+	}
+
+	freight_docs.append(doc)
+
+	var commodity: Dictionary = CommodityDB.get_commodity(commodity_id)
+	var commodity_name: String = String(commodity.get("name", commodity_id))
+	Log.add_entry("Created bill of sale %s for %d x %s."
+		% [doc_id, quantity, commodity_name])
+
+	return doc
+
+
+func record_market_purchase(
+	commodity_id: String,
+	quantity: int,
+	unit_price: float,
+	total_cost: float,
+	market_kind: String
+) -> void:
+	if commodity_id == "" or quantity <= 0:
+		return
+
+	var cargo_line_id: String = _next_cargo_line_id()
+	var normalized_kind: String = _normalize_market_kind(market_kind)
+	var doc: Dictionary = _create_bill_of_sale_doc(
+		cargo_line_id,
+		commodity_id,
+		quantity,
+		unit_price,
+		total_cost,
+		normalized_kind
+	)
+
+	cargo_lines.append({
+		"cargo_line_id": cargo_line_id,
+		"commodity_id": commodity_id,
+		"quantity": quantity,
+		"doc_ids": [doc.get("doc_id", "")],
+		"market_kind": normalized_kind,
+		"unit_price": unit_price,
+		"total_cost": total_cost,
+		"purchase_system_id": current_system_id,
+		"purchase_location_id": current_location_id,
+		"purchase_tick": time_tick,
+	})
 
 
 func get_docs_for_contract(contract_id: String) -> Array:

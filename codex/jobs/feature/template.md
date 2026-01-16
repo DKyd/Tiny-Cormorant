@@ -3,7 +3,7 @@
 ## Metadata (Required)
 - Issue/Task ID:
 - Short Title:
-- Run Folder Name:            # REQUIRED (e.g. feature-0030-galaxy-map-2d)
+- Run Folder Name:            # REQUIRED (e.g. issue-0018-feature-detailed-map-headers)
 - Job Type: feature
 - Author (human):
 - Date:
@@ -11,35 +11,51 @@
 ---
 
 ## Goal
-Describe the desired outcome in 1–3 sentences.
+Describe the desired outcome in 1–3 sentences.  
 Focus on player-facing or system-facing behavior, not implementation.
 
 ---
 
+## Invariants (Must Hold After This Job)
+These are non-negotiable system truths that must remain valid.
+
+- 
+- 
+- 
+
+---
+
 ## Non-Goals
-Explicitly list what this job must NOT do.
+Explicitly list what this job must NOT do.  
 These are hard scope boundaries.
+
+- 
+- 
 
 ---
 
 ## Context
-Describe relevant existing systems, scenes, or scripts.
-Include what already exists and what is missing.
+Describe relevant existing systems, scenes, or scripts.  
+Include what already exists and what is missing.  
 Do not propose solutions here.
 
 ---
 
 ## Proposed Approach
-A short, high-level plan (3–6 bullets).
+A short, high-level plan (3–6 bullets).  
 Describe intent and boundaries, not specific code structure.
+
+- 
+- 
+- 
 
 ---
 
 ## Files: Allowed to Modify (Whitelist)
 Only these files may be edited.
 
--
--
+- 
+- 
 
 ---
 
@@ -57,17 +73,29 @@ These files/directories must not be touched.
 
 If Yes, list exact new file paths:
 
--
--
+- 
+- 
 
 ---
 
 ## Public API Changes
-List any new or modified public methods, signals, or resources.
+List any new or modified public methods, signals, or resources.  
 If none, write “None”.
 
--
--
+- 
+- 
+
+---
+
+## Data Model & Persistence
+Required if this job adds or modifies saved state.
+
+- New or changed saved fields:
+  - 
+- Migration / backward-compat expectations:
+  - 
+- Save/load verification requirements:
+  - 
 
 ---
 
@@ -92,17 +120,17 @@ Step-by-step instructions a human can follow in Godot to verify the feature.
 ## Edge Cases / Failure Modes
 List known edge cases or scenarios that must fail gracefully.
 
--
--
+- 
+- 
 
 ---
 
 ## Risks / Notes
-Anything that could cause regressions, merge conflicts,
-or architectural concerns.
+Anything that could cause regressions, merge conflicts,  
+architectural concerns, or future refactors.
 
--
--
+- 
+- 
 
 ---
 

@@ -33,6 +33,7 @@ func _refresh_status() -> void:
 		location_label.text = "Location: (unknown)"
 		security_label.text = "Security: -"
 		population_label.text = "Pop: -"
+		_update_port_button_state()
 		return
 
 	var system: Dictionary = Galaxy.get_system(sys_id)
@@ -54,6 +55,17 @@ func _refresh_status() -> void:
 		population_label.text = "Pop: %d" % pop
 	else:
 		population_label.text = "Pop: -"
+	_update_port_button_state()
+
+func _update_port_button_state() -> void:
+	var has_port_access := false
+	if GameState.current_location_id != "":
+		var loc: Dictionary = GameState.get_current_location()
+		if not loc.is_empty():
+			var spaces: Array = loc.get("spaces", [])
+			# TODO: Use a dedicated port-access flag when one exists.
+			has_port_access = spaces.size() > 0
+	to_port_button.disabled = not has_port_access
 
 
 func _load_map_panel() -> void:

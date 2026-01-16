@@ -16,3 +16,7 @@ res://scripts/Bridge.gd
 res://scripts/MainGame.gd
 res://singletons/GameState.gd
 res://singletons/Log.gd
+res://scripts/FreightDocsPanel.gd
+res://singletons/Contracts.gd
+res://scripts/Port.gd
+res://singletons/Galaxy.gd
