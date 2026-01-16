@@ -38,6 +38,7 @@ var engine_discount_per_level: float = 0.1  # 10% travel cost discount per level
 var freight_docs: Array = []          # array of freight doc dictionaries
 var next_freight_doc_id: int = 1
 var next_freight_doc_event_id: int = 1
+var next_customs_inspection_id: int = 1
 var cargo_lines: Array = []           # array of cargo line dictionaries
 var next_cargo_line_id: int = 1
 var _has_initialized_location: bool = false
@@ -54,6 +55,9 @@ signal ship_changed
 signal time_advanced(new_tick: int, reason: String)
 # Emitted after a freight document is successfully changed or destroyed.
 signal freight_doc_changed(doc_id: String, change_kind: String)
+signal customs_inspection_completed(report: Dictionary)
+
+const CUSTOMS_AUTHENTICITY_THRESHOLD: int = 80
 
 func _ready() -> void:
 	_ensure_starting_system()
@@ -816,6 +820,100 @@ func _derive_doc_evidence_flags(doc: Dictionary) -> Array:
 			flags.append(EVIDENCE_FLAG_DOCUMENT_DESTROYED)
 
 	return flags
+
+
+func _next_customs_inspection_id() -> String:
+	var inspection_id: String = "CINS-%04d" % next_customs_inspection_id
+	next_customs_inspection_id += 1
+	return inspection_id
+
+
+func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
+	var system_id: String = str(context.get("system_id", current_system_id))
+	var location_id: String = str(context.get("location_id", current_location_id))
+
+	var doc_ids: Array = []
+	for doc_variant in freight_docs:
+		if not (doc_variant is Dictionary):
+			continue
+		var doc: Dictionary = doc_variant
+		var doc_id: String = str(doc.get("doc_id", ""))
+		if doc_id != "":
+			doc_ids.append(doc_id)
+
+	var num_docs_considered := doc_ids.size()
+	var num_destroyed_docs := 0
+	var min_authenticity := 0
+	if num_docs_considered > 0:
+		min_authenticity = 100
+
+	var declared_qty_modified_count := 0
+	var container_meta_modified_count := 0
+
+	for doc_id in doc_ids:
+		var doc: Dictionary = get_freight_doc(doc_id)
+		if doc.is_empty():
+			continue
+
+		if bool(doc.get("is_destroyed", false)):
+			num_destroyed_docs += 1
+
+		var authenticity := get_doc_authenticity(doc_id)
+		if authenticity < min_authenticity:
+			min_authenticity = authenticity
+
+		var flags: Array = get_doc_evidence_flags(doc_id)
+		if flags.has(EVIDENCE_FLAG_DECLARED_QTY_MODIFIED):
+			declared_qty_modified_count += 1
+		if flags.has(EVIDENCE_FLAG_CONTAINER_META_MODIFIED):
+			container_meta_modified_count += 1
+
+	var reasons: Array = []
+	var classification: String = "clean"
+
+	if num_docs_considered == 0:
+		classification = "suspicious"
+		reasons.append("No freight documents found.")
+	elif num_destroyed_docs > 0:
+		classification = "invalid"
+		reasons.append("Destroyed freight document detected.")
+	elif min_authenticity < CUSTOMS_AUTHENTICITY_THRESHOLD:
+		classification = "suspicious"
+		reasons.append("Authenticity below %d." % CUSTOMS_AUTHENTICITY_THRESHOLD)
+	elif declared_qty_modified_count > 0 or container_meta_modified_count > 0:
+		classification = "suspicious"
+		reasons.append("Modification evidence present.")
+
+	var report := {
+		"inspection_id": _next_customs_inspection_id(),
+		"tick": time_tick,
+		"system_id": system_id,
+		"location_id": location_id,
+		"classification": classification,
+		"reasons": reasons,
+		"doc_summary": {
+			"num_docs_considered": num_docs_considered,
+			"num_missing_docs": 0,
+			"num_destroyed_docs": num_destroyed_docs,
+			"min_authenticity": min_authenticity,
+			"evidence_flags": {
+				"declared_quantity_modified_count": declared_qty_modified_count,
+				"container_meta_modified_count": container_meta_modified_count,
+				"document_destroyed_count": num_destroyed_docs,
+			},
+		},
+		"recommended_penalty": {
+			"should_issue_fine": false,
+			"suggested_amount": 0.0,
+			"issuer_org_id": "",
+			"payable_at_system_id": "",
+			"payable_at_location_id": "",
+			"due_tick": 0,
+		},
+	}
+
+	emit_signal("customs_inspection_completed", report)
+	return report
 
 
 func modify_freight_doc(doc_id: String, changes: Dictionary, source: String) -> Dictionary:

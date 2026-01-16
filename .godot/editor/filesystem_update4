@@ -13,3 +13,7 @@ res://scenes/Port.tscn
 res://scenes/MarketPanel.tscn
 res://LocationsPanel.tscn
 res://scripts/ui/CaptainsQuartersPanel.gd
+res://singletons/Customs.gd
+res://singletons/GameState.gd
+res://scripts/Port.gd
+res://scripts/ui/CustomsInspectionPanel.gd

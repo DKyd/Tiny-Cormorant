@@ -69,6 +69,10 @@ text = "Cantina"
 layout_mode = 2
 text = "Docs"
 
+[node name="CustomsButton" type="Button" parent="MarginContainer/VBoxContainer/FacilitiesRow"]
+layout_mode = 2
+text = "Customs"
+
 [node name="FacilityPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3

@@ -9,6 +9,7 @@ extends Control
 @onready var ship_button: Button = $MarginContainer/VBoxContainer/FacilitiesRow/ShipButton
 @onready var cantina_button: Button = $MarginContainer/VBoxContainer/FacilitiesRow/CantinaButton
 @onready var docs_button: Button = $MarginContainer/VBoxContainer/FacilitiesRow/DocsButton
+@onready var customs_button: Button = $MarginContainer/VBoxContainer/FacilitiesRow/CustomsButton
 
 @onready var facility_host: Control = $MarginContainer/VBoxContainer/FacilityPanel/FacilityHost
 
@@ -35,6 +36,10 @@ func _ready() -> void:
 	ship_button.pressed.connect(_on_ShipButton_pressed)
 	cantina_button.pressed.connect(_on_CantinaButton_pressed)
 	docs_button.pressed.connect(_on_DocsButton_pressed)
+
+	if customs_button and not customs_button.pressed.is_connected(_on_customs_pressed):
+		customs_button.pressed.connect(_on_customs_pressed)
+
 
 	GameState.system_changed.connect(_on_system_changed)
 	GameState.location_changed.connect(_on_location_changed)
@@ -116,6 +121,7 @@ func _refresh_facility_buttons() -> void:
 
 	# Docs: always accessible (ship’s paperwork travels with the ship)
 	docs_button.disabled = false
+	customs_button.disabled = GameState.current_location_id == ""
 
 	# You can also add visual hints later, like changing button text color
 	# or tooltips based on which spaces exist.
@@ -296,3 +302,40 @@ func _on_location_changed(new_location_id: String) -> void:
 	# if _location_has_space("market"):
 	#     _show_market()
 
+func _on_customs_pressed() -> void:
+	if GameState.current_location_id == "":
+		Log.add_entry("Customs inspection unavailable: you must be docked.")
+		return
+
+	var report: Dictionary = GameState.run_customs_inspection({
+		"system_id": GameState.current_system_id,
+		"location_id": GameState.current_location_id,
+	})
+
+	Log.add_entry("Customs inspection requested: %s." % str(report.get("classification", "unknown")))
+	_show_customs_inspection(report)
+
+
+func _show_customs_inspection(report: Dictionary) -> void:
+	_clear_facility_host()
+
+	var packed: PackedScene = load("res://scenes/ui/CustomsInspectionPanel.tscn")
+	if packed == null:
+		push_error("Port: failed to load CustomsInspectionPanel.tscn")
+		return
+
+	var panel := packed.instantiate()
+
+	if panel.has_signal("close_requested"):
+		panel.connect("close_requested", func():
+			if is_instance_valid(panel):
+				panel.queue_free()
+		)
+
+	facility_host.add_child(panel)
+	if panel is Control:
+		panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+	# IMPORTANT: call after add_child so @onready vars exist
+	if panel.has_method("set_report"):
+		panel.call_deferred("set_report", report)

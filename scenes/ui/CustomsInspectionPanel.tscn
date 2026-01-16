@@ -1,0 +1,153 @@
+[gd_scene load_steps=2 format=3 uid="uid://c5g3h3k2x6w0l"]
+
+[ext_resource type="Script" path="res://scripts/ui/CustomsInspectionPanel.gd" id="1_2c5ux"]
+
+[node name="CustomsInspectionPanel" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_2c5ux")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Customs Inspection"
+
+[node name="MetaGrid" type="GridContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+columns = 2
+
+[node name="InspectionIdLabel" type="Label" parent="MarginContainer/VBoxContainer/MetaGrid"]
+layout_mode = 2
+text = "Inspection ID"
+
+[node name="InspectionIdValue" type="Label" parent="MarginContainer/VBoxContainer/MetaGrid"]
+layout_mode = 2
+text = "-"
+
+[node name="TickLabel" type="Label" parent="MarginContainer/VBoxContainer/MetaGrid"]
+layout_mode = 2
+text = "Tick"
+
+[node name="TickValue" type="Label" parent="MarginContainer/VBoxContainer/MetaGrid"]
+layout_mode = 2
+text = "-"
+
+[node name="SystemLabel" type="Label" parent="MarginContainer/VBoxContainer/MetaGrid"]
+layout_mode = 2
+text = "System"
+
+[node name="SystemValue" type="Label" parent="MarginContainer/VBoxContainer/MetaGrid"]
+layout_mode = 2
+text = "-"
+
+[node name="LocationLabel" type="Label" parent="MarginContainer/VBoxContainer/MetaGrid"]
+layout_mode = 2
+text = "Location"
+
+[node name="LocationValue" type="Label" parent="MarginContainer/VBoxContainer/MetaGrid"]
+layout_mode = 2
+text = "-"
+
+[node name="ClassificationLabel" type="Label" parent="MarginContainer/VBoxContainer/MetaGrid"]
+layout_mode = 2
+text = "Classification"
+
+[node name="ClassificationValue" type="Label" parent="MarginContainer/VBoxContainer/MetaGrid"]
+layout_mode = 2
+text = "-"
+
+[node name="ReasonsLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Reasons"
+
+[node name="ReasonsText" type="RichTextLabel" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+fit_content = true
+text = "None"
+
+[node name="DocSummaryLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Document Summary"
+
+[node name="DocSummaryGrid" type="GridContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+columns = 2
+
+[node name="DocsConsideredLabel" type="Label" parent="MarginContainer/VBoxContainer/DocSummaryGrid"]
+layout_mode = 2
+text = "Docs Considered"
+
+[node name="DocsConsideredValue" type="Label" parent="MarginContainer/VBoxContainer/DocSummaryGrid"]
+layout_mode = 2
+text = "0"
+
+[node name="DestroyedDocsLabel" type="Label" parent="MarginContainer/VBoxContainer/DocSummaryGrid"]
+layout_mode = 2
+text = "Destroyed Docs"
+
+[node name="DestroyedDocsValue" type="Label" parent="MarginContainer/VBoxContainer/DocSummaryGrid"]
+layout_mode = 2
+text = "0"
+
+[node name="MinAuthenticityLabel" type="Label" parent="MarginContainer/VBoxContainer/DocSummaryGrid"]
+layout_mode = 2
+text = "Min Authenticity"
+
+[node name="MinAuthenticityValue" type="Label" parent="MarginContainer/VBoxContainer/DocSummaryGrid"]
+layout_mode = 2
+text = "0"
+
+[node name="DeclaredQtyModifiedLabel" type="Label" parent="MarginContainer/VBoxContainer/DocSummaryGrid"]
+layout_mode = 2
+text = "Declared Qty Modified"
+
+[node name="DeclaredQtyModifiedValue" type="Label" parent="MarginContainer/VBoxContainer/DocSummaryGrid"]
+layout_mode = 2
+text = "0"
+
+[node name="ContainerMetaModifiedLabel" type="Label" parent="MarginContainer/VBoxContainer/DocSummaryGrid"]
+layout_mode = 2
+text = "Container Meta Modified"
+
+[node name="ContainerMetaModifiedValue" type="Label" parent="MarginContainer/VBoxContainer/DocSummaryGrid"]
+layout_mode = 2
+text = "0"
+
+[node name="DocumentDestroyedLabel" type="Label" parent="MarginContainer/VBoxContainer/DocSummaryGrid"]
+layout_mode = 2
+text = "Document Destroyed"
+
+[node name="DocumentDestroyedValue" type="Label" parent="MarginContainer/VBoxContainer/DocSummaryGrid"]
+layout_mode = 2
+text = "0"
+
+[node name="RecommendedLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Recommended Penalty"
+
+[node name="RecommendedValue" type="Label" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "None"
+
+[node name="CloseButton" type="Button" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Close"
