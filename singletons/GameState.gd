@@ -37,6 +37,7 @@ var engine_discount_per_level: float = 0.1  # 10% travel cost discount per level
 # freight documentation models
 var freight_docs: Array = []          # array of freight doc dictionaries
 var next_freight_doc_id: int = 1
+var next_freight_doc_event_id: int = 1
 var cargo_lines: Array = []           # array of cargo line dictionaries
 var next_cargo_line_id: int = 1
 var _has_initialized_location: bool = false
@@ -647,6 +648,248 @@ func create_freight_doc_for_contract(contract: Dictionary) -> Dictionary:
 
 	Log.add_entry("Created freight document %s for contract to %s." % [doc_id, dest_id])
 	return doc
+
+
+func _next_freight_doc_event_id() -> String:
+	var event_id: String = "FDOC-EV-%04d" % next_freight_doc_event_id
+	next_freight_doc_event_id += 1
+	return event_id
+
+
+func _find_freight_doc_index(doc_id: String) -> int:
+	if doc_id == "":
+		return -1
+	for i in range(freight_docs.size()):
+		var doc: Dictionary = freight_docs[i]
+		if String(doc.get("doc_id", "")) == doc_id:
+			return i
+	return -1
+
+
+func _sum_declared_qty_from_lines(lines: Array) -> int:
+	var total := 0
+	for line_variant in lines:
+		if not (line_variant is Dictionary):
+			continue
+		var line: Dictionary = line_variant
+		total += int(line.get("declared_qty", 0))
+	return total
+
+
+func _normalize_freight_doc_runtime(doc: Dictionary) -> Dictionary:
+	if not doc.has("declared_quantity"):
+		if doc.has("quantity"):
+			doc["declared_quantity"] = int(doc.get("quantity", 0))
+		elif doc.has("cargo_lines"):
+			doc["declared_quantity"] = _sum_declared_qty_from_lines(doc.get("cargo_lines", []))
+		else:
+			doc["declared_quantity"] = 0
+
+	if not doc.has("container_meta") or not (doc.get("container_meta") is Dictionary):
+		doc["container_meta"] = {}
+
+	if not doc.has("is_destroyed"):
+		doc["is_destroyed"] = false
+
+	if not doc.has("edit_events") or not (doc.get("edit_events") is Array):
+		doc["edit_events"] = []
+
+	return doc
+
+
+func _append_freight_doc_event(
+	doc: Dictionary,
+	event_type: String,
+	before: Dictionary,
+	after: Dictionary,
+	tool_used: String,
+	quality: int
+) -> Dictionary:
+	var events: Array = doc.get("edit_events", [])
+	if not (events is Array):
+		events = []
+
+	events.append({
+		"event_id": _next_freight_doc_event_id(),
+		"event_type": event_type,
+		"tick": time_tick,
+		"source": "captains_quarters",
+		"before": before,
+		"after": after,
+		"tool_used": tool_used,
+		"quality": quality,
+	})
+	doc["edit_events"] = events
+	return doc
+
+
+func get_freight_doc(doc_id: String) -> Dictionary:
+	var idx := _find_freight_doc_index(doc_id)
+	if idx == -1:
+		return {}
+	var doc: Dictionary = freight_docs[idx]
+	doc = _normalize_freight_doc_runtime(doc)
+	freight_docs[idx] = doc
+	return doc.duplicate(true)
+
+
+func modify_freight_doc(doc_id: String, changes: Dictionary, source: String) -> Dictionary:
+	var result := {
+		"ok": false,
+		"error": "",
+	}
+
+	if source != "captains_quarters":
+		result.error = "Unauthorized source."
+		Log.add_entry("FreightDoc modification denied: unauthorized source.")
+		return result
+
+	var idx := _find_freight_doc_index(doc_id)
+	if idx == -1:
+		result.error = "Unknown document."
+		Log.add_entry("FreightDoc modification failed: unknown document.")
+		return result
+
+	var doc: Dictionary = freight_docs[idx]
+	doc = _normalize_freight_doc_runtime(doc)
+
+	var tool_used: String = String(changes.get("tool_used", "none"))
+	var quality: int = int(changes.get("quality", 0))
+
+	var before_declared := {
+		"declared_quantity": int(doc.get("declared_quantity", 0)),
+		"container_meta": (doc.get("container_meta", {}) as Dictionary).duplicate(true),
+	}
+	var before_meta := before_declared.duplicate(true)
+
+	var after_declared := before_declared.duplicate(true)
+	var after_meta := before_meta.duplicate(true)
+
+	var has_declared_change := changes.has("declared_quantity")
+	var has_meta_change := changes.has("container_meta")
+
+	var declared_ok := true
+	var meta_ok := true
+	if has_declared_change:
+		var new_qty: int = int(changes.get("declared_quantity", 0))
+		after_declared["declared_quantity"] = new_qty
+		if new_qty < 0:
+			declared_ok = false
+			result.error = "Invalid declared quantity."
+
+	if has_meta_change:
+		var meta_variant = changes.get("container_meta", {})
+		if not (meta_variant is Dictionary):
+			meta_ok = false
+			result.error = "Invalid container metadata."
+		else:
+			var merged: Dictionary = before_meta["container_meta"].duplicate(true)
+			for key in meta_variant.keys():
+				merged[key] = meta_variant[key]
+			after_meta["container_meta"] = merged
+
+	if not has_declared_change and not has_meta_change:
+		result.error = "No valid changes requested."
+
+	if bool(doc.get("is_destroyed", false)):
+		result.error = "Document is destroyed."
+
+	if result.error != "":
+		if not has_declared_change and not has_meta_change:
+			doc = _append_freight_doc_event(doc, "edit_noop", before_declared, after_declared, tool_used, quality)
+		else:
+			if has_declared_change:
+				doc = _append_freight_doc_event(doc, "edit_declared_qty", before_declared, after_declared, tool_used, quality)
+			if has_meta_change:
+				doc = _append_freight_doc_event(doc, "edit_meta", before_meta, after_meta, tool_used, quality)
+		freight_docs[idx] = doc
+		Log.add_entry("FreightDoc modification failed: %s" % result.error)
+		return result
+
+	if not declared_ok or not meta_ok:
+		if has_declared_change:
+			doc = _append_freight_doc_event(doc, "edit_declared_qty", before_declared, after_declared, tool_used, quality)
+		if has_meta_change:
+			doc = _append_freight_doc_event(doc, "edit_meta", before_meta, after_meta, tool_used, quality)
+		freight_docs[idx] = doc
+		Log.add_entry("FreightDoc modification failed: %s" % result.error)
+		return result
+
+	if has_declared_change:
+		doc["declared_quantity"] = after_declared["declared_quantity"]
+		doc = _append_freight_doc_event(doc, "edit_declared_qty", before_declared, after_declared, tool_used, quality)
+	if has_meta_change:
+		doc["container_meta"] = after_meta["container_meta"]
+		doc = _append_freight_doc_event(doc, "edit_meta", before_meta, after_meta, tool_used, quality)
+
+	freight_docs[idx] = doc
+	result.ok = true
+	Log.add_entry("FreightDoc modified: %s." % doc_id)
+	return result
+
+
+func _detach_doc_from_cargo_lines(doc_id: String) -> void:
+	for i in range(cargo_lines.size()):
+		var line: Dictionary = cargo_lines[i]
+		if not line.has("doc_ids"):
+			continue
+		var ids_variant = line.get("doc_ids")
+		if not (ids_variant is Array):
+			continue
+		var ids: Array = ids_variant
+		var updated: Array = []
+		for id_variant in ids:
+			var id: String = String(id_variant)
+			if id != doc_id:
+				updated.append(id)
+		line["doc_ids"] = updated
+		cargo_lines[i] = line
+
+
+func destroy_freight_doc(doc_id: String, reason: String, source: String) -> Dictionary:
+	var result := {
+		"ok": false,
+		"error": "",
+	}
+
+	if source != "captains_quarters":
+		result.error = "Unauthorized source."
+		Log.add_entry("FreightDoc destruction denied: unauthorized source.")
+		return result
+
+	var idx := _find_freight_doc_index(doc_id)
+	if idx == -1:
+		result.error = "Unknown document."
+		Log.add_entry("FreightDoc destruction failed: unknown document.")
+		return result
+
+	var doc: Dictionary = freight_docs[idx]
+	doc = _normalize_freight_doc_runtime(doc)
+
+	var tool_used: String = "none"
+	var quality: int = 0
+	var before := {
+		"is_destroyed": bool(doc.get("is_destroyed", false)),
+	}
+	var after := before.duplicate(true)
+	after["reason"] = reason
+
+	if bool(doc.get("is_destroyed", false)):
+		result.error = "Document already destroyed."
+		doc = _append_freight_doc_event(doc, "destroy_doc", before, after, tool_used, quality)
+		freight_docs[idx] = doc
+		Log.add_entry("FreightDoc destruction failed: document already destroyed.")
+		return result
+
+	doc["is_destroyed"] = true
+	# Future: issuer recovery / penalties.
+	doc = _append_freight_doc_event(doc, "destroy_doc", before, after, tool_used, quality)
+	freight_docs[idx] = doc
+	_detach_doc_from_cargo_lines(doc_id)
+
+	result.ok = true
+	Log.add_entry("FreightDoc destroyed: %s." % doc_id)
+	return result
 
 
 func _next_cargo_line_id() -> String:

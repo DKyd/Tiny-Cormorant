@@ -85,10 +85,7 @@ func _on_PortButton_pressed() -> void:
 
 
 func _on_QuartersButton_pressed() -> void:
-	# until Captain's Quarters exists, you can re-use Bridge or Port
-	_show_view("res://scenes/Bridge.tscn")
-	# later:
-	# _show_view("res://scenes/CaptainsQuarters.tscn")
+	_show_view("res://scenes/CaptainsQuarters.tscn")
 
 
 # --- GameState signal handlers ---

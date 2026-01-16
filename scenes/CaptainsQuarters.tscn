@@ -1,7 +1,14 @@
-[gd_scene format=3 uid="uid://b4i24ptmlttu6"]
+[gd_scene load_steps=2 format=3 uid="uid://b4i24ptmlttu6"]
 
-[node name="Control" type="Control"]
+[ext_resource type="PackedScene" path="res://scenes/ui/CaptainsQuartersPanel.tscn" id="1_4t1x6"]
+
+[node name="CaptainsQuarters" type="Control"]
 layout_mode = 3
-anchors_preset = 0
-offset_right = 40.0
-offset_bottom = 40.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="CaptainsQuartersPanel" parent="." instance=ExtResource("1_4t1x6")]
+layout_mode = 1
