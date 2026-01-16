@@ -44,11 +44,16 @@ var _has_initialized_location: bool = false
 
 const MARKET_KIND_LEGAL: String = "legal"
 const MARKET_KIND_BLACK_MARKET: String = "black_market"
+const EVIDENCE_FLAG_DECLARED_QTY_MODIFIED: String = "declared_quantity_modified"
+const EVIDENCE_FLAG_CONTAINER_META_MODIFIED: String = "container_meta_modified"
+const EVIDENCE_FLAG_DOCUMENT_DESTROYED: String = "document_destroyed"
 
 signal system_changed(new_system_id: String)
 signal location_changed(new_location_id: String)
 signal ship_changed
 signal time_advanced(new_tick: int, reason: String)
+# Emitted after a freight document is successfully changed or destroyed.
+signal freight_doc_changed(doc_id: String, change_kind: String)
 
 func _ready() -> void:
 	_ensure_starting_system()
@@ -600,6 +605,7 @@ func create_freight_doc_for_contract(contract: Dictionary) -> Dictionary:
 	next_freight_doc_id += 1
 
 	var origin_id: String = contract.get("origin", current_system_id)
+	var origin_location_id: String = str(contract.get("origin_location_id", current_location_id))
 	var dest_id: String = contract.get("destination", "")
 
 	var cargo_lines: Array = []
@@ -636,6 +642,13 @@ func create_freight_doc_for_contract(contract: Dictionary) -> Dictionary:
 
 		"origin_system_id": origin_id,
 		"destination_system_id": dest_id,
+		"container_meta": _build_container_meta(
+			doc_id,
+			true,
+			"contract",
+			origin_id,
+			origin_location_id
+		),
 
 		"cargo_lines": cargo_lines,
 	}
@@ -654,6 +667,32 @@ func _next_freight_doc_event_id() -> String:
 	var event_id: String = "FDOC-EV-%04d" % next_freight_doc_event_id
 	next_freight_doc_event_id += 1
 	return event_id
+
+
+func _build_container_meta(
+	doc_id: String,
+	sealed: bool,
+	source: String,
+	system_id: String,
+	location_id: String
+) -> Dictionary:
+	var seal_state: String = "sealed" if sealed else "unsealed"
+	var seal_id: String = ""
+	if sealed:
+		seal_id = "SEAL-%s" % doc_id
+
+	return {
+		"container_id": "CONT-%s" % doc_id,
+		"seal_id": seal_id,
+		"seal_state": seal_state,
+		"notes": "",
+		"packed_tick": time_tick,
+		"provenance": {
+			"source": source,
+			"system_id": system_id,
+			"location_id": location_id,
+		},
+	}
 
 
 func _find_freight_doc_index(doc_id: String) -> int:
@@ -731,6 +770,52 @@ func get_freight_doc(doc_id: String) -> Dictionary:
 	doc = _normalize_freight_doc_runtime(doc)
 	freight_docs[idx] = doc
 	return doc.duplicate(true)
+
+
+func get_doc_evidence_flags(doc_id: String) -> Array:
+	var doc: Dictionary = get_freight_doc(doc_id)
+	if doc.is_empty():
+		return []
+	return _derive_doc_evidence_flags(doc)
+
+
+func get_doc_authenticity(doc_id: String) -> int:
+	var doc: Dictionary = get_freight_doc(doc_id)
+	if doc.is_empty():
+		return 0
+
+	var flags: Array = _derive_doc_evidence_flags(doc)
+	var score := 100
+	if flags.has(EVIDENCE_FLAG_DECLARED_QTY_MODIFIED):
+		score -= 20
+	if flags.has(EVIDENCE_FLAG_CONTAINER_META_MODIFIED):
+		score -= 20
+	if flags.has(EVIDENCE_FLAG_DOCUMENT_DESTROYED):
+		score = 0
+	return clamp(score, 0, 100)
+
+
+func _derive_doc_evidence_flags(doc: Dictionary) -> Array:
+	var flags: Array = []
+	var events_variant = doc.get("edit_events", [])
+	if events_variant is Array:
+		for event_variant in events_variant:
+			if not (event_variant is Dictionary):
+				continue
+			var event: Dictionary = event_variant
+			var event_type: String = str(event.get("event_type", ""))
+			if event_type == "edit_declared_qty":
+				if not flags.has(EVIDENCE_FLAG_DECLARED_QTY_MODIFIED):
+					flags.append(EVIDENCE_FLAG_DECLARED_QTY_MODIFIED)
+			elif event_type == "edit_meta":
+				if not flags.has(EVIDENCE_FLAG_CONTAINER_META_MODIFIED):
+					flags.append(EVIDENCE_FLAG_CONTAINER_META_MODIFIED)
+
+	if bool(doc.get("is_destroyed", false)):
+		if not flags.has(EVIDENCE_FLAG_DOCUMENT_DESTROYED):
+			flags.append(EVIDENCE_FLAG_DOCUMENT_DESTROYED)
+
+	return flags
 
 
 func modify_freight_doc(doc_id: String, changes: Dictionary, source: String) -> Dictionary:
@@ -825,6 +910,7 @@ func modify_freight_doc(doc_id: String, changes: Dictionary, source: String) -> 
 	freight_docs[idx] = doc
 	result.ok = true
 	Log.add_entry("FreightDoc modified: %s." % doc_id)
+	emit_signal("freight_doc_changed", doc_id, "modified")
 	return result
 
 
@@ -889,6 +975,7 @@ func destroy_freight_doc(doc_id: String, reason: String, source: String) -> Dict
 
 	result.ok = true
 	Log.add_entry("FreightDoc destroyed: %s." % doc_id)
+	emit_signal("freight_doc_changed", doc_id, "destroyed")
 	return result
 
 
@@ -942,6 +1029,13 @@ func _create_bill_of_sale_doc(
 		# Keep origin/destination fields for existing list rendering.
 		"origin_system_id": system_id,
 		"destination_system_id": system_id,
+		"container_meta": _build_container_meta(
+			doc_id,
+			false,
+			"market_purchase",
+			system_id,
+			location_id
+		),
 
 		"cargo_lines": [
 			{

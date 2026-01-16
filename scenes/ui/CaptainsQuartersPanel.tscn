@@ -35,6 +35,106 @@ text = "Captain's Quarters"
 layout_mode = 2
 size_flags_vertical = 3
 
+[node name="InspectorSection" type="VBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="InspectorTitle" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection"]
+layout_mode = 2
+text = "Selected FreightDoc"
+
+[node name="InspectorGrid" type="GridContainer" parent="MarginContainer/VBoxContainer/InspectorSection"]
+layout_mode = 2
+columns = 2
+
+[node name="DocIdLabel" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "Doc ID"
+
+[node name="DocIdValue" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "-"
+
+[node name="DocTypeLabel" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "Type"
+
+[node name="DocTypeValue" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "-"
+
+[node name="StatusLabel" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "Status"
+
+[node name="StatusValue" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "-"
+
+[node name="DestroyedLabel" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "Destroyed"
+
+[node name="DestroyedValue" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "-"
+
+[node name="DeclaredQtyLabel" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "Declared Qty"
+
+[node name="DeclaredQtyValue" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "-"
+
+[node name="PackedTickLabel" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "Packed Tick"
+
+[node name="PackedTickValue" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "-"
+
+[node name="AuthenticityLabel" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "Authenticity"
+
+[node name="AuthenticityValue" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "-"
+
+[node name="EvidenceLabel" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "Evidence"
+
+[node name="EvidenceValue" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "-"
+
+[node name="ContainerLabel" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "Container"
+
+[node name="ContainerValue" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "-"
+
+[node name="ProvenanceLabel" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "Provenance"
+
+[node name="ProvenanceValue" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "-"
+
+[node name="EditEventsLabel" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "Edit Events"
+
+[node name="EditEventsValue" type="Label" parent="MarginContainer/VBoxContainer/InspectorSection/InspectorGrid"]
+layout_mode = 2
+text = "-"
+
 [node name="DeclaredQtyRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 

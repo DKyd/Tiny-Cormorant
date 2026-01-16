@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://b4i24ptmlttu6"]
 
-[ext_resource type="PackedScene" path="res://scenes/ui/CaptainsQuartersPanel.tscn" id="1_4t1x6"]
+[ext_resource type="PackedScene" uid="uid://b0m4q6k5v3u4k" path="res://scenes/ui/CaptainsQuartersPanel.tscn" id="1_4t1x6"]
 
 [node name="CaptainsQuarters" type="Control"]
 layout_mode = 3
