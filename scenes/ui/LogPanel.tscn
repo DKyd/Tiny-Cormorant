@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scripts/ui/LogPanel.gd" id="1_0x0qf"]
 
 [node name="LogPanel" type="PanelContainer"]
-custom_minimum_size = Vector2(0, 140)
+custom_minimum_size = Vector2(320, 140)
 layout_mode = 2
 script = ExtResource("1_0x0qf")
 

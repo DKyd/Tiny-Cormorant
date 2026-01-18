@@ -51,11 +51,17 @@ layout_mode = 2
 layout_mode = 2
 text = "Credits: 0"
 
-[node name="MainPanel" type="PanelContainer" parent="VBoxContainer"]
+[node name="ContentRow" type="HBoxContainer" parent="VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="MainViewContainer" type="Control" parent="VBoxContainer/MainPanel"]
+[node name="MainPanel" type="PanelContainer" parent="VBoxContainer/ContentRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="MainViewContainer" type="Control" parent="VBoxContainer/ContentRow/MainPanel"]
 layout_mode = 2
 
-[node name="LogPanel" parent="VBoxContainer" instance=ExtResource("2_y2x6s")]
+[node name="LogPanel" parent="VBoxContainer/ContentRow" instance=ExtResource("2_y2x6s")]
+size_flags_vertical = 3

@@ -9,8 +9,8 @@ extends Control
 @onready var quarters_button: Button = $VBoxContainer/TopBar/QuartersButton
 @onready var money_label: Label = $VBoxContainer/TopBar/MoneyLabel
 
-@onready var main_panel: PanelContainer = $VBoxContainer/MainPanel
-@onready var main_view_container: Control = $VBoxContainer/MainPanel/MainViewContainer
+@onready var main_panel: PanelContainer = $VBoxContainer/ContentRow/MainPanel
+@onready var main_view_container: Control = $VBoxContainer/ContentRow/MainPanel/MainViewContainer
 
 # We’ll track what scene is currently loaded (optional, for debugging)
 var current_view_path: String = ""
