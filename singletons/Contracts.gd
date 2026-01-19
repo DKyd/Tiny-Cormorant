@@ -287,13 +287,7 @@ func _remove_contract_from_location(location_id: String, contract_id: String) ->
 			return
 
 func _is_contract_active(contract_id: String) -> bool:
-	if contract_id == "":
-		return false
-	for contract_variant in GameState.active_contracts:
-		var contract: Dictionary = contract_variant
-		if String(contract.get("id", "")) == contract_id:
-			return true
-	return false
+	return GameState.is_contract_active(contract_id)
 
 func _is_contract_at_location(contract: Dictionary, location_id: String) -> bool:
 	var origin_loc_id: String = String(contract.get("origin_location_id", ""))

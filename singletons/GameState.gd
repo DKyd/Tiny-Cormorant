@@ -14,6 +14,7 @@ var high_security_travel_cost: float = 150.0
 
 # Contracts offered in system
 var active_contracts: Array = []  # array of contract dictionaries
+var abandoned_contracts: Dictionary = {}  # contract_id -> true (runtime only)
 
 # Ship data
 var ship_name: String = "Starter Freighter"
@@ -457,6 +458,77 @@ func abandon_contract(contract_id: String) -> void:
 
 	active_contracts = remaining
 
+func _has_active_contract_id(contract_id: String) -> bool:
+	if contract_id == "":
+		return false
+	for contract_variant in active_contracts:
+		var c: Dictionary = contract_variant
+		if String(c.get("id", "")) == contract_id:
+			return true
+	return false
+
+func is_contract_active(contract_id: String) -> bool:
+	return _has_active_contract_id(contract_id)
+
+func _is_contract_abandoned(contract_id: String) -> bool:
+	if contract_id == "":
+		return false
+	return abandoned_contracts.has(contract_id)
+
+func is_contract_abandoned(contract_id: String) -> bool:
+	if contract_id == "":
+		return false
+	return abandoned_contracts.has(contract_id)
+
+func _should_skip_contract_for_obligations(contract: Dictionary) -> bool:
+	var contract_id: String = String(contract.get("id", ""))
+	return contract_id != "" and is_contract_abandoned(contract_id)
+
+func get_active_contract_destination_system_ids() -> Array:
+	var dest_ids: Array = []
+	for contract_variant in active_contracts:
+		var c: Dictionary = contract_variant
+		if _should_skip_contract_for_obligations(c):
+			continue
+		var dest_id: String = String(c.get("destination", ""))
+		if dest_id == "":
+			continue
+		if not dest_ids.has(dest_id):
+			dest_ids.append(dest_id)
+	return dest_ids
+
+func count_active_contract_destinations_to_system(sys_id: String) -> int:
+	var count: int = 0
+	for contract_variant in active_contracts:
+		var c: Dictionary = contract_variant
+		if _should_skip_contract_for_obligations(c):
+			continue
+		var dest_id: String = String(c.get("destination", ""))
+		if dest_id == sys_id:
+			count += 1
+	return count
+
+func count_active_contract_destinations_to_location(loc_id: String) -> int:
+	var count: int = 0
+	for contract_variant in active_contracts:
+		var c: Dictionary = contract_variant
+		if _should_skip_contract_for_obligations(c):
+			continue
+		var dest_loc_id: String = String(c.get("destination_location_id", ""))
+		if dest_loc_id == loc_id:
+			count += 1
+	return count
+
+
+func _mark_contract_abandoned(contract_id: String) -> bool:
+	if contract_id == "":
+		return false
+	if abandoned_contracts.has(contract_id):
+		return false
+	abandoned_contracts[contract_id] = true
+	Log.add_entry("Contract %s abandoned: paperwork destroyed." % contract_id)
+	return true
+
 func save_game() -> void:
 	var path := "user://savegame.dat"
 	var file := FileAccess.open(path, FileAccess.WRITE)
@@ -828,6 +900,60 @@ func _next_customs_inspection_id() -> String:
 	return inspection_id
 
 
+func _ensure_sentence_end(text: String) -> String:
+	var trimmed: String = text.strip_edges()
+	if trimmed == "":
+		return ""
+	if trimmed.ends_with("."):
+		return trimmed
+	return "%s." % trimmed
+
+
+func _format_customs_summary(classification: String, reasons_variant) -> String:
+	var summary: String = ""
+	if reasons_variant is Array and reasons_variant.size() > 0:
+		summary = String(reasons_variant[0])
+	if summary == "":
+		if classification == "CLEAN":
+			summary = "No irregularities detected"
+		else:
+			summary = "Inspection flagged issues"
+	return _ensure_sentence_end(summary)
+
+
+func _format_customs_recommendation(report: Dictionary) -> String:
+	var penalty_variant = report.get("recommended_penalty", {})
+	if not (penalty_variant is Dictionary):
+		return ""
+	var penalty: Dictionary = penalty_variant
+	var action: String = String(penalty.get("recommended_action", ""))
+	if action == "":
+		action = String(penalty.get("action", ""))
+	if action != "":
+		return _ensure_sentence_end("Recommended action: %s" % action)
+	var suggested_amount: float = float(penalty.get("suggested_amount", 0.0))
+	if suggested_amount > 0.0:
+		return "Recommended fine: %.0f credits." % suggested_amount
+	return ""
+
+
+func _format_customs_log_entry(report: Dictionary) -> String:
+	var classification_raw: String = String(report.get("classification", "")).to_upper()
+	var classification: String = classification_raw
+	match classification_raw:
+		"CLEAN", "SUSPICIOUS", "INVALID":
+			classification = classification_raw
+		_:
+			classification = "SUSPICIOUS"
+
+	var summary: String = _format_customs_summary(classification, report.get("reasons", []))
+	var recommendation: String = _format_customs_recommendation(report)
+	var message: String = "CUSTOMS: %s — %s" % [classification, summary]
+	if recommendation != "":
+		message = "%s %s" % [message, recommendation]
+	return message
+
+
 func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
 	var system_id: String = str(context.get("system_id", current_system_id))
 	var location_id: String = str(context.get("location_id", current_location_id))
@@ -912,6 +1038,7 @@ func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
 		},
 	}
 
+	Log.add_entry(_format_customs_log_entry(report))
 	emit_signal("customs_inspection_completed", report)
 	return report
 
@@ -1066,10 +1193,16 @@ func destroy_freight_doc(doc_id: String, reason: String, source: String) -> Dict
 		return result
 
 	doc["is_destroyed"] = true
+	doc["status"] = "destroyed"
 	# Future: issuer recovery / penalties.
 	doc = _append_freight_doc_event(doc, "destroy_doc", before, after, tool_used, quality)
 	freight_docs[idx] = doc
 	_detach_doc_from_cargo_lines(doc_id)
+
+	if String(doc.get("doc_type", "")) == "contract":
+		var contract_id: String = String(doc.get("contract_id", ""))
+		if contract_id != "" and _has_active_contract_id(contract_id):
+			_mark_contract_abandoned(contract_id)
 
 	result.ok = true
 	Log.add_entry("FreightDoc destroyed: %s." % doc_id)

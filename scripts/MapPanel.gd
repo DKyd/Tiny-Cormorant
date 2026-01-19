@@ -386,15 +386,7 @@ func _on_visibility_changed() -> void:
 
 
 func _rebuild_contract_destinations() -> void:
-	contract_dest_ids.clear()
-
-	for contract_variant in GameState.active_contracts:
-		var c: Dictionary = contract_variant
-		var dest_id: String = String(c.get("destination", ""))
-		if dest_id == "":
-			continue
-		if not contract_dest_ids.has(dest_id):
-			contract_dest_ids.append(dest_id)
+	contract_dest_ids = GameState.get_active_contract_destination_system_ids()
 
 
 func _count_contracts_to_system(sys_id: String) -> int:
@@ -413,22 +405,10 @@ func _count_contracts_to_location(loc_id: String) -> int:
 	return Contracts.get_contract_count_for_location(loc_id)
 
 func _count_active_destinations_to_system(sys_id: String) -> int:
-	var count: int = 0
-	for contract_variant in GameState.active_contracts:
-		var c: Dictionary = contract_variant
-		var dest: String = String(c.get("destination", ""))
-		if dest == sys_id:
-			count += 1
-	return count
+	return GameState.count_active_contract_destinations_to_system(sys_id)
 
 func _count_active_destinations_to_location(loc_id: String) -> int:
-	var count: int = 0
-	for contract_variant in GameState.active_contracts:
-		var c: Dictionary = contract_variant
-		var dest_loc: String = String(c.get("destination_location_id", ""))
-		if dest_loc == loc_id:
-			count += 1
-	return count
+	return GameState.count_active_contract_destinations_to_location(loc_id)
 
 
 func _system_has_docs(sys_id: String) -> bool:

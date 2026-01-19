@@ -1,3 +1,4 @@
+res://scripts/ui/BlackMarketPanel.gd
 res://scenes/SystemList.tscn
 res://scenes/MapPanel.tscn
 res://scenes/JobBoardPanel.tscn
@@ -8,8 +9,8 @@ res://scenes/FreightDocsPanel.tscn
 res://scenes/MainGame.tscn
 res://scenes/CaptainsQuarters.tscn
 res://scenes/Bridge.tscn
-res://scripts/ui/CaptainsQuartersPanel.gd
-res://scripts/ui/CustomsInspectionPanel.gd
 res://scenes/Port.tscn
 res://scenes/MarketPanel.tscn
 res://LocationsPanel.tscn
+res://singletons/GameState.gd
+res://scripts/MapPanel.gd
