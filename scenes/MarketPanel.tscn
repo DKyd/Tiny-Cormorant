@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://toalpfhdja6u"]
+[gd_scene load_steps=3 format=3 uid="uid://toalpfhdja6u"]
 
 [ext_resource type="Script" path="res://scripts/MarketPanel.gd" id="1_6t2nx"]
+[ext_resource type="PackedScene" path="res://scenes/ui/PurchaseOrderDialog.tscn" id="2_28m4w"]
 
 [node name="MarketPanel" type="Control"]
 layout_mode = 3
@@ -25,50 +26,79 @@ theme_override_constants/margin_bottom = 16
 
 [node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
 layout_mode = 2
+theme_override_constants/separation = 10
 
 [node name="TitleLabel" type="Label" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Market"
 
-[node name="CommoditiesList" type="ItemList" parent="MarginContainer/VBoxContainer"]
+[node name="InfoRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="PlayerMoneyLabel" type="Label" parent="MarginContainer/VBoxContainer/InfoRow"]
+layout_mode = 2
+
+[node name="CargoWeightLabel" type="Label" parent="MarginContainer/VBoxContainer/InfoRow"]
+layout_mode = 2
+
+[node name="ContentRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
+theme_override_constants/separation = 16
 
-[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+[node name="MarketColumn" type="VBoxContainer" parent="MarginContainer/VBoxContainer/ContentRow"]
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 6
 
-[node name="QtyLabel" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer"]
+[node name="MarketHeader" type="HBoxContainer" parent="MarginContainer/VBoxContainer/ContentRow/MarketColumn"]
 layout_mode = 2
-text = "Quantity:"
+theme_override_constants/separation = 8
 
-[node name="QtySpin" type="SpinBox" parent="MarginContainer/VBoxContainer/HBoxContainer"]
+[node name="MarketLabel" type="Label" parent="MarginContainer/VBoxContainer/ContentRow/MarketColumn/MarketHeader"]
 layout_mode = 2
+text = "Market Goods"
 
-[node name="HBoxContainer2" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+[node name="MarketHeaderSpacer" type="Control" parent="MarginContainer/VBoxContainer/ContentRow/MarketColumn/MarketHeader"]
 layout_mode = 2
+size_flags_horizontal = 3
 
-[node name="BuyButton" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer2"]
+[node name="CreatePurchaseOrderButton" type="Button" parent="MarginContainer/VBoxContainer/ContentRow/MarketColumn/MarketHeader"]
 layout_mode = 2
-text = "Buy"
+text = "Create Purchase Order"
 
-[node name="SellButton" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer2"]
+[node name="MarketGrid" type="Tree" parent="MarginContainer/VBoxContainer/ContentRow/MarketColumn"]
 layout_mode = 2
-text = "Sell"
-
-[node name="PlayerMoneyLabel" type="Label" parent="MarginContainer/VBoxContainer"]
-layout_mode = 2
-
-[node name="CargoWeightLabel" type="Label" parent="MarginContainer/VBoxContainer"]
-layout_mode = 2
-
-[node name="CargoLabel" type="Label" parent="MarginContainer/VBoxContainer"]
-layout_mode = 2
-text = "Currently in Cargo Hold:"
-
-[node name="CargoList" type="ItemList" parent="MarginContainer/VBoxContainer"]
-layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[connection signal="item_selected" from="MarginContainer/VBoxContainer/CommoditiesList" to="." method="_on_CommoditiesList_item_selected"]
-[connection signal="pressed" from="MarginContainer/VBoxContainer/HBoxContainer2/BuyButton" to="." method="_on_BuyButton_pressed"]
-[connection signal="pressed" from="MarginContainer/VBoxContainer/HBoxContainer2/SellButton" to="." method="_on_SellButton_pressed"]
+[node name="InventoryColumn" type="VBoxContainer" parent="MarginContainer/VBoxContainer/ContentRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="InventoryHeader" type="HBoxContainer" parent="MarginContainer/VBoxContainer/ContentRow/InventoryColumn"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="InventoryLabel" type="Label" parent="MarginContainer/VBoxContainer/ContentRow/InventoryColumn/InventoryHeader"]
+layout_mode = 2
+text = "Ship Inventory"
+
+[node name="InventoryHeaderSpacer" type="Control" parent="MarginContainer/VBoxContainer/ContentRow/InventoryColumn/InventoryHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SellManifestInventoryButton" type="Button" parent="MarginContainer/VBoxContainer/ContentRow/InventoryColumn/InventoryHeader"]
+layout_mode = 2
+text = "Sell Manifest Inventory"
+
+[node name="InventoryGrid" type="Tree" parent="MarginContainer/VBoxContainer/ContentRow/InventoryColumn"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="PurchaseOrderDialog" parent="." instance=ExtResource("2_28m4w")]

@@ -14,3 +14,9 @@ res://scenes/MarketPanel.tscn
 res://LocationsPanel.tscn
 res://singletons/GameState.gd
 res://scripts/MapPanel.gd
+res://scripts/ui/LogPanel.gd
+res://singletons/Log.gd
+res://scenes/ui/LogPanel.tscn
+res://CommodityDB.gd
+res://singletons/Galaxy.gd
+res://scripts/MarketPanel.gd

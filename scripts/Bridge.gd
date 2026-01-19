@@ -134,20 +134,20 @@ func _on_location_changed(new_location_id: String) -> void:
 
 func _on_map_navigate_to_system_requested(dest_system_id: String) -> void:
 	if dest_system_id == "":
-		Log.add_entry("Travel failed: invalid destination.")
+		Log.add_entry("Travel failed: invalid destination.", "SHIP")
 		return
 
 	if dest_system_id == GameState.current_system_id:
-		Log.add_entry("Already in that system.")
+		Log.add_entry("Already in that system.", "SHIP")
 		return
 
 	var path: Array = Galaxy.find_path(GameState.current_system_id, dest_system_id)
 	if path.is_empty() or path.size() < 2:
-		Log.add_entry("No route from here to that system.")
+		Log.add_entry("No route from here to that system.", "SHIP")
 		return
 
 	var hops: int = path.size() - 1
-	Log.add_entry("Setting course to %s (%d jumps)." % [dest_system_id, hops])
+	Log.add_entry("Setting course to %s (%d jumps)." % [dest_system_id, hops], "SHIP")
 	GameState.auto_travel(path)
 	_refresh_status()
 	_ensure_map_panel()
@@ -156,17 +156,17 @@ func _on_map_navigate_to_system_requested(dest_system_id: String) -> void:
 
 func _on_map_navigate_to_location_requested(dest_system_id: String, dest_location_id: String) -> void:
 	if dest_location_id == "":
-		Log.add_entry("Docking failed: invalid destination.")
+		Log.add_entry("Docking failed: invalid destination.", "SHIP")
 		return
 
 	var loc: Dictionary = Galaxy.get_location(dest_location_id)
 	if loc.is_empty():
-		Log.add_entry("Docking failed: unknown destination.")
+		Log.add_entry("Docking failed: unknown destination.", "SHIP")
 		return
 
 	var loc_system_id: String = String(loc.get("system_id", ""))
 	if dest_system_id != "" and loc_system_id != "" and dest_system_id != loc_system_id:
-		Log.add_entry("Docking failed: location is not in that system.")
+		Log.add_entry("Docking failed: location is not in that system.", "SHIP")
 		return
 
 	var target_system_id := dest_system_id
@@ -174,28 +174,28 @@ func _on_map_navigate_to_location_requested(dest_system_id: String, dest_locatio
 		target_system_id = loc_system_id
 
 	if target_system_id == "":
-		Log.add_entry("Docking failed: unknown destination.")
+		Log.add_entry("Docking failed: unknown destination.", "SHIP")
 		return
 
 	if target_system_id != GameState.current_system_id:
 		var path: Array = Galaxy.find_path(GameState.current_system_id, target_system_id)
 		if path.is_empty() or path.size() < 2:
-			Log.add_entry("No route from here to that system.")
+			Log.add_entry("No route from here to that system.", "SHIP")
 			return
 
 		var hops: int = path.size() - 1
-		Log.add_entry("Setting course to %s (%d jumps)." % [target_system_id, hops])
+		Log.add_entry("Setting course to %s (%d jumps)." % [target_system_id, hops], "SHIP")
 		GameState.auto_travel(path)
 		_refresh_status()
 		_ensure_map_panel()
 		if _map_panel != null and is_instance_valid(_map_panel) and _map_panel.has_method("request_refresh"):
 			_map_panel.call_deferred("request_refresh")
 		if GameState.current_system_id != target_system_id:
-			Log.add_entry("Auto-travel stopped before reaching destination.")
+			Log.add_entry("Auto-travel stopped before reaching destination.", "SHIP")
 			return
 
 	var loc_name: String = String(loc.get("name", dest_location_id))
-	Log.add_entry("Docking at %s." % loc_name)
+	Log.add_entry("Docking at %s." % loc_name, "SHIP")
 	GameState.set_current_location(dest_location_id)
 	_refresh_status()
 	_ensure_map_panel()
@@ -212,9 +212,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 
 		if GameState.current_location_id == "":
-			Log.add_entry("You must be docked to wait.")
+			Log.add_entry("You must be docked to wait.", "SHIP")
 			return
 
-		Log.add_entry("Waited dockside (%d ticks)." % WAIT_TICKS)
+		Log.add_entry("Waited dockside (%d ticks)." % WAIT_TICKS, "SHIP")
 		for _i in range(WAIT_TICKS):
 			GameState.advance_time("Waited dockside")

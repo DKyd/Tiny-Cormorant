@@ -112,12 +112,12 @@ func travel_to_system(new_system_id: String) -> void:
 	var system: Dictionary = Galaxy.get_system(new_system_id)
 	if system.is_empty():
 		push_warning("Unknown system.")
-		Log.add_entry("Travel failed: unknown system.")
+		Log.add_entry("Travel failed: unknown system.", "SHIP")
 		return
 
 	var cost := get_travel_cost(new_system_id)
 	if cost > player_money:
-		Log.add_entry("Not enough credits to travel (need %.0f)." % cost)
+		Log.add_entry("Not enough credits to travel (need %.0f)." % cost, "SHIP")
 		push_warning("Not enough credits to travel.")
 		return
 
@@ -133,7 +133,7 @@ func travel_to_system(new_system_id: String) -> void:
 		"Inter-system travel to %s" % system_name
 	)
 
-	Log.add_entry("Traveled to %s. +%d ticks." % [system_name, INTER_SYSTEM_TRAVEL_TICKS])
+	Log.add_entry("Traveled to %s. +%d ticks." % [system_name, INTER_SYSTEM_TRAVEL_TICKS], "SHIP")
 	emit_signal("system_changed", current_system_id)
 	emit_signal("location_changed", current_location_id)
 
@@ -236,7 +236,7 @@ func set_current_location(loc_id: String) -> void:
 	_has_initialized_location = true
 	current_location_id = loc_id
 	Contracts.refresh_contracts_for_location(current_location_id, 4)
-	Log.add_entry("Docked at %s." % loc_name)
+	Log.add_entry("Docked at %s." % loc_name, "SHIP")
 	emit_signal("location_changed", current_location_id)
 
 	check_travel_contracts_at(current_system_id, current_location_id)
@@ -264,7 +264,7 @@ func auto_travel(path: Array) -> void:
 
 		var cost: float = get_travel_cost(dest_id)
 		if cost > player_money:
-			Log.add_entry("Auto-travel stopped: not enough credits to reach %s." % dest_id)
+			Log.add_entry("Auto-travel stopped: not enough credits to reach %s." % dest_id, "SHIP")
 			break
 
 		travel_to_system(dest_id)
@@ -1038,7 +1038,7 @@ func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
 		},
 	}
 
-	Log.add_entry(_format_customs_log_entry(report))
+	Log.add_entry(_format_customs_log_entry(report), "CUSTOMS")
 	emit_signal("customs_inspection_completed", report)
 	return report
 
@@ -1320,6 +1320,158 @@ func record_market_purchase(
 		"purchase_location_id": current_location_id,
 		"purchase_tick": time_tick,
 	})
+
+func create_purchase_order(
+	commodity_id: String,
+	quantity: int,
+	unit_price: float,
+	total_cost: float,
+	system_id: String,
+	location_id: String
+) -> String:
+	var doc_id: String = "FDOC-%04d" % next_freight_doc_id
+	next_freight_doc_id += 1
+
+	var location_name: String = ""
+	var location: Dictionary = Galaxy.get_location(location_id)
+	if not location.is_empty():
+		location_name = String(location.get("name", location_id))
+
+	var doc := {
+		"doc_id": doc_id,
+		"doc_type": "purchase_order",
+		"status": "active",
+
+		"commodity_id": commodity_id,
+		"quantity": quantity,
+		"unit_price": unit_price,
+		"total_cost": total_cost,
+		"purchase_tick": time_tick,
+
+		"purchase_system_id": system_id,
+		"purchase_location_id": location_id,
+		"purchase_location_name": location_name,
+
+		"origin_system_id": system_id,
+		"destination_system_id": system_id,
+		"container_meta": _build_container_meta(
+			doc_id,
+			false,
+			"purchase_order",
+			system_id,
+			location_id
+		),
+
+		"cargo_lines": [
+			{
+				"commodity_id": commodity_id,
+				"declared_qty": quantity,
+				"cargo_space": quantity,
+			}
+		],
+	}
+
+	freight_docs.append(doc)
+	return doc_id
+
+func purchase_market_goods(commodity_id: String, qty: int) -> Dictionary:
+	var result := {
+		"ok": false,
+		"error": "",
+		"total_cost": 0.0,
+	}
+
+	if commodity_id == "":
+		result.error = "Invalid commodity."
+		Log.add_entry("Purchase failed: invalid commodity.", "SHIP")
+		return result
+
+	if qty <= 0:
+		result.error = "Invalid quantity."
+		Log.add_entry("Purchase failed: invalid quantity.", "SHIP")
+		return result
+
+	if current_location_id == "":
+		result.error = "No market available."
+		Log.add_entry("Purchase failed: no market available.", "SHIP")
+		return result
+
+	var location: Dictionary = Galaxy.get_location(current_location_id)
+	if location.is_empty():
+		result.error = "No market available."
+		Log.add_entry("Purchase failed: no market available.", "SHIP")
+		return result
+
+	var spaces_variant = location.get("spaces", [])
+	var has_market: bool = false
+	if spaces_variant is Array:
+		var spaces: Array = spaces_variant
+		has_market = spaces.has("market")
+
+	if not has_market:
+		result.error = "No market available."
+		Log.add_entry("Purchase failed: no market available.", "SHIP")
+		return result
+
+	var sys_id: String = current_system_id
+	if sys_id == "":
+		result.error = "No market available."
+		Log.add_entry("Purchase failed: no market available.", "SHIP")
+		return result
+
+	var commodity: Dictionary = CommodityDB.get_commodity(commodity_id)
+	if commodity.is_empty():
+		result.error = "Unknown commodity."
+		Log.add_entry("Purchase failed: unknown commodity.", "SHIP")
+		return result
+
+	var unit_price: float = 0.0
+	var price_found: bool = false
+	var price_list: Array = Economy.get_price_list_for_system(sys_id)
+	for entry_variant in price_list:
+		if not (entry_variant is Dictionary):
+			continue
+		var entry: Dictionary = entry_variant
+		if String(entry.get("id", "")) == commodity_id:
+			unit_price = float(entry.get("price", 0.0))
+			price_found = true
+			break
+
+	if not price_found:
+		result.error = "No market price available."
+		Log.add_entry("Purchase failed: no market price available.", "SHIP")
+		return result
+
+	var total_cost: float = unit_price * float(qty)
+	if total_cost > player_money:
+		result.error = "Not enough credits."
+		Log.add_entry("Purchase failed: not enough credits.", "SHIP")
+		return result
+
+	var per_unit_weight: float = float(commodity.get("weight_per_unit", 1.0))
+	var added_weight: float = per_unit_weight * float(qty)
+	var current_weight: float = get_total_cargo_weight()
+	if current_weight + added_weight > cargo_capacity_weight:
+		result.error = "Not enough cargo capacity."
+		Log.add_entry("Purchase failed: not enough cargo capacity.", "SHIP")
+		return result
+
+	player_money -= total_cost
+	add_cargo(commodity_id, qty)
+	create_purchase_order(
+		commodity_id,
+		qty,
+		unit_price,
+		total_cost,
+		current_system_id,
+		current_location_id
+	)
+
+	result.ok = true
+	result.total_cost = total_cost
+	Log.add_entry("Bought %d x %s for %.0f cr."
+		% [qty, commodity.get("name", commodity_id), total_cost], "SHIP")
+	return result
 
 
 func get_docs_for_contract(contract_id: String) -> Array:

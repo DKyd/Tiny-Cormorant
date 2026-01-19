@@ -3,58 +3,39 @@ extends Control
 
 # --- UI references ---
 
+signal request_create_purchase_order
+signal request_sell_manifest_inventory
+
 @onready var title_label: Label = $MarginContainer/VBoxContainer/TitleLabel
+@onready var player_money_label: Label = $MarginContainer/VBoxContainer/InfoRow/PlayerMoneyLabel
+@onready var cargo_weight_label: Label = $MarginContainer/VBoxContainer/InfoRow/CargoWeightLabel
 
-@onready var commodities_list: ItemList = $MarginContainer/VBoxContainer/CommoditiesList
-@onready var cargo_list: ItemList = $MarginContainer/VBoxContainer/CargoList
-
-@onready var qty_spin: SpinBox = $MarginContainer/VBoxContainer/HBoxContainer/QtySpin
-
-@onready var buy_button: Button = $MarginContainer/VBoxContainer/HBoxContainer2/BuyButton
-@onready var sell_button: Button = $MarginContainer/VBoxContainer/HBoxContainer2/SellButton
-
-@onready var player_money_label: Label = $MarginContainer/VBoxContainer/PlayerMoneyLabel
-@onready var cargo_weight_label: Label = $MarginContainer/VBoxContainer/CargoWeightLabel
+@onready var market_grid: Tree = $MarginContainer/VBoxContainer/ContentRow/MarketColumn/MarketGrid
+@onready var inventory_grid: Tree = $MarginContainer/VBoxContainer/ContentRow/InventoryColumn/InventoryGrid
+@onready var create_purchase_order_button: Button = $MarginContainer/VBoxContainer/ContentRow/MarketColumn/MarketHeader/CreatePurchaseOrderButton
+@onready var sell_manifest_inventory_button: Button = $MarginContainer/VBoxContainer/ContentRow/InventoryColumn/InventoryHeader/SellManifestInventoryButton
+@onready var purchase_order_dialog: Window = $PurchaseOrderDialog
 
 # --- Market data ---
 
-# index in ItemList -> { id, name, price }
-var entries: Array = []              # Array<Dictionary>
 var price_by_commodity: Dictionary = {}  # commodity_id -> price
 
 
 
 func _ready() -> void:
-	print("MarketPanel: _ready. current_system_id =", GameState.current_system_id)
-	
-	print("=== MarketPanel runtime tree ===")
-	print_tree_pretty()
-
 	title_label.text = "Market"
 
-	qty_spin.min_value = 1
-	qty_spin.max_value = 999
-	qty_spin.step = 1
+	if create_purchase_order_button != null:
+		create_purchase_order_button.pressed.connect(_on_create_purchase_order_pressed)
 
-	# Make lists expand and actually occupy vertical space
-	commodities_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	commodities_list.custom_minimum_size.y = 160
+	if sell_manifest_inventory_button != null:
+		sell_manifest_inventory_button.pressed.connect(_on_sell_manifest_inventory_pressed)
 
-	cargo_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	cargo_list.custom_minimum_size.y = 100
-
-	commodities_list.select_mode = ItemList.SELECT_SINGLE
-	commodities_list.mouse_filter = Control.MOUSE_FILTER_STOP
-
-	cargo_list.select_mode = ItemList.SELECT_SINGLE
-	cargo_list.mouse_filter = Control.MOUSE_FILTER_STOP
+	if purchase_order_dialog != null:
+		purchase_order_dialog.confirmed.connect(_on_purchase_order_confirmed)
+		purchase_order_dialog.cancelled.connect(_on_purchase_order_cancelled)
 
 	refresh_all()
-
-	print("MarketPanel: size after ready =", size)
-	print("MarketPanel: commodities_list size =", commodities_list.size)
-	print("MarketPanel: cargo_list size =", cargo_list.size)
-	print("MarketPanel: commodities_list rect =", commodities_list.get_rect())
 
 
 # --- Public refresh entrypoint ---
@@ -76,8 +57,7 @@ func _refresh_player_info() -> void:
 
 
 func _refresh_market_list() -> void:
-	entries.clear()
-	commodities_list.clear()
+	market_grid.clear()
 	price_by_commodity.clear()
 
 	var sys_id: String = GameState.current_system_id
@@ -89,29 +69,29 @@ func _refresh_market_list() -> void:
 	# Sort alphabetically by commodity name
 	price_list.sort_custom(Callable(self, "_sort_price_entries_by_name"))
 
+	_configure_market_grid()
+	var root: TreeItem = market_grid.create_item()
+
 	for entry_variant in price_list:
 		var entry: Dictionary = entry_variant
 
 		var name: String = entry.get("name", "???")
 		var price: float = float(entry.get("price", 0.0))
 		var id: String = entry.get("id", "")
-		var line: String = "%s  -  %.0f cr" % [name, price]
 
-		var idx: int = commodities_list.add_item(line)
-
-		if entries.size() <= idx:
-			entries.resize(idx + 1)
-		entries[idx] = {
-			"id": id,
-			"name": name,
-			"price": price
-		}
+		var item: TreeItem = market_grid.create_item(root)
+		item.set_text(0, name)
+		item.set_text(1, "-")
+		item.set_text(2, "%.0f" % price)
+		item.set_metadata(0, id)
 
 		price_by_commodity[id] = price
 
 
 func _refresh_cargo_list() -> void:
-	cargo_list.clear()
+	inventory_grid.clear()
+	_configure_inventory_grid()
+	var root: TreeItem = inventory_grid.create_item()
 
 	for commodity_id in GameState.cargo.keys():
 		var qty: int = GameState.get_cargo_quantity(commodity_id)
@@ -123,11 +103,15 @@ func _refresh_cargo_list() -> void:
 			continue
 
 		var name: String = commodity.get("name", commodity_id)
-		var label: String = "%s x %d" % [name, qty]
+		var price_text: String = "-"
+		if price_by_commodity.has(commodity_id):
+			price_text = "%.0f" % float(price_by_commodity[commodity_id])
 
-		var idx: int = cargo_list.add_item(label)
-		# so we can look this up in SELL
-		cargo_list.set_item_metadata(idx, commodity_id)
+		var item: TreeItem = inventory_grid.create_item(root)
+		item.set_text(0, name)
+		item.set_text(1, str(qty))
+		item.set_text(2, price_text)
+		item.set_metadata(0, commodity_id)
 
 
 # --- Sorting helper ---
@@ -137,125 +121,86 @@ func _sort_price_entries_by_name(a: Dictionary, b: Dictionary) -> bool:
 	var name_b: String = b.get("name", "")
 	return name_a < name_b
 
+func _configure_market_grid() -> void:
+	market_grid.columns = 3
+	market_grid.set_column_titles_visible(true)
+	market_grid.set_column_title(0, "Commodity")
+	market_grid.set_column_title(1, "Qty")
+	market_grid.set_column_title(2, "Price")
+	market_grid.hide_root = true
 
-# --- BUY / SELL logic ---
 
-func _on_CommoditiesList_item_selected(index: int) -> void:
-	# Optional UX: set qty to 1 when selecting a new commodity
-	qty_spin.value = 1
+func _configure_inventory_grid() -> void:
+	inventory_grid.columns = 3
+	inventory_grid.set_column_titles_visible(true)
+	inventory_grid.set_column_title(0, "Commodity")
+	inventory_grid.set_column_title(1, "Qty")
+	inventory_grid.set_column_title(2, "Price")
+	inventory_grid.hide_root = true
 
 
-func _on_BuyButton_pressed() -> void:
-	var selected: PackedInt32Array = commodities_list.get_selected_items()
-	if selected.size() == 0:
-		Log.add_entry("No market commodity selected to buy.")
+func _on_create_purchase_order_pressed() -> void:
+	if purchase_order_dialog == null:
 		return
 
-	var idx: int = selected[0]
-	if idx < 0 or idx >= entries.size():
-		Log.add_entry("Invalid market selection.")
+	var selected: TreeItem = market_grid.get_selected()
+	if selected == null:
+		if purchase_order_dialog.has_method("set_status"):
+			purchase_order_dialog.call("set_status", "Select a market commodity first.")
 		return
 
-	var entry: Dictionary = entries[idx]
-	var commodity_id: String = entry.get("id", "")
-	var price: float = float(entry.get("price", 0.0))
-	var market_kind: String = GameState.MARKET_KIND_LEGAL
-
+	var commodity_id_variant = selected.get_metadata(0)
+	var commodity_id: String = ""
+	if commodity_id_variant != null:
+		commodity_id = String(commodity_id_variant)
 	if commodity_id == "":
-		Log.add_entry("Selected market entry has no commodity id.")
+		if purchase_order_dialog.has_method("set_status"):
+			purchase_order_dialog.call("set_status", "Selected entry is missing a commodity id.")
 		return
 
-	var qty_to_buy: int = int(qty_spin.value)
-	if qty_to_buy <= 0:
+	if not price_by_commodity.has(commodity_id):
+		if purchase_order_dialog.has_method("set_status"):
+			purchase_order_dialog.call("set_status", "Selected entry has no price data.")
 		return
 
-	# Check money
-	var total_cost: float = price * float(qty_to_buy)
-	if total_cost > GameState.player_money:
-		Log.add_entry("Not enough credits to buy %d units." % qty_to_buy)
-		return
-
-	# Check cargo capacity by weight
-	var commodity: Dictionary = CommodityDB.get_commodity(commodity_id)
-	if commodity.is_empty():
-		Log.add_entry("Unknown commodity: %s" % commodity_id)
-		return
-
-	var per_unit_weight: float = float(commodity.get("weight_per_unit", 1.0))
-	var added_weight: float = per_unit_weight * float(qty_to_buy)
-	var current_weight: float = GameState.get_total_cargo_weight()
+	var commodity_name: String = selected.get_text(0)
+	var unit_price: float = float(price_by_commodity[commodity_id])
+	var weight: float = GameState.get_total_cargo_weight()
 	var capacity: float = GameState.cargo_capacity_weight
 
-	if current_weight + added_weight > capacity:
-		Log.add_entry("Not enough cargo capacity for that purchase.")
+	if purchase_order_dialog.has_method("setup"):
+		purchase_order_dialog.call(
+			"setup",
+			commodity_id,
+			commodity_name,
+			unit_price,
+			GameState.player_money,
+			weight,
+			capacity
+		)
+
+	purchase_order_dialog.popup_centered()
+
+
+func _on_sell_manifest_inventory_pressed() -> void:
+	request_sell_manifest_inventory.emit()
+
+
+func _on_purchase_order_confirmed(commodity_id: String, qty: int) -> void:
+	var result: Dictionary = GameState.purchase_market_goods(commodity_id, qty)
+	if bool(result.get("ok", false)):
+		if purchase_order_dialog != null:
+			purchase_order_dialog.hide()
+		refresh_all()
 		return
 
-	# Apply transaction
-	GameState.player_money -= total_cost
-	GameState.add_cargo(commodity_id, qty_to_buy)
-	GameState.record_market_purchase(
-		commodity_id,
-		qty_to_buy,
-		price,
-		total_cost,
-		market_kind
-	)
-
-	Log.add_entry("Bought %d x %s for %.0f cr."
-		% [qty_to_buy, commodity.get("name", commodity_id), total_cost])
-
-	refresh_all()
+	if purchase_order_dialog != null and purchase_order_dialog.has_method("set_status"):
+		purchase_order_dialog.call("set_status", String(result.get("error", "Purchase failed.")))
 
 
-func _on_SellButton_pressed() -> void:
-	# SELL is based on cargo selection, not market list
-	var selected: PackedInt32Array = cargo_list.get_selected_items()
-	if selected.size() == 0:
-		Log.add_entry("No cargo selected to sell.")
-		return
-
-	var idx: int = selected[0]
-	if idx < 0:
-		return
-
-	var meta = cargo_list.get_item_metadata(idx)
-	if meta == null:
-		Log.add_entry("Selected cargo has no commodity metadata.")
-		return
-
-	var commodity_id: String = str(meta)
-
-	# How much do we own?
-	var have_qty: int = GameState.get_cargo_quantity(commodity_id)
-	if have_qty <= 0:
-		Log.add_entry("You have no units of that cargo to sell.")
-		return
-
-	var qty_to_sell: int = int(qty_spin.value)
-	if qty_to_sell <= 0:
-		return
-
-	if qty_to_sell > have_qty:
-		qty_to_sell = have_qty
-
-	# Get price for this commodity in the current system
-	if not price_by_commodity.has(commodity_id):
-		Log.add_entry("No market price available here for that cargo.")
-		return
-
-	var price: float = float(price_by_commodity[commodity_id])
-	var revenue: float = price * float(qty_to_sell)
-
-	GameState.player_money += revenue
-	GameState.remove_cargo(commodity_id, qty_to_sell)
-
-	var commodity: Dictionary = CommodityDB.get_commodity(commodity_id)
-	var name: String = commodity.get("name", commodity_id)
-
-	Log.add_entry("Sold %d x %s for %.0f cr."
-		% [qty_to_sell, name, revenue])
-
-	refresh_all()
+func _on_purchase_order_cancelled() -> void:
+	if purchase_order_dialog != null:
+		purchase_order_dialog.hide()
 
 
 # --- Ship / System change signals ---
@@ -268,4 +213,5 @@ func _on_ship_changed() -> void:
 func _on_system_changed(new_system_id: String) -> void:
 	# prices and system label change
 	refresh_all()
+
 

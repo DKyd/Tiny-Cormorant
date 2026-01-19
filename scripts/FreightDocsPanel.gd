@@ -47,6 +47,13 @@ func _refresh_list() -> void:
 			var qty: int = int(doc.get("quantity", 0))
 			label = "[%s] Bill of Sale: %d x %s (%s)" \
 				% [doc_id, qty, commodity_name, status]
+		elif doc_type == "purchase_order":
+			var commodity_id_po: String = doc.get("commodity_id", "?")
+			var commodity_po: Dictionary = CommodityDB.get_commodity(commodity_id_po)
+			var commodity_name_po: String = commodity_po.get("name", commodity_id_po)
+			var qty_po: int = int(doc.get("quantity", 0))
+			label = "[%s] Purchase Order: %d x %s (%s)" \
+				% [doc_id, qty_po, commodity_name_po, status]
 		else:
 			var origin_id: String = doc.get("origin_system_id", "?")
 			var dest_id: String = doc.get("destination_system_id", "?")
@@ -97,6 +104,26 @@ func _on_DocsList_item_selected(index: int) -> void:
 		var market_kind: String = doc.get("market_kind", GameState.MARKET_KIND_LEGAL)
 		Log.add_entry("Doc %s (bill of sale): %d x %s at %s (%s)."
 			% [doc_id, qty, commodity_name, location_name, market_kind])
+		return
+	elif doc_type == "purchase_order":
+		var commodity_id_po: String = doc.get("commodity_id", "?")
+		var commodity_po: Dictionary = CommodityDB.get_commodity(commodity_id_po)
+		var commodity_name_po: String = String(commodity_po.get("name", commodity_id_po))
+		var qty_po: int = int(doc.get("quantity", 0))
+		var location_name_po: String = String(doc.get("purchase_location_name", ""))
+		Log.add_entry("Doc %s (purchase order): %d x %s at %s, status=%s."
+			% [doc_id, qty_po, commodity_name_po, location_name_po, doc.get("status", "unknown")], "OTHER")
+		var cargo_lines_po: Array = doc.get("cargo_lines", [])
+		if cargo_lines_po.is_empty():
+			Log.add_entry("Doc %s has no declared cargo." % doc_id, "OTHER")
+		else:
+			var parts_po: Array = []
+			for line_variant in cargo_lines_po:
+				var line_po: Dictionary = line_variant
+				var cid_po: String = line_po.get("commodity_id", "?")
+				var qty_line_po: int = int(line_po.get("declared_qty", 0))
+				parts_po.append("%d x %s" % [qty_line_po, cid_po])
+			Log.add_entry("Doc %s cargo: %s" % [doc_id, ", ".join(parts_po)], "OTHER")
 		return
 
 	var origin_sys: Dictionary = Galaxy.get_system(origin_id)

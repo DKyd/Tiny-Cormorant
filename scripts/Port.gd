@@ -304,7 +304,7 @@ func _on_location_changed(new_location_id: String) -> void:
 
 func _on_customs_pressed() -> void:
 	if GameState.current_location_id == "":
-		Log.add_entry("Customs inspection unavailable: you must be docked.")
+		Log.add_entry("Customs inspection unavailable: you must be docked.", "CUSTOMS")
 		return
 
 	var report: Dictionary = GameState.run_customs_inspection({
@@ -312,7 +312,7 @@ func _on_customs_pressed() -> void:
 		"location_id": GameState.current_location_id,
 	})
 
-	Log.add_entry("Customs inspection requested: %s." % str(report.get("classification", "unknown")))
+	Log.add_entry("Customs inspection requested: %s." % str(report.get("classification", "unknown")), "CUSTOMS")
 	_show_customs_inspection(report)
 
 
