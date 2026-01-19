@@ -64,4 +64,5 @@ size_flags_vertical = 3
 layout_mode = 2
 
 [node name="LogPanel" parent="VBoxContainer/ContentRow" instance=ExtResource("2_y2x6s")]
+layout_mode = 2
 size_flags_vertical = 3

@@ -41,10 +41,20 @@ func _refresh_list() -> void:
 
 		var label := ""
 		if doc_type == "bill_of_sale":
-			var commodity_id: String = doc.get("commodity_id", "?")
+			var commodity_id: String = ""
+			var qty: int = 0
+			var cargo_lines_variant = doc.get("cargo_lines", [])
+			if cargo_lines_variant is Array and not cargo_lines_variant.is_empty():
+				var first_line_variant = cargo_lines_variant[0]
+				if first_line_variant is Dictionary:
+					var line: Dictionary = first_line_variant
+					commodity_id = String(line.get("commodity_id", ""))
+					qty = int(line.get("sold_qty", line.get("declared_qty", 0)))
+			if commodity_id == "":
+				commodity_id = doc.get("commodity_id", "?")
+				qty = int(doc.get("quantity", 0))
 			var commodity: Dictionary = CommodityDB.get_commodity(commodity_id)
 			var commodity_name: String = commodity.get("name", commodity_id)
-			var qty: int = int(doc.get("quantity", 0))
 			label = "[%s] Bill of Sale: %d x %s (%s)" \
 				% [doc_id, qty, commodity_name, status]
 		elif doc_type == "purchase_order":
@@ -96,11 +106,23 @@ func _on_DocsList_item_selected(index: int) -> void:
 	var dest_id: String = doc.get("destination_system_id", "?")
 
 	if doc_type == "bill_of_sale":
-		var commodity_id: String = doc.get("commodity_id", "?")
+		var commodity_id: String = ""
+		var qty: int = 0
+		var cargo_lines_variant = doc.get("cargo_lines", [])
+		if cargo_lines_variant is Array and not cargo_lines_variant.is_empty():
+			var first_line_variant = cargo_lines_variant[0]
+			if first_line_variant is Dictionary:
+				var line: Dictionary = first_line_variant
+				commodity_id = String(line.get("commodity_id", ""))
+				qty = int(line.get("sold_qty", line.get("declared_qty", 0)))
+		if commodity_id == "":
+			commodity_id = doc.get("commodity_id", "?")
+			qty = int(doc.get("quantity", 0))
 		var commodity: Dictionary = CommodityDB.get_commodity(commodity_id)
 		var commodity_name: String = String(commodity.get("name", commodity_id))
-		var qty: int = int(doc.get("quantity", 0))
-		var location_name: String = String(doc.get("purchase_location_name", ""))
+		var location_name: String = String(doc.get("location_name", ""))
+		if location_name == "":
+			location_name = String(doc.get("purchase_location_name", ""))
 		var market_kind: String = doc.get("market_kind", GameState.MARKET_KIND_LEGAL)
 		Log.add_entry("Doc %s (bill of sale): %d x %s at %s (%s)."
 			% [doc_id, qty, commodity_name, location_name, market_kind])

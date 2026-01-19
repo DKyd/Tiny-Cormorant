@@ -10,6 +10,52 @@ func get_local_price_for_system_id(system_id: String, commodity_id: String) -> f
 		return 0.0
 	return get_local_price_at(system_id, system, commodity_id, GameState.time_tick, "legal")
 
+func quote_sale_price(
+	commodity_id: String,
+	qty: int,
+	system_id: String,
+	location_id: String,
+	market_kind: String
+) -> Dictionary:
+	var result := {
+		"ok": false,
+		"error": "",
+		"base_unit_price": 0.0,
+		"adjustments": [],
+		"final_unit_price": 0.0,
+		"total_price": 0.0,
+	}
+
+	if commodity_id == "" or qty <= 0:
+		result.error = "Invalid commodity or quantity."
+		return result
+
+	var system: Dictionary = Galaxy.get_system(system_id)
+	if system.is_empty():
+		result.error = "No market available."
+		return result
+
+	var base_unit_price: float = get_local_price_at(
+		system_id,
+		system,
+		commodity_id,
+		GameState.time_tick,
+		market_kind
+	)
+	if base_unit_price <= 0.0:
+		result.error = "No market price available."
+		return result
+
+	var adjustments: Array = []
+	var final_unit_price: float = base_unit_price
+
+	result.ok = true
+	result.base_unit_price = base_unit_price
+	result.adjustments = adjustments
+	result.final_unit_price = final_unit_price
+	result.total_price = final_unit_price * float(qty)
+	return result
+
 
 func get_local_price(system_id: String, system: Dictionary, commodity_id: String) -> float:
 	return get_local_price_at(system_id, system, commodity_id, GameState.time_tick, "legal")

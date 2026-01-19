@@ -1473,6 +1473,270 @@ func purchase_market_goods(commodity_id: String, qty: int) -> Dictionary:
 		% [qty, commodity.get("name", commodity_id), total_cost], "SHIP")
 	return result
 
+func _get_consumed_sale_quantities() -> Dictionary:
+	var consumed: Dictionary = {}
+	for doc_variant in freight_docs:
+		if not (doc_variant is Dictionary):
+			continue
+		var doc: Dictionary = doc_variant
+		if String(doc.get("doc_type", "")) != "bill_of_sale":
+			continue
+		var cargo_lines_variant = doc.get("cargo_lines", [])
+		if not (cargo_lines_variant is Array):
+			continue
+		var cargo_lines: Array = cargo_lines_variant
+		for line_variant in cargo_lines:
+			if not (line_variant is Dictionary):
+				continue
+			var line: Dictionary = line_variant
+			var line_sources_variant = line.get("sources", [])
+			if not (line_sources_variant is Array):
+				continue
+			var line_sources: Array = line_sources_variant
+			for source_variant in line_sources:
+				if not (source_variant is Dictionary):
+					continue
+				var source: Dictionary = source_variant
+				var source_doc_id: String = String(source.get("doc_id", ""))
+				var source_qty: int = int(source.get("qty", 0))
+				if source_doc_id == "" or source_qty <= 0:
+					continue
+				var commodity_id: String = String(line.get("commodity_id", ""))
+				if commodity_id == "":
+					continue
+				var key: String = "%s|%s" % [source_doc_id, commodity_id]
+				consumed[key] = int(consumed.get(key, 0)) + source_qty
+	return consumed
+
+func _build_sale_sources(commodity_id: String, qty: int) -> Dictionary:
+	var result := {
+		"ok": false,
+		"error": "",
+		"sources": [],
+	}
+	if commodity_id == "" or qty <= 0:
+		result.error = "Invalid commodity or quantity."
+		return result
+
+	var consumed: Dictionary = _get_consumed_sale_quantities()
+	var remaining: int = qty
+	var sources: Array = []
+
+	for doc_variant in freight_docs:
+		if remaining <= 0:
+			break
+		if not (doc_variant is Dictionary):
+			continue
+		var doc: Dictionary = doc_variant
+		var doc_type: String = String(doc.get("doc_type", ""))
+		if doc_type != "purchase_order" and doc_type != "contract":
+			continue
+		var doc_id: String = String(doc.get("doc_id", ""))
+		if doc_id == "":
+			continue
+
+		var cargo_lines_variant = doc.get("cargo_lines", [])
+		if not (cargo_lines_variant is Array):
+			continue
+		var cargo_lines: Array = cargo_lines_variant
+		for line_variant in cargo_lines:
+			if remaining <= 0:
+				break
+			if not (line_variant is Dictionary):
+				continue
+			var line: Dictionary = line_variant
+			if String(line.get("commodity_id", "")) != commodity_id:
+				continue
+			var declared_qty: int = int(line.get("declared_qty", 0))
+			if declared_qty <= 0:
+				continue
+
+			var key: String = "%s|%s" % [doc_id, commodity_id]
+			var already_consumed: int = int(consumed.get(key, 0))
+			var available: int = declared_qty - already_consumed
+			if available <= 0:
+				continue
+			var take_qty: int = min(remaining, available)
+			sources.append({
+				"doc_id": doc_id,
+				"qty": take_qty,
+			})
+			remaining -= take_qty
+
+	if remaining > 0:
+		result.error = "Insufficient source documentation."
+		return result
+
+	result.ok = true
+	result.sources = sources
+	return result
+
+func _create_bill_of_sale_for_sale(
+	commodity_id: String,
+	quantity: int,
+	unit_price: float,
+	total_price: float,
+	system_id: String,
+	location_id: String,
+	location_name: String,
+	market_kind: String,
+	sources: Array
+) -> String:
+	var doc_id: String = "FDOC-%04d" % next_freight_doc_id
+	next_freight_doc_id += 1
+
+	var doc := {
+		"doc_id": doc_id,
+		"doc_type": "bill_of_sale",
+		"status": "active",
+
+		"system_id": system_id,
+		"location_id": location_id,
+		"location_name": location_name,
+		"tick": time_tick,
+		"market_kind": _normalize_market_kind(market_kind),
+
+		"container_meta": _build_container_meta(
+			doc_id,
+			false,
+			"bill_of_sale",
+			system_id,
+			location_id
+		),
+
+		"cargo_lines": [
+			{
+				"commodity_id": commodity_id,
+				"sold_qty": quantity,
+				"unit_price": unit_price,
+				"total_price": total_price,
+				"sources": sources,
+			}
+		],
+	}
+
+	freight_docs.append(doc)
+	return doc_id
+
+func sell_manifest_goods(
+	commodity_id: String,
+	qty: int,
+	system_id: String,
+	location_id: String,
+	market_kind: String
+) -> Dictionary:
+	var result := {
+		"ok": false,
+		"error": "",
+		"total_price": 0.0,
+	}
+
+	if commodity_id == "":
+		result.error = "Invalid commodity."
+		Log.add_entry("Sale failed: invalid commodity.", "OTHER")
+		return result
+
+	if qty <= 0:
+		result.error = "Invalid quantity."
+		Log.add_entry("Sale failed: invalid quantity.", "OTHER")
+		return result
+
+	if location_id == "":
+		result.error = "No market available."
+		Log.add_entry("Sale failed: no market available.", "OTHER")
+		return result
+
+	var location: Dictionary = Galaxy.get_location(location_id)
+	if location.is_empty():
+		result.error = "No market available."
+		Log.add_entry("Sale failed: no market available.", "OTHER")
+		return result
+
+	var spaces_variant = location.get("spaces", [])
+	var has_market: bool = false
+	if spaces_variant is Array:
+		var spaces: Array = spaces_variant
+		has_market = spaces.has("market")
+	if not has_market:
+		result.error = "No market available."
+		Log.add_entry("Sale failed: no market available.", "OTHER")
+		return result
+
+	if system_id == "":
+		result.error = "No market available."
+		Log.add_entry("Sale failed: no market available.", "OTHER")
+		return result
+
+	var have_qty: int = get_cargo_quantity(commodity_id)
+	if have_qty <= 0:
+		result.error = "No cargo available."
+		Log.add_entry("Sale failed: no cargo available.", "OTHER")
+		return result
+
+	if qty > have_qty:
+		result.error = "Not enough cargo."
+		Log.add_entry("Sale failed: not enough cargo.", "OTHER")
+		return result
+
+	var commodity: Dictionary = CommodityDB.get_commodity(commodity_id)
+	if commodity.is_empty():
+		result.error = "Unknown commodity."
+		Log.add_entry("Sale failed: unknown commodity.", "OTHER")
+		return result
+
+	var quote: Dictionary = Economy.quote_sale_price(
+		commodity_id,
+		qty,
+		system_id,
+		location_id,
+		market_kind
+	)
+	if not bool(quote.get("ok", false)):
+		result.error = String(quote.get("error", "No market price available."))
+		Log.add_entry("Sale failed: %s" % result.error.to_lower(), "OTHER")
+		return result
+
+	var final_unit_price: float = float(quote.get("final_unit_price", quote.get("unit_price", 0.0)))
+	var total_price: float = float(quote.get("total_price", 0.0))
+	if final_unit_price <= 0.0 or total_price <= 0.0:
+		result.error = "No market price available."
+		Log.add_entry("Sale failed: no market price available.", "OTHER")
+		return result
+
+	var sources_result: Dictionary = _build_sale_sources(commodity_id, qty)
+	if not bool(sources_result.get("ok", false)):
+		result.error = String(sources_result.get("error", "Insufficient source documentation."))
+		Log.add_entry("Sale failed: %s" % result.error.to_lower(), "OTHER")
+		return result
+
+	var sources_variant = sources_result.get("sources")
+	if not (sources_variant is Array):
+		result.error = "Insufficient source documentation."
+		Log.add_entry("Sale failed: %s" % result.error.to_lower(), "OTHER")
+		return result
+	var sources: Array = sources_variant
+	var location_name: String = String(location.get("name", location_id))
+
+	remove_cargo(commodity_id, qty)
+	player_money += total_price
+
+	_create_bill_of_sale_for_sale(
+		commodity_id,
+		qty,
+		final_unit_price,
+		total_price,
+		system_id,
+		location_id,
+		location_name,
+		market_kind,
+		sources
+	)
+
+	result.ok = true
+	result.total_price = total_price
+	Log.add_entry("Bill of Sale: Sold %d x %s for %.0f cr."
+		% [qty, commodity.get("name", commodity_id), total_price], "OTHER")
+	return result
 
 func get_docs_for_contract(contract_id: String) -> Array:
 	var result: Array = []

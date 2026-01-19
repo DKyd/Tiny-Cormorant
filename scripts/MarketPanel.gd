@@ -19,6 +19,15 @@ signal request_sell_manifest_inventory
 # --- Market data ---
 
 var price_by_commodity: Dictionary = {}  # commodity_id -> price
+var _sell_dialog: Window
+var _sell_qty_spin: SpinBox
+var _sell_status_label: Label
+var _sell_total_label: Label
+var _sell_unit_price_label: Label
+var _sell_commodity_label: Label
+var _sell_commodity_id: String = ""
+var _sell_market_kind: String = GameState.MARKET_KIND_LEGAL
+var _sell_raw_qty_text: String = ""
 
 
 
@@ -34,6 +43,8 @@ func _ready() -> void:
 	if purchase_order_dialog != null:
 		purchase_order_dialog.confirmed.connect(_on_purchase_order_confirmed)
 		purchase_order_dialog.cancelled.connect(_on_purchase_order_cancelled)
+
+	_build_sell_dialog()
 
 	refresh_all()
 
@@ -183,7 +194,36 @@ func _on_create_purchase_order_pressed() -> void:
 
 
 func _on_sell_manifest_inventory_pressed() -> void:
-	request_sell_manifest_inventory.emit()
+	if _sell_dialog == null:
+		return
+
+	var selected: TreeItem = inventory_grid.get_selected()
+	if selected == null:
+		return
+
+	var commodity_id_variant = selected.get_metadata(0)
+	var commodity_id: String = ""
+	if commodity_id_variant != null:
+		commodity_id = String(commodity_id_variant)
+	if commodity_id == "":
+		return
+
+	var have_qty: int = GameState.get_cargo_quantity(commodity_id)
+	if have_qty <= 0:
+		_sell_status_label.text = "No cargo available."
+		return
+
+	_sell_commodity_id = commodity_id
+	_sell_commodity_label.text = "Commodity: %s" % selected.get_text(0)
+	_sell_qty_spin.max_value = have_qty
+	_sell_qty_spin.value = clamp(1, int(_sell_qty_spin.min_value), int(_sell_qty_spin.max_value))
+	var le := _sell_qty_spin.get_line_edit()
+	if le != null:
+		le.text = str(int(_sell_qty_spin.value))
+	_sell_raw_qty_text = str(int(_sell_qty_spin.value))
+	_sell_status_label.text = ""
+	_refresh_sell_quote()
+	_sell_dialog.popup_centered()
 
 
 func _on_purchase_order_confirmed(commodity_id: String, qty: int) -> void:
@@ -213,5 +253,157 @@ func _on_ship_changed() -> void:
 func _on_system_changed(new_system_id: String) -> void:
 	# prices and system label change
 	refresh_all()
+
+
+func _build_sell_dialog() -> void:
+	_sell_dialog = Window.new()
+	_sell_dialog.title = "Sell Manifest"
+	_sell_dialog.exclusive = true
+	_sell_dialog.unresizable = true
+	_sell_dialog.visible = false
+	_sell_dialog.size = Vector2i(420, 260)
+	add_child(_sell_dialog)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_bottom", 16)
+	_sell_dialog.add_child(margin)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	margin.add_child(vbox)
+
+	_sell_commodity_label = Label.new()
+	_sell_commodity_label.text = "Commodity:"
+	vbox.add_child(_sell_commodity_label)
+
+	_sell_unit_price_label = Label.new()
+	_sell_unit_price_label.text = "Unit Price:"
+	vbox.add_child(_sell_unit_price_label)
+
+	var qty_row := HBoxContainer.new()
+	qty_row.add_theme_constant_override("separation", 8)
+	vbox.add_child(qty_row)
+
+	var qty_label := Label.new()
+	qty_label.text = "Quantity:"
+	qty_row.add_child(qty_label)
+
+	_sell_qty_spin = SpinBox.new()
+	_sell_qty_spin.min_value = 1
+	_sell_qty_spin.max_value = 999
+	_sell_qty_spin.allow_greater = true
+	_sell_qty_spin.allow_lesser = true
+	_sell_qty_spin.step = 1
+	_sell_qty_spin.value_changed.connect(_on_sell_qty_changed)
+	qty_row.add_child(_sell_qty_spin)
+	var le := _sell_qty_spin.get_line_edit()
+	if le != null:
+		le.text_changed.connect(_on_sell_qty_text_changed)
+
+	_sell_total_label = Label.new()
+	_sell_total_label.text = "Total:"
+	vbox.add_child(_sell_total_label)
+
+	_sell_status_label = Label.new()
+	_sell_status_label.text = ""
+	vbox.add_child(_sell_status_label)
+
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 8)
+	vbox.add_child(buttons)
+
+	var confirm_button := Button.new()
+	confirm_button.text = "Confirm"
+	confirm_button.pressed.connect(_on_sell_confirm_pressed)
+	buttons.add_child(confirm_button)
+
+	var cancel_button := Button.new()
+	cancel_button.text = "Cancel"
+	cancel_button.pressed.connect(_on_sell_cancel_pressed)
+	buttons.add_child(cancel_button)
+
+	_sell_dialog.close_requested.connect(_on_sell_cancel_pressed)
+
+
+func _on_sell_qty_changed(_value: float) -> void:
+	_refresh_sell_quote()
+
+func _on_sell_qty_text_changed(new_text: String) -> void:
+	_sell_raw_qty_text = String(new_text).strip_edges()
+
+
+func _refresh_sell_quote() -> void:
+	if _sell_commodity_id == "":
+		_sell_unit_price_label.text = "Unit Price:"
+		_sell_total_label.text = "Total:"
+		return
+
+	var qty: int = int(_sell_qty_spin.value)
+	var quote: Dictionary = Economy.quote_sale_price(
+		_sell_commodity_id,
+		qty,
+		GameState.current_system_id,
+		GameState.current_location_id,
+		_sell_market_kind
+	)
+	if not bool(quote.get("ok", false)):
+		_sell_unit_price_label.text = "Unit Price: -"
+		_sell_total_label.text = "Total: -"
+		_sell_status_label.text = String(quote.get("error", "No market price available."))
+		return
+
+	_sell_status_label.text = ""
+	var unit_price: float = float(quote.get("final_unit_price", quote.get("unit_price", 0.0)))
+	var total_price: float = float(quote.get("total_price", 0.0))
+	_sell_unit_price_label.text = "Unit Price: %.0f cr" % unit_price
+	_sell_total_label.text = "Total: %.0f cr" % total_price
+
+
+func _on_sell_confirm_pressed() -> void:
+	if _sell_commodity_id == "":
+		_sell_status_label.text = "Select cargo to sell."
+		return
+
+	var have_qty: int = GameState.get_cargo_quantity(_sell_commodity_id)
+	var parsed_qty: int = 0
+	var raw_text := _sell_raw_qty_text
+	if raw_text != "" and raw_text.is_valid_int():
+		parsed_qty = int(raw_text)
+	else:
+		parsed_qty = int(_sell_qty_spin.value)
+	if parsed_qty <= 0:
+		_sell_status_label.text = "Invalid quantity."
+		return
+	if parsed_qty > have_qty:
+		_sell_status_label.text = "Not enough cargo (have %d)." % have_qty
+		Log.add_entry(
+			"Sale blocked: attempted to sell %d but only %d available." % [parsed_qty, have_qty],
+			"OTHER"
+		)
+		return
+
+	var qty: int = parsed_qty
+	var result: Dictionary = GameState.sell_manifest_goods(
+		_sell_commodity_id,
+		qty,
+		GameState.current_system_id,
+		GameState.current_location_id,
+		_sell_market_kind
+	)
+	if bool(result.get("ok", false)):
+		_sell_dialog.hide()
+		_sell_commodity_id = ""
+		refresh_all()
+		return
+
+	_sell_status_label.text = String(result.get("error", "Sale failed."))
+
+
+func _on_sell_cancel_pressed() -> void:
+	if _sell_dialog != null:
+		_sell_dialog.hide()
 
 
