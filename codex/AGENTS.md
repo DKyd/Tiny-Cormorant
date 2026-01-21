@@ -35,6 +35,7 @@ No other new files under `codex/` are permitted.
 ## Gate B — Scope Proof Requirement (Mandatory)
 
 Any Gate B approval is **invalid** unless accompanied by explicit scope proof.
+Approvals are **invalid** if scope proof is missing or incomplete.
 
 ### Required Scope Proof
 Scope proof must include **all** of the following:

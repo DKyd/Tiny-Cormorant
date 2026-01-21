@@ -1,0 +1,134 @@
+# Governance Job
+
+## Metadata (Required)
+- Issue/Task ID: 0062
+- Short Title: Scope Proof Requirement
+- Run Folder Name: issue-0062-scope-proof-requirement
+- Job Type: governance
+- Author (human): Douglass
+- Date: 2026-01-21
+
+---
+
+## Goal
+Prevent invalid Gate B approvals by requiring explicit, reviewable scope proof.
+Ensure approvals validate repository cleanliness and whitelist compliance, not just diff content.
+
+---
+
+## Invariants (Must Hold After This Job)
+Non-negotiable truths that must remain valid.
+
+- Gate B approval is invalid without explicit scope proof.
+- Codex must not modify files outside the active `job.md` whitelist.
+- `.godot/**` editor churn must never persist in an approved working tree.
+
+---
+
+## Non-Goals
+Hard scope boundaries.
+
+- No gameplay, UI, economy, organization, or simulation changes.
+- No tooling automation (no scripts, hooks, CI, or editor config changes).
+
+---
+
+## Context
+A prior Gate B approval was granted while the working tree contained unrelated changes,
+including `.godot/**` editor churn and leftovers from another issue. Approval language
+validated that “the diff looked correct” without validating repository cleanliness or
+strict whitelist containment.
+
+This revealed a governance gap: Gate B approvals must validate both scope and cleanliness.
+This job formalizes that requirement.
+
+---
+
+## Policy Change (Normative)
+Write the new rule(s) in MUST / MUST NOT language.
+
+- Gate B approvals MUST include scope proof.
+- Scope proof MUST include `git status`, `git diff --stat`, and full `git diff`.
+- Gate B approvals MUST explicitly acknowledge that scope proof was reviewed and compliant.
+- Gate B approvals MUST be considered invalid if scope proof is missing or incomplete.
+- `.godot/**` editor churn MUST be reverted immediately and MUST block approval if present.
+
+---
+
+## Proposed Approach
+High-level plan (3–6 bullets). Boundaries only.
+
+- Amend `AGENTS.md` to add a mandatory Gate B “Scope Proof Requirement” section.
+- Define required scope proof artifacts explicitly.
+- Define approval conditions and invalidation criteria.
+- Require explicit human acknowledgment of scope proof review.
+- Do not modify any runtime code or non-governance files.
+
+---
+
+## Files: Allowed to Modify (Whitelist)
+Only these files may be edited.
+
+- `AGENTS.md`
+
+---
+
+## Files: Forbidden to Modify (Blacklist)
+These files/directories must not be touched.
+
+- `data/**`
+- `scenes/MainGame.tscn`
+- `.godot/**`
+
+---
+
+## New Files Allowed?
+- [ ] Yes
+- [x] No
+
+---
+
+## Acceptance Criteria (Must Be Testable)
+Objectively verifiable “done.”
+
+- [ ] `AGENTS.md` contains a clearly labeled “Gate B — Scope Proof Requirement (Mandatory)” section.
+- [ ] The section explicitly requires `git status`, `git diff --stat`, and full `git diff`.
+- [ ] The section states that Gate B approvals are invalid without scope proof and explicit human acknowledgment.
+
+---
+
+## Verification Steps (Non-Game)
+How a human verifies the governance change.
+
+1. Open `AGENTS.md`.
+2. Locate the “Gate B — Scope Proof Requirement (Mandatory)” section.
+3. Verify required scope proof artifacts and invalidation language are present.
+4. Confirm `.godot/**` churn is explicitly forbidden at approval time.
+
+---
+
+## Risks / Notes
+- Risk: Overly verbose requirements could slow approvals; requirements must remain minimal and explicit.
+- If assumptions prove false, Codex must stop and report rather than inventing solutions.
+
+---
+
+## Governance & Review Gates (Mandatory)
+- Codex must not make changes until required preflight/review steps are complete.
+- Codex must present diffs for review before declaring results final.
+- Gate B approvals must include scope proof (`git status`, `git diff --stat`, full `git diff`).
+- If scope, whitelist, or non-goals are violated, Codex must stop and report the issue.
+
+---
+
+## Codex Scaffolding & Output Requirements (Mandatory)
+
+Codex must perform the following before any changes:
+
+1) Create `codex/runs/issue-0062-scope-proof-requirement/`
+2) Write this job verbatim to `codex/runs/issue-0062-scope-proof-requirement/job.md`
+3) Create `codex/runs/issue-0062-scope-proof-requirement/results.md` if missing
+4) Write `codex/runs/ACTIVE_RUN.txt` = `issue-0062-scope-proof-requirement`
+
+Codex must write final results only to:
+- `codex/runs/issue-0062-scope-proof-requirement/results.md`
