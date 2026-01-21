@@ -40,6 +40,9 @@ var target_system_count: int = 25
 var min_locations_per_system: int = 1
 var max_locations_per_system: int = 3
 
+const ORG_ID_GOVERNMENT: String = "government"
+const ORG_ID_CARTEL: String = "cartel"
+
 # Location types you defined
 const LOCATION_TYPES := [
 	"corporate_colony",
@@ -310,10 +313,13 @@ func _generate_locations_for_system(system_id: String, system: Dictionary) -> Ar
 			"spaces": spaces,
 			"economy_type": economy_type,
 			"tariff_rate": tariff_rate,
+			"base_influences": [],
+			"delta_influences": [],
 			"factions": {},      # filled later when we add factions
 			"description": description,
 		}
 
+		loc["base_influences"] = _build_base_influences(loc, system)
 		locations[loc_id] = loc
 		loc_ids.append(loc_id)
 
@@ -643,3 +649,104 @@ func get_locations_for_system(system_id: String) -> Array:
 		if not loc.is_empty():
 			result.append(loc)
 	return result
+
+
+## ----------- INFLUENCE HELPERS -----------
+
+# Ensures base/delta influence arrays exist for all locations.
+func ensure_location_influences() -> void:
+	for loc_id in locations.keys():
+		var loc: Dictionary = locations[loc_id]
+		if not loc.has("base_influences"):
+			loc["base_influences"] = []
+		if not loc.has("delta_influences"):
+			loc["delta_influences"] = []
+		locations[loc_id] = loc
+
+
+# Clears influence arrays for all locations (legacy save fallback).
+func clear_location_influences() -> void:
+	for loc_id in locations.keys():
+		var loc: Dictionary = locations[loc_id]
+		loc["base_influences"] = []
+		loc["delta_influences"] = []
+		locations[loc_id] = loc
+
+
+func _build_base_influences(location: Dictionary, system: Dictionary) -> Array:
+	var influences: Array = []
+	var loc_id: String = String(location.get("id", ""))
+	if loc_id == "":
+		return influences
+
+	var system_id: String = String(system.get("id", ""))
+	if system_id == "":
+		system_id = String(location.get("system_id", ""))
+
+	var loc_type: String = String(location.get("type", ""))
+	var economy_type: String = String(location.get("economy_type", ""))
+	var security_level: String = String(system.get("security_level", ""))
+
+	var roll := _deterministic_unit(
+		"%s|%s|%s|%s|%s" % [loc_id, system_id, loc_type, economy_type, security_level]
+	)
+
+	if _location_is_outlaw(location):
+		var cartel_weight := 0.6 + roll * 0.3
+		influences.append({
+			"org_id": ORG_ID_CARTEL,
+			"weight": _round_weight(cartel_weight),
+		})
+		return influences
+
+	var cartel_base := 0.02
+	var cartel_weight := clamp(cartel_base + roll * 0.08, 0.0, 0.2)
+	var government_weight := clamp(1.0 - cartel_weight, 0.5, 1.0)
+
+	influences.append({
+		"org_id": ORG_ID_GOVERNMENT,
+		"weight": _round_weight(government_weight),
+	})
+	if cartel_weight > 0.0:
+		influences.append({
+			"org_id": ORG_ID_CARTEL,
+			"weight": _round_weight(cartel_weight),
+		})
+
+	return influences
+
+
+func _location_is_outlaw(location: Dictionary) -> bool:
+	if bool(location.get("outlaw", false)) or bool(location.get("is_outlaw", false)):
+		return true
+
+	var tags_variant = location.get("tags", [])
+	if tags_variant is Array:
+		return tags_variant.has("outlaw")
+	if tags_variant is PackedStringArray:
+		return tags_variant.has("outlaw")
+	return false
+
+
+func _round_weight(value: float) -> float:
+	return floor(value * 100.0 + 0.5) / 100.0
+
+
+# FNV-1a 32-bit hash for deterministic pseudo-randomness from stable inputs.
+# This is not cryptographic; it is used for procedural determinism only.
+func _fnv1a_32(value: String) -> int:
+	var hash: int = 0x811c9dc5
+	var prime: int = 0x01000193
+	var bytes: PackedByteArray = value.to_utf8_buffer()
+
+	for b in bytes:
+		hash ^= int(b)
+		hash = int((hash * prime) & 0xffffffff)
+
+	return hash
+
+
+func _deterministic_unit(value: String) -> float:
+	var hash: int = _fnv1a_32(value)
+	var unit: float = float(hash & 0x7fffffff) / float(0x7fffffff)
+	return unit

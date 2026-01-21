@@ -3,7 +3,7 @@
 ## Metadata (Required)
 - Issue/Task ID:
 - Short Title:
-- Run Folder Name:            # REQUIRED (e.g. issue-0018-feature-detailed-map-headers)
+- Run Folder Name:
 - Job Type: feature
 - Author (human):
 - Date:
@@ -43,7 +43,7 @@ Do not propose solutions here.
 
 ## Proposed Approach
 A short, high-level plan (3–6 bullets).  
-Describe intent and boundaries, not specific code structure.
+Describe intent and boundaries only. This section does not authorize additional features, refactors, or speculative improvements. ⬅️ NEW
 
 - 
 - 
@@ -88,7 +88,7 @@ If none, write “None”.
 ---
 
 ## Data Model & Persistence
-Required if this job adds or modifies saved state.
+Required if this job adds or modifies saved state **or introduces new required in-memory fields**. ⬅️ NEW
 
 - New or changed saved fields:
   - 
@@ -96,6 +96,13 @@ Required if this job adds or modifies saved state.
   - 
 - Save/load verification requirements:
   - 
+
+---
+
+## Determinism & Stability (If Applicable) ⬅️ NEW
+- What must be deterministic?
+- What inputs must remain stable?
+- What must not introduce randomness or time-based variance?
 
 ---
 
@@ -131,6 +138,14 @@ architectural concerns, or future refactors.
 
 - 
 - 
+- If assumptions prove false, Codex must stop and report rather than inventing solutions. ⬅️ NEW
+
+---
+
+## Governance & Review Gates (Mandatory) ⬅️ NEW
+- Codex must not make code changes until required preflight/review steps are complete.
+- Codex must present diffs for review before declaring results final.
+- If scope, whitelist, or non-goals are violated, Codex must stop and report the issue.
 
 ---
 
