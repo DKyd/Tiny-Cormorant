@@ -46,6 +46,7 @@ var _has_initialized_location: bool = false
 
 const MARKET_KIND_LEGAL: String = "legal"
 const MARKET_KIND_BLACK_MARKET: String = "black_market"
+const BLACK_MARKET_CARTEL_THRESHOLD: float = 0.10
 const EVIDENCE_FLAG_DECLARED_QTY_MODIFIED: String = "declared_quantity_modified"
 const EVIDENCE_FLAG_CONTAINER_META_MODIFIED: String = "container_meta_modified"
 const EVIDENCE_FLAG_DOCUMENT_DESTROYED: String = "document_destroyed"
@@ -246,6 +247,96 @@ func get_current_location() -> Dictionary:
 	if current_location_id == "":
 		return {}
 	return Galaxy.get_location(current_location_id)
+
+
+# Returns effective influence entries sorted by weight desc.
+func get_location_effective_influences(
+	location_id: String,
+	min_weight: float = 0.01,
+	max_orgs: int = 4
+) -> Array:
+	var location: Dictionary = Galaxy.get_location(location_id)
+	if location.is_empty():
+		return []
+
+	var weights: Dictionary = _build_effective_influence_map(location)
+	var result: Array = []
+	for org_id_variant in weights.keys():
+		var org_id: String = str(org_id_variant)
+		var weight: float = float(weights[org_id_variant])
+		if weight < min_weight:
+			continue
+		result.append({
+			"org_id": org_id,
+			"weight": weight,
+		})
+
+	result.sort_custom(Callable(self, "_sort_influences_by_weight"))
+	if max_orgs > 0 and result.size() > max_orgs:
+		result = result.slice(0, max_orgs)
+
+	return result
+
+
+# Returns true when cartel influence meets or exceeds the threshold.
+func location_has_black_market(location_id: String) -> bool:
+	if location_id == "":
+		return false
+	if Galaxy.ORG_ID_CARTEL == "":
+		return false
+	var influence: float = _get_effective_org_influence(location_id, Galaxy.ORG_ID_CARTEL)
+	return influence >= BLACK_MARKET_CARTEL_THRESHOLD
+
+
+func _build_effective_influence_map(location: Dictionary) -> Dictionary:
+	var result: Dictionary = {}
+	_accumulate_influence_map(result, location.get("base_influences", []))
+	_accumulate_influence_map(result, location.get("delta_influences", []))
+	return result
+
+
+func _accumulate_influence_map(result: Dictionary, list_variant) -> void:
+	if not (list_variant is Array):
+		return
+	for entry_variant in list_variant:
+		if not (entry_variant is Dictionary):
+			continue
+		var entry: Dictionary = entry_variant
+		var org_id: String = String(entry.get("org_id", ""))
+		if org_id == "":
+			continue
+		var weight: float = float(entry.get("weight", 0.0))
+		result[org_id] = float(result.get(org_id, 0.0)) + weight
+
+
+func _get_effective_org_influence(location_id: String, org_id: String) -> float:
+	if org_id == "":
+		return 0.0
+	var location: Dictionary = Galaxy.get_location(location_id)
+	if location.is_empty():
+		return 0.0
+	var total := 0.0
+	total += _sum_influence_list(location.get("base_influences", []), org_id)
+	total += _sum_influence_list(location.get("delta_influences", []), org_id)
+	return total
+
+
+func _sum_influence_list(list_variant, org_id: String) -> float:
+	if not (list_variant is Array):
+		return 0.0
+	var total := 0.0
+	for entry_variant in list_variant:
+		if not (entry_variant is Dictionary):
+			continue
+		var entry: Dictionary = entry_variant
+		if String(entry.get("org_id", "")) != org_id:
+			continue
+		total += float(entry.get("weight", 0.0))
+	return total
+
+
+func _sort_influences_by_weight(a: Dictionary, b: Dictionary) -> bool:
+	return float(a.get("weight", 0.0)) > float(b.get("weight", 0.0))
 
 
 func auto_travel(path: Array) -> void:
@@ -588,6 +679,7 @@ func load_game() -> void:
 	var saved_systems: Dictionary = data.get("galaxy_systems", {})
 	if not saved_systems.is_empty():
 		Galaxy.systems = saved_systems
+	Galaxy.ensure_location_influences()
 
 	# restore ship fields
 	ship_name = data.get("ship_name", ship_name)
