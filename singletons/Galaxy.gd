@@ -699,9 +699,9 @@ func _build_base_influences(location: Dictionary, system: Dictionary) -> Array:
 		})
 		return influences
 
-	var cartel_base := 0.02
-	var cartel_weight := clamp(cartel_base + roll * 0.08, 0.0, 0.2)
-	var government_weight := clamp(1.0 - cartel_weight, 0.5, 1.0)
+	var cartel_base: float = 0.02
+	var cartel_weight: float = clamp(cartel_base + roll * 0.08, 0.0, 0.2)
+	var government_weight: float = clamp(1.0 - cartel_weight, 0.5, 1.0)
 
 	influences.append({
 		"org_id": ORG_ID_GOVERNMENT,

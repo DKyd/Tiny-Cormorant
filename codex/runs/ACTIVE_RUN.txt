@@ -1,1 +1,1 @@
-issue-0057-ui-black-market-gating
+issue-0061-org-presence-display-readonly

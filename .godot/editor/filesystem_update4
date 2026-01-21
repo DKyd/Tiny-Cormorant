@@ -1,3 +1,5 @@
+res://singletons/Customs.gd
+res://scenes/ui/LogPanel.tscn
 res://scenes/SystemList.tscn
 res://scenes/MapPanel.tscn
 res://scenes/JobBoardPanel.tscn
@@ -11,6 +13,5 @@ res://scenes/Bridge.tscn
 res://scenes/Port.tscn
 res://scenes/MarketPanel.tscn
 res://LocationsPanel.tscn
-res://scenes/ui/LogPanel.tscn
-res://scripts/MarketPanel.gd
-res://scripts/MapPanel.gd
+res://singletons/Galaxy.gd
+res://singletons/GameState.gd

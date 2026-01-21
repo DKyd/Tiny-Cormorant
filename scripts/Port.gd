@@ -73,20 +73,29 @@ func _refresh_header() -> void:
 	if not loc.is_empty():
 		loc_name = loc.get("name", "")
 		loc_type = loc.get("type", "")
+	var org_summary: String = _build_org_presence_summary(loc)
 
 	if loc_name != "":
-		system_info_label.text = "%s / %s  [%s, %s]" % [
+		var base_line := "%s / %s  [%s, %s]" % [
 			sys_name,
 			loc_name,
 			sys_type.capitalize(),
 			sec.capitalize()
 		]
+		if org_summary != "":
+			system_info_label.text = "%s\n%s" % [base_line, org_summary]
+		else:
+			system_info_label.text = base_line
 	else:
-		system_info_label.text = "%s  [%s, %s]" % [
+		var base_line := "%s  [%s, %s]" % [
 			sys_name,
 			sys_type.capitalize(),
 			sec.capitalize()
 		]
+		if org_summary != "":
+			system_info_label.text = "%s\n%s" % [base_line, org_summary]
+		else:
+			system_info_label.text = base_line
 
 
 func _location_has_space(space_name: String) -> bool:
@@ -95,6 +104,56 @@ func _location_has_space(space_name: String) -> bool:
 		return false
 	var spaces: Array = loc.get("spaces", []) as Array
 	return space_name in spaces
+
+
+func _build_org_presence_summary(location: Dictionary) -> String:
+	if location.is_empty():
+		return ""
+	var location_id: String = String(location.get("id", ""))
+	if location_id == "":
+		return ""
+
+	var influences: Array = GameState.get_location_effective_influences(location_id)
+	if influences.is_empty():
+		return "Org presence: none detected"
+
+	var parts: Array = []
+	for influence_variant in influences:
+		if not (influence_variant is Dictionary):
+			continue
+		var influence: Dictionary = influence_variant
+		var org_id: String = String(influence.get("org_id", ""))
+		if org_id == "":
+			continue
+		var weight: float = float(influence.get("weight", 0.0))
+		var org_name: String = _get_org_display_name(org_id)
+		var bucket: String = _bucket_influence(weight)
+		parts.append("%s (%s)" % [org_name, bucket])
+
+	if parts.is_empty():
+		return "Org presence: none detected"
+
+	return "Org presence: %s" % ", ".join(parts)
+
+
+func _get_org_display_name(org_id: String) -> String:
+	match org_id:
+		Galaxy.ORG_ID_GOVERNMENT:
+			return "Government"
+		Galaxy.ORG_ID_CARTEL:
+			return "Cartel"
+		_:
+			if org_id == "":
+				return "Unknown"
+			return org_id.capitalize()
+
+
+func _bucket_influence(weight: float) -> String:
+	if weight >= 0.6:
+		return "Dominant"
+	if weight >= 0.2:
+		return "Present"
+	return "Trace"
 
 
 func _refresh_facility_buttons() -> void:
