@@ -20,8 +20,15 @@ Codex governance lives under `codex/`.
 - No refactors unless explicitly requested.
 - Output must be written to `codex/runs/<active-job>/results.md`.
 - If `results.md` does not exist, Codex is permitted to create it.
-- **No other new files under `codex/` are permitted.**
+- **No other new files under `codex/` are permitted, except as noted below.**
 - **Editor churn under `.godot/**` is forbidden and must be reverted immediately.**
+
+### Exception: New files under `codex/jobs/**` (Governance-only)
+New files under `codex/jobs/**` are permitted **only** when:
+- The active `job.md` explicitly whitelists the exact new file paths, and
+- The job is a governance/process job whose stated goal is to update Codex governance assets.
+
+No other new files under `codex/` are permitted.
 
 ---
 
@@ -40,7 +47,7 @@ A Gate B approval may only be granted if **all** are true:
 - Only files explicitly whitelisted by the active `job.md` are modified
 - Plus:
   - `codex/runs/**`
-  - `ACTIVE_RUN.txt`
+  - `codex/runs/ACTIVE_RUN.txt`
 - **No other files** are modified
 - `.godot/**` editor churn is not present
 
@@ -60,9 +67,10 @@ Codex may:
 1) Create `codex/runs/issue-XXXX-<short-title>/`
 2) Write the pasted job text to `job.md` in that folder
 3) Create `results.md` (empty placeholder) in that folder
-4) Proceed with the job using that `job.md` as authoritative
+4) Write `codex/runs/ACTIVE_RUN.txt` = `<Run Folder Name>`
+5) Proceed with the job using that `job.md` as authoritative
 
 ### Constraints
 - Folder name must exactly match `Issue/Task ID` + slugified `Short Title`
-- Codex must not modify any other files under `codex/`
+- Codex must not modify any other files under `codex/` except as allowed by the active job whitelist
 - If Issue/Task ID or Short Title is missing, **STOP and ask**
