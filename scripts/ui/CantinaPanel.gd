@@ -12,6 +12,10 @@ signal close_requested
 func _ready() -> void:
 	title_label.text = "Cantina"
 	info_label.text = "A dim, noisy cantina. The back room is off-limits to most."
+	var has_black_market := GameState.location_has_black_market(GameState.current_location_id)
+	if not has_black_market:
+		back_room_button.disabled = true
+		back_room_button.visible = false
 
 	back_room_button.pressed.connect(_on_BackRoomButton_pressed)
 	close_button.pressed.connect(_on_CloseButton_pressed)

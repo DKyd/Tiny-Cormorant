@@ -104,7 +104,9 @@ func _refresh_facility_buttons() -> void:
 	var has_market := _location_has_space("market")
 	var has_gov := _location_has_space("gov_office")
 	var has_dry_dock := _location_has_space("dry_dock")
-	var has_cantina := _location_has_space("cantina") or _location_has_space("back_room")
+	var has_cantina := _location_has_space("cantina")
+	var has_back_room := _location_has_space("back_room") \
+		and GameState.location_has_black_market(GameState.current_location_id)
 
 	# Market: only if location has "market"
 	market_button.disabled = not has_market
@@ -117,7 +119,7 @@ func _refresh_facility_buttons() -> void:
 	ship_button.disabled = not has_dry_dock
 
 	# Cantina: only if location has a cantina space
-	cantina_button.disabled = not has_cantina
+	cantina_button.disabled = not (has_cantina or has_back_room)
 
 	# Docs: always accessible (ship’s paperwork travels with the ship)
 	docs_button.disabled = false
@@ -235,6 +237,8 @@ func _show_cantina() -> void:
 
 
 func _show_black_market() -> void:
+	if not GameState.location_has_black_market(GameState.current_location_id):
+		return
 	_clear_facility_host()
 
 	var packed: PackedScene = load("res://scenes/ui/BlackMarketPanel.tscn")

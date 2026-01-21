@@ -53,6 +53,13 @@ func _refresh_market_list() -> void:
 	entries.clear()
 	offers_list.clear()
 
+	var location_id: String = GameState.current_location_id
+	if not GameState.location_has_black_market(location_id):
+		info_label.text = "No black market at this location."
+		_set_market_interactive(false)
+		return
+
+	_set_market_interactive(true)
 	var sys_id: String = GameState.current_system_id
 	if sys_id == "":
 		info_label.text = "No system selected."
@@ -85,6 +92,15 @@ func _refresh_market_list() -> void:
 		}
 
 	buy_button.disabled = false
+
+
+func _set_market_interactive(enabled: bool) -> void:
+	buy_button.disabled = not enabled
+	qty_spin.editable = enabled
+	if enabled:
+		offers_list.mouse_filter = Control.MOUSE_FILTER_STOP
+	else:
+		offers_list.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
 func _sort_price_entries_by_name(a: Dictionary, b: Dictionary) -> bool:
