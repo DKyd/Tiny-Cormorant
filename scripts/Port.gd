@@ -13,6 +13,8 @@ extends Control
 
 @onready var facility_host: Control = $MarginContainer/VBoxContainer/FacilityPanel/FacilityHost
 
+var org_influence_inspector: PopupPanel = null
+
 
 func _ready() -> void:
 	print("Port: _ready called")
@@ -49,6 +51,34 @@ func _ready() -> void:
 		_show_market()
 	else:
 		_clear_facility_host()
+
+
+func _input(event: InputEvent) -> void:
+	if not OS.is_debug_build():
+		return
+	if event is InputEventKey and event.pressed and not event.echo:
+		var key_event: InputEventKey = event
+		if key_event.keycode == KEY_I and key_event.ctrl_pressed:
+			_toggle_org_influence_inspector()
+
+
+func _toggle_org_influence_inspector() -> void:
+	if org_influence_inspector != null and is_instance_valid(org_influence_inspector):
+		org_influence_inspector.queue_free()
+		org_influence_inspector = null
+		return
+
+	var packed: PackedScene = load("res://scenes/ui/OrgInfluenceInspector.tscn")
+	if packed == null:
+		return
+
+	var inspector_node: Node = packed.instantiate()
+	if not (inspector_node is PopupPanel):
+		return
+
+	org_influence_inspector = inspector_node as PopupPanel
+	add_child(org_influence_inspector)
+	org_influence_inspector.popup_centered_ratio(0.6)
 
 
 # ---------------------------------------------------
