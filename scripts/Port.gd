@@ -104,6 +104,8 @@ func _refresh_header() -> void:
 		loc_name = loc.get("name", "")
 		loc_type = loc.get("type", "")
 	var org_summary: String = _build_org_presence_summary(loc)
+	var customs_bucket: String = GameState.get_customs_pressure_bucket()
+	var customs_line := "Customs: %s" % customs_bucket
 
 	if loc_name != "":
 		var base_line := "%s / %s  [%s, %s]" % [
@@ -112,20 +114,20 @@ func _refresh_header() -> void:
 			sys_type.capitalize(),
 			sec.capitalize()
 		]
+		var parts: Array = [base_line, customs_line]
 		if org_summary != "":
-			system_info_label.text = "%s\n%s" % [base_line, org_summary]
-		else:
-			system_info_label.text = base_line
+			parts.append(org_summary)
+		system_info_label.text = "\n".join(parts)
 	else:
 		var base_line := "%s  [%s, %s]" % [
 			sys_name,
 			sys_type.capitalize(),
 			sec.capitalize()
 		]
+		var parts: Array = [base_line, customs_line]
 		if org_summary != "":
-			system_info_label.text = "%s\n%s" % [base_line, org_summary]
-		else:
-			system_info_label.text = base_line
+			parts.append(org_summary)
+		system_info_label.text = "\n".join(parts)
 
 
 func _location_has_space(space_name: String) -> bool:
