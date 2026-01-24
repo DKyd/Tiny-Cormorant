@@ -154,7 +154,7 @@ const SURFACE_ACTION_REQUIREMENTS := {
 		"required_any_of_doc_types": ["purchase_order", "contract"],
 		"requires_cargo_present": true,
 	},
-	"SELL_CARGO": {
+	"SELL_CARGO_LEGAL": {
 		"required_any_of_doc_types": ["purchase_order", "contract"],
 		"requires_cargo_present": true,
 	},
@@ -409,20 +409,15 @@ func get_customs_pressure_bucket(location_id: String = "") -> String:
 	if location_id == "":
 		return "Low"
 
-	var loc: Dictionary = Galaxy.get_location(location_id)
-	if loc.is_empty():
+	if Galaxy.get_location(location_id).is_empty():
 		return "Low"
 
-	var sys_id: String = String(loc.get("system_id", current_system_id))
-	var sys: Dictionary = Galaxy.get_system(sys_id)
-	var sec: String = String(sys.get("security_level", "medium"))
-	match sec:
-		"low":
-			return "Low"
-		"high":
-			return "High"
-		_:
-			return "Elevated"
+	var pressure: float = get_customs_pressure(location_id)
+	if pressure <= CUSTOMS_PRESSURE_LOW_MAX:
+		return "Low"
+	if pressure <= CUSTOMS_PRESSURE_ELEVATED_MAX:
+		return "Elevated"
+	return "High"
 
 
 
@@ -2330,6 +2325,13 @@ func sell_manifest_goods(
 		return result
 	var sources: Array = sources_variant
 	var location_name: String = String(location.get("name", location_id))
+
+	if market_kind == MARKET_KIND_LEGAL:
+		run_customs_inspection({
+			"system_id": system_id,
+			"location_id": location_id,
+			"action": "SELL_CARGO_LEGAL",
+		})
 
 	remove_cargo(commodity_id, qty)
 	player_money += total_price
