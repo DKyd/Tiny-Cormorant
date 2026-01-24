@@ -149,6 +149,16 @@ const SURFACE_COMPLIANCE_RULES := {
 		"seal_requires_id": false,
 	},
 }
+const SURFACE_ACTION_REQUIREMENTS := {
+	"ENTRY_CLEARANCE": {
+		"required_any_of_doc_types": ["purchase_order", "contract"],
+		"requires_cargo_present": true,
+	},
+	"SELL_CARGO": {
+		"required_any_of_doc_types": ["purchase_order", "contract"],
+		"requires_cargo_present": true,
+	},
+}
 
 signal system_changed(new_system_id: String)
 signal location_changed(new_location_id: String)
@@ -1377,6 +1387,70 @@ func _debug_validate_freight_doc_surface(doc: Dictionary, context_label: String)
 	)
 
 
+func _has_positive_cargo(cargo_variant) -> bool:
+	if not (cargo_variant is Dictionary):
+		return false
+	var cargo_dict: Dictionary = cargo_variant
+	for qty_variant in cargo_dict.values():
+		if qty_variant is int or qty_variant is float:
+			if float(qty_variant) > 0.0:
+				return true
+	return false
+
+
+func validate_action_surface_compliance(action: String, context: Dictionary = {}) -> Dictionary:
+	var result := {
+		"action": action,
+		"ok": true,
+		"issues": [],
+	}
+
+	if action == "":
+		return result
+	if not SURFACE_ACTION_REQUIREMENTS.has(action):
+		result.issues.append({
+			"code": "unsupported_action",
+			"message": "Unsupported action for surface compliance.",
+			"path": "action",
+		})
+		result.ok = false
+		return result
+
+	var rules: Dictionary = SURFACE_ACTION_REQUIREMENTS.get(action, {})
+	var cargo_present: bool = _has_positive_cargo(context.get("cargo", cargo))
+	if bool(rules.get("requires_cargo_present", false)) and not cargo_present:
+		return result
+
+	var required_any_variant = rules.get("required_any_of_doc_types", [])
+	if not (required_any_variant is Array) or required_any_variant.is_empty():
+		return result
+
+	var required_any_of: Array = required_any_variant
+	var docs_variant = context.get("docs", freight_docs)
+	var found := false
+	if docs_variant is Array:
+		var docs: Array = docs_variant
+		for doc_variant in docs:
+			if not (doc_variant is Dictionary):
+				continue
+			var doc: Dictionary = doc_variant
+			var doc_type: String = String(doc.get("doc_type", ""))
+			if required_any_of.has(doc_type):
+				found = true
+				break
+
+	if not found:
+		result.issues.append({
+			"code": "missing_required_doc_type",
+			"message": "Missing required document types for action.",
+			"path": "freight_docs.doc_type",
+			"required_any_of_doc_types": required_any_of.duplicate(),
+		})
+		result.ok = false
+
+	return result
+
+
 func _next_customs_inspection_id() -> String:
 	var inspection_id: String = "CINS-%04d" % next_customs_inspection_id
 	next_customs_inspection_id += 1
@@ -1440,6 +1514,7 @@ func _format_customs_log_entry(report: Dictionary) -> String:
 func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
 	var system_id: String = str(context.get("system_id", current_system_id))
 	var location_id: String = str(context.get("location_id", current_location_id))
+	var action: String = str(context.get("action", ""))
 
 	var doc_ids: Array = []
 	for doc_variant in freight_docs:
@@ -1461,6 +1536,28 @@ func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
 	var surface_findings: Array = validate_freight_docs_for_action({
 		"docs": freight_docs,
 	})
+	var action_surface_result: Dictionary = {}
+	var action_issue_count := 0
+	var action_missing_required_docs := 0
+	var action_unsupported := false
+	if action != "":
+		action_surface_result = validate_action_surface_compliance(action, {
+			"docs": freight_docs,
+			"cargo": cargo,
+		})
+		var action_issues_variant = action_surface_result.get("issues", [])
+		if action_issues_variant is Array:
+			var action_issues: Array = action_issues_variant
+			action_issue_count = action_issues.size()
+			for issue_variant in action_issues:
+				if not (issue_variant is Dictionary):
+					continue
+				var issue: Dictionary = issue_variant
+				var code: String = String(issue.get("code", ""))
+				if code == "missing_required_doc_type":
+					action_missing_required_docs += 1
+				elif code == "unsupported_action":
+					action_unsupported = true
 	var surface_invalid_docs := 0
 	var surface_issue_count := 0
 	for finding_variant in surface_findings:
@@ -1503,9 +1600,12 @@ func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
 	elif num_destroyed_docs > 0:
 		classification = "invalid"
 		reasons.append("Destroyed freight document detected.")
-	elif surface_invalid_docs > 0:
+	elif surface_invalid_docs > 0 or action_missing_required_docs > 0:
 		classification = "invalid"
-		reasons.append("Surface compliance failed for %d document(s)." % surface_invalid_docs)
+		if surface_invalid_docs > 0:
+			reasons.append("Surface compliance failed for %d document(s)." % surface_invalid_docs)
+		if action_missing_required_docs > 0:
+			reasons.append("Missing required document types for %s." % action)
 	elif min_authenticity < CUSTOMS_AUTHENTICITY_THRESHOLD:
 		classification = "suspicious"
 		reasons.append("Authenticity below %d." % CUSTOMS_AUTHENTICITY_THRESHOLD)
@@ -1526,6 +1626,10 @@ func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
 			"num_destroyed_docs": num_destroyed_docs,
 			"num_surface_invalid_docs": surface_invalid_docs,
 			"num_surface_findings": surface_issue_count,
+			"action": action,
+			"action_issue_count": action_issue_count,
+			"action_missing_required_docs": action_missing_required_docs,
+			"action_unsupported": action_unsupported,
 			"min_authenticity": min_authenticity,
 			"evidence_flags": {
 				"declared_quantity_modified_count": declared_qty_modified_count,
@@ -1534,6 +1638,7 @@ func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
 			},
 		},
 		"surface_findings": surface_findings,
+		"action_surface": action_surface_result,
 		"recommended_penalty": {
 			"should_issue_fine": false,
 			"suggested_amount": 0.0,
