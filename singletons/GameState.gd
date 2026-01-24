@@ -248,6 +248,74 @@ func get_current_location() -> Dictionary:
 		return {}
 	return Galaxy.get_location(current_location_id)
 
+# --- Customs pressure (Phase 0 surfacing) ---
+
+const CUSTOMS_PRESSURE_LOW_MAX: float = 0.33
+const CUSTOMS_PRESSURE_ELEVATED_MAX: float = 0.66
+
+func get_customs_pressure(location_id: String) -> float:
+	# Deterministic, read-only "pressure" derived from existing world facts.
+	# This is UI surfacing only; it does NOT run inspections or enforce anything.
+	if location_id == "":
+		return 0.0
+
+	var loc: Dictionary = Galaxy.get_location(location_id)
+	if loc.is_empty():
+		return 0.0
+
+	var sys_id: String = String(loc.get("system_id", current_system_id))
+	var sys: Dictionary = Galaxy.get_system(sys_id)
+	var sec: String = String(sys.get("security_level", "medium"))
+
+	var security_pressure: float = 0.0
+	match sec:
+		"low":
+			security_pressure = 0.20
+		"high":
+			security_pressure = 0.80
+		_:
+			security_pressure = 0.50
+
+	# Government influence increases pressure; cartel presence slightly reduces (corruption/avoidance).
+	# Uses existing deterministic influence arrays.
+	var gov: float = 0.0
+	if Galaxy.ORG_ID_GOVERNMENT != "":
+		gov = _get_effective_org_influence(location_id, Galaxy.ORG_ID_GOVERNMENT)
+
+	var cartel: float = 0.0
+	if Galaxy.ORG_ID_CARTEL != "":
+		cartel = _get_effective_org_influence(location_id, Galaxy.ORG_ID_CARTEL)
+
+	# Blend & clamp (tunable, but stable)
+	var pressure := security_pressure
+	pressure += gov * 0.40
+	pressure -= cartel * 0.20
+
+	return clamp(pressure, 0.0, 1.0)
+
+
+func get_customs_pressure_bucket(location_id: String = "") -> String:
+	if location_id == "":
+		location_id = current_location_id
+	if location_id == "":
+		return "Low"
+
+	var loc: Dictionary = Galaxy.get_location(location_id)
+	if loc.is_empty():
+		return "Low"
+
+	var sys_id: String = String(loc.get("system_id", current_system_id))
+	var sys: Dictionary = Galaxy.get_system(sys_id)
+	var sec: String = String(sys.get("security_level", "medium"))
+	match sec:
+		"low":
+			return "Low"
+		"high":
+			return "High"
+		_:
+			return "Elevated"
+
+
 
 # Returns effective influence entries sorted by weight desc.
 func get_location_effective_influences(
@@ -1391,20 +1459,20 @@ func record_market_purchase(
 
 	var cargo_line_id: String = _next_cargo_line_id()
 	var normalized_kind: String = _normalize_market_kind(market_kind)
-	var doc: Dictionary = _create_bill_of_sale_doc(
-		cargo_line_id,
+	var doc_id: String = create_purchase_order(
 		commodity_id,
 		quantity,
 		unit_price,
 		total_cost,
-		normalized_kind
+		current_system_id,
+		current_location_id
 	)
 
 	cargo_lines.append({
 		"cargo_line_id": cargo_line_id,
 		"commodity_id": commodity_id,
 		"quantity": quantity,
-		"doc_ids": [doc.get("doc_id", "")],
+		"doc_ids": [doc_id],
 		"market_kind": normalized_kind,
 		"unit_price": unit_price,
 		"total_cost": total_cost,

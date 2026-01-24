@@ -43,6 +43,7 @@ func _ready() -> void:
 	if purchase_order_dialog != null:
 		purchase_order_dialog.confirmed.connect(_on_purchase_order_confirmed)
 		purchase_order_dialog.cancelled.connect(_on_purchase_order_cancelled)
+		purchase_order_dialog.hide()
 
 	_build_sell_dialog()
 
@@ -405,5 +406,4 @@ func _on_sell_confirm_pressed() -> void:
 func _on_sell_cancel_pressed() -> void:
 	if _sell_dialog != null:
 		_sell_dialog.hide()
-
 

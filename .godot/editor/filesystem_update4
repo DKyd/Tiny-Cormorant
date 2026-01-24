@@ -15,3 +15,10 @@ res://scenes/MarketPanel.tscn
 res://LocationsPanel.tscn
 res://singletons/Galaxy.gd
 res://singletons/GameState.gd
+res://scripts/ui/CantinaPanel.gd
+res://scripts/Port.gd
+res://scripts/ui/BlackMarketPanel.gd
+res://singletons/Log.gd
+res://scenes/ui/PurchaseOrderDialog.tscn
+res://scripts/MarketPanel.gd
+res://scenes/ui/BlackMarketPanel.tscn

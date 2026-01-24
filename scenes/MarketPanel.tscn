@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3 uid="uid://toalpfhdja6u"]
 
 [ext_resource type="Script" path="res://scripts/MarketPanel.gd" id="1_6t2nx"]
-[ext_resource type="PackedScene" path="res://scenes/ui/PurchaseOrderDialog.tscn" id="2_28m4w"]
+[ext_resource type="PackedScene" uid="uid://bgpx8bukmna2u" path="res://scenes/ui/PurchaseOrderDialog.tscn" id="2_28m4w"]
 
 [node name="MarketPanel" type="Control"]
 layout_mode = 3
@@ -102,3 +102,4 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 
 [node name="PurchaseOrderDialog" parent="." instance=ExtResource("2_28m4w")]
+visible = false

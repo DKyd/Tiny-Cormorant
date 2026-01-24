@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://b2l4m8oj8xenb"]
+[gd_scene load_steps=3 format=3 uid="uid://b2l4m8oj8xenb"]
 
 [ext_resource type="Script" path="res://scripts/ui/BlackMarketPanel.gd" id="1_r6t2m"]
+[ext_resource type="PackedScene" uid="uid://bgpx8bukmna2u" path="res://scenes/ui/PurchaseOrderDialog.tscn" id="2_28m4w"]
 
 [node name="BlackMarketPanel" type="Control"]
 layout_mode = 3
@@ -31,37 +32,85 @@ theme_override_constants/separation = 12
 layout_mode = 2
 text = "Black Market"
 
+[node name="InfoRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="PlayerMoneyLabel" type="Label" parent="MarginContainer/VBoxContainer/InfoRow"]
+layout_mode = 2
+
+[node name="CargoWeightLabel" type="Label" parent="MarginContainer/VBoxContainer/InfoRow"]
+layout_mode = 2
+
 [node name="InfoLabel" type="Label" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Black market offers:"
 
-[node name="OffersList" type="ItemList" parent="MarginContainer/VBoxContainer"]
+[node name="ContentRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
+theme_override_constants/separation = 16
 
-[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+[node name="OffersColumn" type="VBoxContainer" parent="MarginContainer/VBoxContainer/ContentRow"]
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 6
 
-[node name="QtyLabel" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer"]
+[node name="OffersHeader" type="HBoxContainer" parent="MarginContainer/VBoxContainer/ContentRow/OffersColumn"]
 layout_mode = 2
-text = "Quantity:"
+theme_override_constants/separation = 8
 
-[node name="QtySpin" type="SpinBox" parent="MarginContainer/VBoxContainer/HBoxContainer"]
+[node name="OffersLabel" type="Label" parent="MarginContainer/VBoxContainer/ContentRow/OffersColumn/OffersHeader"]
 layout_mode = 2
+text = "Black Market Goods"
+
+[node name="OffersHeaderSpacer" type="Control" parent="MarginContainer/VBoxContainer/ContentRow/OffersColumn/OffersHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="CreatePurchaseOrderButton" type="Button" parent="MarginContainer/VBoxContainer/ContentRow/OffersColumn/OffersHeader"]
+layout_mode = 2
+text = "Create Purchase Order"
+
+[node name="OffersGrid" type="Tree" parent="MarginContainer/VBoxContainer/ContentRow/OffersColumn"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="InventoryColumn" type="VBoxContainer" parent="MarginContainer/VBoxContainer/ContentRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="InventoryHeader" type="HBoxContainer" parent="MarginContainer/VBoxContainer/ContentRow/InventoryColumn"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="InventoryLabel" type="Label" parent="MarginContainer/VBoxContainer/ContentRow/InventoryColumn/InventoryHeader"]
+layout_mode = 2
+text = "Ship Inventory"
+
+[node name="InventoryHeaderSpacer" type="Control" parent="MarginContainer/VBoxContainer/ContentRow/InventoryColumn/InventoryHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SellManifestInventoryButton" type="Button" parent="MarginContainer/VBoxContainer/ContentRow/InventoryColumn/InventoryHeader"]
+layout_mode = 2
+text = "Sell Manifest Inventory"
+
+[node name="InventoryGrid" type="Tree" parent="MarginContainer/VBoxContainer/ContentRow/InventoryColumn"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
-
-[node name="BuyButton" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer2"]
-layout_mode = 2
-text = "Buy"
 
 [node name="CloseButton" type="Button" parent="MarginContainer/VBoxContainer/HBoxContainer2"]
 layout_mode = 2
 text = "Close"
 
-[node name="PlayerMoneyLabel" type="Label" parent="MarginContainer/VBoxContainer"]
-layout_mode = 2
-
-[node name="CargoWeightLabel" type="Label" parent="MarginContainer/VBoxContainer"]
-layout_mode = 2
+[node name="PurchaseOrderDialog" parent="." instance=ExtResource("2_28m4w")]
+visible = false
