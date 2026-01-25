@@ -371,6 +371,7 @@ func get_current_location() -> Dictionary:
 
 const CUSTOMS_PRESSURE_LOW_MAX: float = 0.33
 const CUSTOMS_PRESSURE_ELEVATED_MAX: float = 0.66
+const CUSTOMS_PRESSURE_ESCALATION_DELTA: float = 0.05
 
 func get_customs_pressure(location_id: String) -> float:
 	# Deterministic, read-only "pressure" derived from existing world facts.
@@ -428,6 +429,67 @@ func get_customs_pressure_bucket(location_id: String = "") -> String:
 	if pressure <= CUSTOMS_PRESSURE_ELEVATED_MAX:
 		return "Elevated"
 	return "High"
+
+
+func apply_customs_pressure_increase(jurisdiction_id: String, reason: String) -> void:
+	if jurisdiction_id == "":
+		return
+	var location: Dictionary = Galaxy.get_location(jurisdiction_id)
+	if location.is_empty():
+		return
+	if Galaxy.ORG_ID_GOVERNMENT == "":
+		return
+
+	var delta_variant = location.get("delta_influences", [])
+	var delta: Array = []
+	if delta_variant is Array:
+		delta = delta_variant
+
+	var did_apply := false
+	var updated := false
+	for i in range(delta.size()):
+		var entry_variant = delta[i]
+		if not (entry_variant is Dictionary):
+			continue
+		var entry: Dictionary = entry_variant
+		if String(entry.get("org_id", "")) != Galaxy.ORG_ID_GOVERNMENT:
+			continue
+		var weight: float = float(entry.get("weight", 0.0))
+		weight = clamp(weight + CUSTOMS_PRESSURE_ESCALATION_DELTA, 0.0, 1.0)
+		entry["weight"] = weight
+		delta[i] = entry
+		updated = true
+		did_apply = true
+		break
+
+	if not updated:
+		delta.append({
+			"org_id": Galaxy.ORG_ID_GOVERNMENT,
+			"weight": CUSTOMS_PRESSURE_ESCALATION_DELTA,
+		})
+		did_apply = true
+
+	location["delta_influences"] = delta
+	Galaxy.locations[jurisdiction_id] = location
+	if did_apply:
+		var system_id: String = String(location.get("system_id", ""))
+		var system: Dictionary = Galaxy.get_system(system_id)
+		var system_name: String = String(system.get("name", system_id))
+		var location_name: String = String(location.get("name", jurisdiction_id))
+		if system_name == "":
+			system_name = system_id
+		if location_name == "":
+			location_name = jurisdiction_id
+		var reason_text: String = reason.strip_edges()
+		if reason_text == "level1_invalid" or reason_text == "surface_invalid":
+			reason_text = "Documentation irregularities noted"
+		elif reason_text == "":
+			reason_text = "Documentation irregularities noted"
+		Log.add_entry(
+			"CUSTOMS: %s at %s (%s). Customs scrutiny increases."
+				% [reason_text, location_name, system_name],
+			"CUSTOMS"
+		)
 
 
 func get_inspection_preview(context: Dictionary = {}) -> Dictionary:
@@ -1606,13 +1668,345 @@ func _format_customs_log_entry(report: Dictionary) -> String:
 	var message: String = "CUSTOMS: %s — %s" % [classification, summary]
 	if recommendation != "":
 		message = "%s %s" % [message, recommendation]
+	var level2_summary: String = _format_level2_log_snippet(report)
+	if level2_summary != "":
+		message = "%s %s" % [message, level2_summary]
 	return message
+
+
+func _format_level2_log_snippet(report: Dictionary) -> String:
+	var level2_variant = report.get("level2_audit", null)
+	if not (level2_variant is Dictionary):
+		return ""
+	var level2: Dictionary = level2_variant
+	var classification_raw: String = String(level2.get("classification", "")).to_upper()
+	if classification_raw == "":
+		return ""
+	var classification: String = classification_raw
+	match classification_raw:
+		"CLEAN", "SUSPICIOUS", "INVALID":
+			classification = classification_raw
+		_:
+			classification = "SUSPICIOUS"
+	var summary: String = _format_customs_summary(classification, level2.get("reasons", []))
+	return "Level-2: %s — %s" % [classification, summary]
+
+
+# Level-2 audit: cross-document coherence checks for Customs inspections.
+func run_level2_customs_audit(context: Dictionary = {}) -> Dictionary:
+	var result := {
+		"ok": true,
+		"classification": "clean",
+		"reasons": [],
+		"findings": [],
+	}
+	var reasons: Array = result["reasons"]
+	var findings: Array = result["findings"]
+
+	var docs_variant = context.get("docs", freight_docs)
+	if not (docs_variant is Array):
+		result.ok = false
+		result.classification = "invalid"
+		reasons.clear()
+		reasons.append("Missing freight documents for Level-2 audit.")
+		return result
+
+	var docs: Array = docs_variant
+	var doc_by_id: Dictionary = {}
+	for doc_variant in docs:
+		if not (doc_variant is Dictionary):
+			continue
+		var doc: Dictionary = doc_variant
+		var doc_id: String = String(doc.get("doc_id", ""))
+		if doc_id != "":
+			doc_by_id[doc_id] = doc
+
+	var source_availability: Dictionary = {}
+	for doc_id_variant in doc_by_id.keys():
+		var doc_id: String = String(doc_id_variant)
+		var doc: Dictionary = doc_by_id[doc_id]
+		var doc_type: String = String(doc.get("doc_type", ""))
+		if doc_type != "purchase_order" and doc_type != "contract":
+			continue
+		var commodity_qty: Dictionary = {}
+		var cargo_lines_variant = doc.get("cargo_lines", [])
+		if cargo_lines_variant is Array:
+			var cargo_lines: Array = cargo_lines_variant
+			for line_variant in cargo_lines:
+				if not (line_variant is Dictionary):
+					continue
+				var line: Dictionary = line_variant
+				var commodity_id: String = String(line.get("commodity_id", ""))
+				if commodity_id == "":
+					continue
+				var qty: int = int(line.get("declared_qty", 0))
+				if qty <= 0:
+					qty = int(line.get("quantity", 0))
+				if qty <= 0:
+					continue
+				commodity_qty[commodity_id] = int(commodity_qty.get(commodity_id, 0)) + qty
+		elif doc.has("commodity_id") and doc.has("quantity"):
+			var commodity_id: String = String(doc.get("commodity_id", ""))
+			var qty: int = int(doc.get("quantity", 0))
+			if commodity_id != "" and qty > 0:
+				commodity_qty[commodity_id] = qty
+
+		var doc_tick: int = -1
+		if doc.has("purchase_tick"):
+			doc_tick = int(doc.get("purchase_tick", -1))
+		elif doc.has("tick"):
+			doc_tick = int(doc.get("tick", -1))
+
+		source_availability[doc_id] = {
+			"doc_type": doc_type,
+			"commodity_qty": commodity_qty,
+			"tick": doc_tick,
+			"is_destroyed": bool(doc.get("is_destroyed", false)),
+		}
+
+	var reason_set: Dictionary = {}
+	var invalid_count := 0
+	var suspicious_count := 0
+	var sold_by_source: Dictionary = {}
+
+	var bill_of_sale_ids: Array = []
+	for doc_id_variant in doc_by_id.keys():
+		var doc_id: String = String(doc_id_variant)
+		var doc: Dictionary = doc_by_id[doc_id]
+		if String(doc.get("doc_type", "")) == "bill_of_sale":
+			bill_of_sale_ids.append(doc_id)
+	bill_of_sale_ids.sort()
+
+	for bill_doc_id in bill_of_sale_ids:
+		var bill: Dictionary = doc_by_id[bill_doc_id]
+		if bool(bill.get("is_destroyed", false)):
+			var msg := "Destroyed bill of sale detected: %s." % bill_doc_id
+			if not reason_set.has(msg):
+				reasons.append(msg)
+				findings.append({
+					"code": "bill_of_sale_destroyed",
+					"doc_id": bill_doc_id,
+				})
+				reason_set[msg] = true
+			invalid_count += 1
+
+		var sale_tick: int = int(bill.get("tick", -1))
+		var cargo_lines_variant = bill.get("cargo_lines", [])
+		if not (cargo_lines_variant is Array):
+			var msg := "Missing cargo lines for bill of sale %s." % bill_doc_id
+			if not reason_set.has(msg):
+				reasons.append(msg)
+				findings.append({
+					"code": "bill_of_sale_missing_lines",
+					"doc_id": bill_doc_id,
+				})
+				reason_set[msg] = true
+			invalid_count += 1
+			continue
+		var cargo_lines: Array = cargo_lines_variant
+		for line_variant in cargo_lines:
+			if not (line_variant is Dictionary):
+				continue
+			var line: Dictionary = line_variant
+			var commodity_id: String = String(line.get("commodity_id", ""))
+			var sold_qty: int = int(line.get("sold_qty", 0))
+			if commodity_id == "" or sold_qty <= 0:
+				var msg := "Invalid bill of sale line for %s." % bill_doc_id
+				if not reason_set.has(msg):
+					reasons.append(msg)
+					findings.append({
+						"code": "bill_of_sale_invalid_line",
+						"doc_id": bill_doc_id,
+					})
+					reason_set[msg] = true
+				invalid_count += 1
+				continue
+
+			var sources_variant = line.get("sources", [])
+			if not (sources_variant is Array) or (sources_variant as Array).is_empty():
+				var msg := "Missing sources for bill of sale %s." % bill_doc_id
+				if not reason_set.has(msg):
+					reasons.append(msg)
+					findings.append({
+						"code": "bill_of_sale_missing_sources",
+						"doc_id": bill_doc_id,
+						"commodity_id": commodity_id,
+					})
+					reason_set[msg] = true
+				invalid_count += 1
+				continue
+
+			var sources: Array = sources_variant
+			var total_source_qty := 0
+			for source_variant in sources:
+				if not (source_variant is Dictionary):
+					continue
+				var source: Dictionary = source_variant
+				var source_doc_id: String = String(source.get("doc_id", ""))
+				var source_qty: int = int(source.get("qty", 0))
+				if source_doc_id == "" or source_qty <= 0:
+					var msg := "Invalid source entry on bill of sale %s." % bill_doc_id
+					if not reason_set.has(msg):
+						reasons.append(msg)
+						findings.append({
+							"code": "bill_of_sale_invalid_source",
+							"doc_id": bill_doc_id,
+							"source_doc_id": source_doc_id,
+						})
+						reason_set[msg] = true
+					invalid_count += 1
+					continue
+
+				if not doc_by_id.has(source_doc_id):
+					var msg := "Missing source document %s for bill of sale %s." \
+						% [source_doc_id, bill_doc_id]
+					if not reason_set.has(msg):
+						reasons.append(msg)
+						findings.append({
+							"code": "missing_source_doc",
+							"doc_id": bill_doc_id,
+							"source_doc_id": source_doc_id,
+						})
+						reason_set[msg] = true
+					invalid_count += 1
+					continue
+
+				var source_meta: Dictionary = source_availability.get(source_doc_id, {})
+				var source_doc_type: String = String(source_meta.get("doc_type", ""))
+				if source_doc_type != "purchase_order" and source_doc_type != "contract":
+					var msg := "Invalid source type %s on bill of sale %s." \
+						% [source_doc_type, bill_doc_id]
+					if not reason_set.has(msg):
+						reasons.append(msg)
+						findings.append({
+							"code": "invalid_source_type",
+							"doc_id": bill_doc_id,
+							"source_doc_id": source_doc_id,
+							"source_doc_type": source_doc_type,
+						})
+						reason_set[msg] = true
+					invalid_count += 1
+					continue
+
+				if bool(source_meta.get("is_destroyed", false)):
+					var msg := "Destroyed source document %s referenced by bill of sale %s." \
+						% [source_doc_id, bill_doc_id]
+					if not reason_set.has(msg):
+						reasons.append(msg)
+						findings.append({
+							"code": "destroyed_source_doc",
+							"doc_id": bill_doc_id,
+							"source_doc_id": source_doc_id,
+						})
+						reason_set[msg] = true
+					invalid_count += 1
+					continue
+
+				var source_commodities: Dictionary = source_meta.get("commodity_qty", {})
+				var available_qty: int = int(source_commodities.get(commodity_id, 0))
+				if available_qty <= 0:
+					var msg := "Source %s lacks commodity %s for bill of sale %s." \
+						% [source_doc_id, commodity_id, bill_doc_id]
+					if not reason_set.has(msg):
+						reasons.append(msg)
+						findings.append({
+							"code": "source_missing_commodity",
+							"doc_id": bill_doc_id,
+							"source_doc_id": source_doc_id,
+							"commodity_id": commodity_id,
+						})
+						reason_set[msg] = true
+					invalid_count += 1
+					continue
+
+				var source_tick: int = int(source_meta.get("tick", -1))
+				if sale_tick >= 0 and source_tick >= 0 and source_tick > sale_tick:
+					var msg := "Source %s post-dates bill of sale %s." \
+						% [source_doc_id, bill_doc_id]
+					if not reason_set.has(msg):
+						reasons.append(msg)
+						findings.append({
+							"code": "temporal_contradiction",
+							"doc_id": bill_doc_id,
+							"source_doc_id": source_doc_id,
+						})
+						reason_set[msg] = true
+					invalid_count += 1
+				elif sale_tick >= 0 and source_tick < 0 and source_doc_type == "purchase_order":
+					var msg := "Missing source tick for bill of sale %s." % bill_doc_id
+					if not reason_set.has(msg):
+						reasons.append(msg)
+						findings.append({
+							"code": "missing_source_tick",
+							"doc_id": bill_doc_id,
+							"source_doc_id": source_doc_id,
+						})
+						reason_set[msg] = true
+					suspicious_count += 1
+
+				total_source_qty += source_qty
+				var key: String = "%s|%s" % [source_doc_id, commodity_id]
+				sold_by_source[key] = int(sold_by_source.get(key, 0)) + source_qty
+
+			if total_source_qty != sold_qty:
+				var msg := "Source totals do not match sold quantity for bill of sale %s." \
+					% bill_doc_id
+				if not reason_set.has(msg):
+					reasons.append(msg)
+					findings.append({
+						"code": "sold_qty_mismatch",
+						"doc_id": bill_doc_id,
+						"commodity_id": commodity_id,
+						"sold_qty": sold_qty,
+						"sourced_qty": total_source_qty,
+					})
+					reason_set[msg] = true
+				invalid_count += 1
+
+	if not sold_by_source.is_empty():
+		var sold_keys: Array = sold_by_source.keys()
+		sold_keys.sort()
+		for key_variant in sold_keys:
+			var key: String = String(key_variant)
+			var parts: Array = key.split("|")
+			if parts.size() != 2:
+				continue
+			var source_doc_id: String = parts[0]
+			var commodity_id: String = parts[1]
+			var sold_qty: int = int(sold_by_source.get(key, 0))
+			var source_meta: Dictionary = source_availability.get(source_doc_id, {})
+			var available: int = int((source_meta.get("commodity_qty", {}) as Dictionary).get(commodity_id, 0))
+			if sold_qty > available and available > 0:
+				var msg := "Oversold source %s for commodity %s." % [source_doc_id, commodity_id]
+				if not reason_set.has(msg):
+					reasons.append(msg)
+					findings.append({
+						"code": "oversold_source",
+						"source_doc_id": source_doc_id,
+						"commodity_id": commodity_id,
+						"available_qty": available,
+						"sold_qty": sold_qty,
+					})
+					reason_set[msg] = true
+				invalid_count += 1
+
+	if invalid_count > 0:
+		result.ok = false
+		result.classification = "invalid"
+	elif suspicious_count > 0:
+		result.ok = false
+		result.classification = "suspicious"
+
+	return result
 
 
 func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
 	var system_id: String = str(context.get("system_id", current_system_id))
 	var location_id: String = str(context.get("location_id", current_location_id))
 	var action: String = str(context.get("action", ""))
+	var max_depth: int = int(context.get("max_depth", 1))
+	if max_depth < 0:
+		max_depth = 0
 
 	var doc_ids: Array = []
 	for doc_variant in freight_docs:
@@ -1711,6 +2105,9 @@ func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
 		classification = "suspicious"
 		reasons.append("Modification evidence present.")
 
+	if classification == "invalid":
+		apply_customs_pressure_increase(location_id, "level1_invalid")
+
 	var report := {
 		"inspection_id": _next_customs_inspection_id(),
 		"tick": time_tick,
@@ -1746,6 +2143,14 @@ func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
 			"due_tick": 0,
 		},
 	}
+
+	if max_depth >= 2:
+		var level2_audit: Dictionary = run_level2_customs_audit({
+			"docs": freight_docs,
+		})
+		report["level2_audit"] = level2_audit
+		if String(level2_audit.get("classification", "")) == "invalid":
+			apply_customs_pressure_increase(location_id, "level2_invalid")
 
 	Log.add_entry(_format_customs_log_entry(report), "CUSTOMS")
 	emit_signal("customs_inspection_completed", report)

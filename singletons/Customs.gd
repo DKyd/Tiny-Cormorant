@@ -51,10 +51,20 @@ func run_sale_check(system_id: String, location_id: String) -> void:
 	if not GameState.roll_customs_inspection(system_id, location_id, "SELL_CARGO_LEGAL", chance):
 		return
 
+	var preview: Dictionary = GameState.get_inspection_preview({
+		"system_id": system_id,
+		"location_id": location_id,
+	})
+	var max_depth: int = int(preview.get("max_depth", 1))
+	if not bool(preview.get("ok", false)):
+		max_depth = 1
+	max_depth = clamp(max_depth, 0, 2)
+
 	var report: Dictionary = GameState.run_customs_inspection({
 		"system_id": system_id,
 		"location_id": location_id,
 		"action": "SELL_CARGO_LEGAL",
+		"max_depth": max_depth,
 	})
 	_log_inspection("Sale", system_id, location_id, report)
 
@@ -71,10 +81,20 @@ func run_departure_check(system_id: String, location_id: String) -> void:
 	if not GameState.roll_customs_inspection(system_id, location_id, "PORT_DEPARTURE_CLEARANCE", chance):
 		return
 
+	var preview: Dictionary = GameState.get_inspection_preview({
+		"system_id": system_id,
+		"location_id": location_id,
+	})
+	var max_depth: int = int(preview.get("max_depth", 1))
+	if not bool(preview.get("ok", false)):
+		max_depth = 1
+	max_depth = clamp(max_depth, 0, 2)
+
 	var report: Dictionary = GameState.run_customs_inspection({
 		"system_id": system_id,
 		"location_id": location_id,
 		"action": "PORT_DEPARTURE_CLEARANCE",
+		"max_depth": max_depth,
 	})
 	_log_inspection("Departure clearance", system_id, location_id, report)
 
@@ -93,9 +113,19 @@ func run_entry_check(system_id: String, location_id: String = "") -> void:
 	if not GameState.roll_customs_inspection(system_id, location_id, "ENTRY_CLEARANCE", chance):
 		return  # no customs check this time
 
+	var preview: Dictionary = GameState.get_inspection_preview({
+		"system_id": system_id,
+		"location_id": location_id,
+	})
+	var max_depth: int = int(preview.get("max_depth", 1))
+	if not bool(preview.get("ok", false)):
+		max_depth = 1
+	max_depth = clamp(max_depth, 0, 2)
+
 	var report: Dictionary = GameState.run_customs_inspection({
 		"system_id": system_id,
 		"location_id": location_id,
 		"action": "ENTRY_CLEARANCE",
+		"max_depth": max_depth,
 	})
 	_log_inspection("Entry clearance", system_id, location_id, report)

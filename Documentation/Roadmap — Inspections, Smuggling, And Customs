@@ -1,0 +1,286 @@
+# Roadmap — Inspections, Smuggling, and Customs  
+**(Rebased to Current Code State)**
+
+> **Status:** Authoritative roadmap slice  
+> **Audience:** Developer + Codex  
+> **Scope:** Inspections and smuggling through **Level 1**, with deterministic triggers, player-facing previews, and zero enforcement  
+> **Hard constraint:** No fines, seizures, holds, or Port Authority simulation until ship crew systems exist
+
+---
+
+## Roadmap Philosophy
+
+This roadmap follows three hard rules:
+
+1. **Perception before simulation** — players understand risk before it acts  
+2. **Paperwork before force** — friction lives in documents, not punishment  
+3. **Infrastructure before outcomes** — detection primitives precede consequences  
+
+Each phase is:
+- shippable on its own  
+- deterministic  
+- explainable  
+- forward-compatible  
+
+---
+
+## Phase 0 — World Pressure & Perception (COMPLETE)
+
+> **Purpose:** Make the universe legible before it becomes dangerous.
+
+### Implemented & Stable
+
+- Deterministic organization influence (government / cartel)
+- Black market access gating
+- Read-only customs pressure derivation
+- Customs pressure UI surfacing
+- Organization presence display
+- Developer-facing influence inspector
+- Freight documents as first-class mutable objects
+- Evidence model primitives:
+  - edit events
+  - provenance
+  - container metadata
+
+### Guarantees
+
+- No inspections
+- No enforcement
+- No penalties
+- No persistence side effects
+
+✅ **Phase 0 is complete and closed.**
+
+---
+
+## Phase 1 — Paperwork Formalism & Deterministic Inspections  
+**(COMPLETE)**
+
+> **Purpose:** Make sloppy paperwork detectable — without punishment.
+
+### Implemented
+
+#### Document Formalism
+- Required fields per document type (`SURFACE_COMPLIANCE_RULES`)
+- Cargo line validation
+- Container metadata validation
+- Action-scoped requirements:
+  - `ENTRY_CLEARANCE`
+  - `SELL_CARGO_LEGAL`
+  - `PORT_DEPARTURE_CLEARANCE`
+- Immutable edit-event evidence model
+
+#### Deterministic Inspection Infrastructure
+- Deterministic customs pressure calculation
+- Deterministic jurisdiction selection:
+  - docked → current location
+  - not docked → highest-pressure location in system (lexicographic tie-break)
+- Deterministic inspection roll:
+  - seeded by `(system_id, location_id, action, time_tick)`
+  - randomness affects **whether**, never **what**
+
+#### Active Inspection Execution (Level 1)
+- Entry clearance inspections
+- Legal cargo sale inspections
+- Port departure inspections
+- `GameState.run_customs_inspection()`:
+  - evaluates surface compliance evidence
+  - produces explainable classification
+  - emits completion signals
+- No cargo, credit, or document mutation
+
+### Explicitly Out of Scope
+
+- No fines
+- No cargo denial
+- No travel blocking
+- No reputation effects
+- No Port Authority simulation
+
+✅ **Phase 1 is complete and closed.**
+
+---
+
+## Phase 1.5 — Inspection Trigger Completion  
+**(COMPLETE)**
+
+> **Purpose:** Ensure inspections occur *only* at correct player-action boundaries.
+
+### Completed Wiring
+
+| Trigger | Status |
+|------|------|
+| System entry clearance | ✔ Deterministic, arrival-only |
+| Legal cargo sale | ✔ Pressure-gated + deterministic |
+| Port departure clearance | ✔ Post-affordability, pre-mutation |
+
+### Guardrails Enforced
+
+- All triggers are player-action boundaries
+- All triggers are deterministic and pressure-gated
+- No trigger mutates cargo, credits, or documents
+- No trigger blocks player action
+
+### Outcome
+
+- Inspections feel consistent and fair
+- No “phantom” inspections on failed actions
+- Logs align with player expectations
+
+✅ **Phase 1.5 is complete and closed.**
+
+---
+
+## Phase 2 — Read-Only Inspection Preview (Player Education)  
+**(COMPLETE)**
+
+> **Purpose:** Teach players how Customs thinks before consequences exist.
+
+### Implemented Features
+
+- New helper:
+  ```gdscript
+  GameState.get_inspection_preview(context) -> Dictionary
+Preview provides:
+
+qualitative likelihood (derived from pressure bucket)
+
+maximum possible inspection depth (currently Level 1)
+
+deterministic jurisdiction selection
+
+human-readable reasons
+
+UI Surfacing
+Displayed in Port header near Customs pressure
+
+Explicitly labeled “Inspection preview (advisory)”
+
+Fail-closed behavior when context is missing
+
+Guarantees
+No inspections triggered
+
+No RNG rolled
+
+No state mutation
+
+No log entries emitted
+
+✅ Phase 2 is complete and closed.
+
+Phase 3 — Level 1 Consequences (Pressure-Only)
+(NEXT)
+
+Purpose: Introduce consequences without enforcement.
+
+Activation
+Level 1 checks already active at:
+
+port departure
+
+legal cargo sale
+
+system entry
+
+Planned Outcomes
+Pass → nothing happens
+
+Fail →
+
+customs pressure increases
+
+inspection logs recorded
+
+Explicitly Not Included
+No fines
+
+No holds
+
+No denial of sale or travel
+
+No cargo seizure
+
+➡️ This is the next active phase of the epic.
+
+Phase 4 — Document Audit Infrastructure (Level 2 Ready)
+Purpose: Enable deep detection without action.
+
+Features
+Container capacity metadata
+
+Sovereignty / issuer stamps
+
+Cross-document invariants:
+
+manifest ↔ bill of sale
+
+bill of sale ↔ container
+
+Activation Scope
+Core worlds
+
+Capital systems
+
+Outcomes
+Pressure escalation
+
+Rich inspection logs
+
+Phase 5 — Reconciliation Data (Level 3 Ready)
+Purpose: Make sealed-container smuggling risky in high-security space.
+
+Features
+Hull baseline mass
+
+Container tare weights
+
+Commodity mass-per-unit
+
+Tolerance rules
+
+Activation
+Very high-security systems
+
+Or triggered by accumulated evidence
+
+Outcomes
+Probable-cause flags
+
+Pressure escalation only
+
+Explicitly Deferred (Do Not Start Yet)
+Deferred A — Enforcement
+Fines
+
+Seizures
+
+Holds
+
+Forced offloads
+
+Deferred B — Physical Inspections
+Container opening
+
+Warrant mechanics
+
+Scan gameplay
+
+Deferred C — Port Authority Simulation
+Crew inspections
+
+Operational failures
+
+Ship compliance checks
+
+Guardrails (Non-Negotiable)
+No punishment without prior player education
+
+No inspection bypasses document evidence
+
+Randomness never decides outcomes
+
+Legal trade remains low-friction
+
+Canon Reminder
+Smuggling is a paperwork game until it becomes a crew game.
