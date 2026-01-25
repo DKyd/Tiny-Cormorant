@@ -1,3 +1,4 @@
+# res://scripts/Bridge.gd
 extends Control
 
 @onready var title_label: Label = $MarginContainer/VBoxContainer/TitleLabel

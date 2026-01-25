@@ -420,6 +420,52 @@ func get_customs_pressure_bucket(location_id: String = "") -> String:
 	return "High"
 
 
+func get_entry_customs_location_id(system_id: String) -> String:
+	if system_id == "":
+		return ""
+	if Galaxy.get_system(system_id).is_empty():
+		return ""
+
+	var location_ids: Array = Galaxy.get_location_ids_for_system(system_id)
+	if location_ids.is_empty():
+		return ""
+
+	var best_id: String = ""
+	var best_pressure: float = -1.0
+	for id_variant in location_ids:
+		var location_id: String = String(id_variant)
+		if location_id == "":
+			continue
+		var pressure: float = get_customs_pressure(location_id)
+		if pressure > best_pressure:
+			best_pressure = pressure
+			best_id = location_id
+		elif pressure == best_pressure and (best_id == "" or location_id < best_id):
+			best_id = location_id
+
+	return best_id
+
+
+func roll_customs_inspection(
+	system_id: String,
+	location_id: String,
+	action: String,
+	chance: float
+) -> bool:
+	var clamped: float = clamp(chance, 0.0, 1.0)
+	if clamped <= 0.0:
+		return false
+	if clamped >= 1.0:
+		return true
+
+	var seed: String = "%s|%s|%s|%d" % [system_id, location_id, action, time_tick]
+	var hash_value: int = seed.hash()
+	if hash_value < 0:
+		hash_value = -hash_value
+	var roll: float = float(hash_value % 1000000) / 1000000.0
+	return roll <= clamped
+
+
 
 # Returns effective influence entries sorted by weight desc.
 func get_location_effective_influences(
