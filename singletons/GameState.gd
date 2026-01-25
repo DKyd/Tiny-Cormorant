@@ -1769,9 +1769,27 @@ func run_level2_customs_audit(context: Dictionary = {}) -> Dictionary:
 		}
 
 	var reason_set: Dictionary = {}
-	var invalid_count := 0
-	var suspicious_count := 0
+	var severity_rank := 0
 	var sold_by_source: Dictionary = {}
+	var classification: String = "clean"
+
+	var add_finding := func(code: String, severity: String, message: String, data: Dictionary = {}) -> void:
+		if reason_set.has(message):
+			return
+		reasons.append(message)
+		var entry := {
+			"code": code,
+			"severity": severity,
+		}
+		for key_variant in data.keys():
+			var key: String = String(key_variant)
+			entry[key] = data[key_variant]
+		findings.append(entry)
+		reason_set[message] = true
+		if severity == "invalid":
+			severity_rank = max(severity_rank, 2)
+		elif severity == "suspicious":
+			severity_rank = max(severity_rank, 1)
 
 	var bill_of_sale_ids: Array = []
 	for doc_id_variant in doc_by_id.keys():
@@ -1784,28 +1802,22 @@ func run_level2_customs_audit(context: Dictionary = {}) -> Dictionary:
 	for bill_doc_id in bill_of_sale_ids:
 		var bill: Dictionary = doc_by_id[bill_doc_id]
 		if bool(bill.get("is_destroyed", false)):
-			var msg := "Destroyed bill of sale detected: %s." % bill_doc_id
-			if not reason_set.has(msg):
-				reasons.append(msg)
-				findings.append({
-					"code": "bill_of_sale_destroyed",
-					"doc_id": bill_doc_id,
-				})
-				reason_set[msg] = true
-			invalid_count += 1
+			add_finding.call(
+				"L2-01",
+				"invalid",
+				"Destroyed bill of sale detected: %s." % bill_doc_id,
+				{"doc_id": bill_doc_id}
+			)
 
 		var sale_tick: int = int(bill.get("tick", -1))
 		var cargo_lines_variant = bill.get("cargo_lines", [])
 		if not (cargo_lines_variant is Array):
-			var msg := "Missing cargo lines for bill of sale %s." % bill_doc_id
-			if not reason_set.has(msg):
-				reasons.append(msg)
-				findings.append({
-					"code": "bill_of_sale_missing_lines",
-					"doc_id": bill_doc_id,
-				})
-				reason_set[msg] = true
-			invalid_count += 1
+			add_finding.call(
+				"L2-02",
+				"invalid",
+				"Missing cargo lines for bill of sale %s." % bill_doc_id,
+				{"doc_id": bill_doc_id}
+			)
 			continue
 		var cargo_lines: Array = cargo_lines_variant
 		for line_variant in cargo_lines:
@@ -1815,29 +1827,25 @@ func run_level2_customs_audit(context: Dictionary = {}) -> Dictionary:
 			var commodity_id: String = String(line.get("commodity_id", ""))
 			var sold_qty: int = int(line.get("sold_qty", 0))
 			if commodity_id == "" or sold_qty <= 0:
-				var msg := "Invalid bill of sale line for %s." % bill_doc_id
-				if not reason_set.has(msg):
-					reasons.append(msg)
-					findings.append({
-						"code": "bill_of_sale_invalid_line",
-						"doc_id": bill_doc_id,
-					})
-					reason_set[msg] = true
-				invalid_count += 1
+				add_finding.call(
+					"L2-03",
+					"invalid",
+					"Invalid bill of sale line for %s." % bill_doc_id,
+					{"doc_id": bill_doc_id}
+				)
 				continue
 
 			var sources_variant = line.get("sources", [])
 			if not (sources_variant is Array) or (sources_variant as Array).is_empty():
-				var msg := "Missing sources for bill of sale %s." % bill_doc_id
-				if not reason_set.has(msg):
-					reasons.append(msg)
-					findings.append({
-						"code": "bill_of_sale_missing_sources",
+				add_finding.call(
+					"L2-04",
+					"invalid",
+					"Missing sources for bill of sale %s." % bill_doc_id,
+					{
 						"doc_id": bill_doc_id,
 						"commodity_id": commodity_id,
-					})
-					reason_set[msg] = true
-				invalid_count += 1
+					}
+				)
 				continue
 
 			var sources: Array = sources_variant
@@ -1849,123 +1857,115 @@ func run_level2_customs_audit(context: Dictionary = {}) -> Dictionary:
 				var source_doc_id: String = String(source.get("doc_id", ""))
 				var source_qty: int = int(source.get("qty", 0))
 				if source_doc_id == "" or source_qty <= 0:
-					var msg := "Invalid source entry on bill of sale %s." % bill_doc_id
-					if not reason_set.has(msg):
-						reasons.append(msg)
-						findings.append({
-							"code": "bill_of_sale_invalid_source",
+					add_finding.call(
+						"L2-05",
+						"invalid",
+						"Invalid source entry on bill of sale %s." % bill_doc_id,
+						{
 							"doc_id": bill_doc_id,
 							"source_doc_id": source_doc_id,
-						})
-						reason_set[msg] = true
-					invalid_count += 1
+						}
+					)
 					continue
 
 				if not doc_by_id.has(source_doc_id):
-					var msg := "Missing source document %s for bill of sale %s." \
-						% [source_doc_id, bill_doc_id]
-					if not reason_set.has(msg):
-						reasons.append(msg)
-						findings.append({
-							"code": "missing_source_doc",
+					add_finding.call(
+						"L2-06",
+						"invalid",
+						"Missing source document %s for bill of sale %s." \
+							% [source_doc_id, bill_doc_id],
+						{
 							"doc_id": bill_doc_id,
 							"source_doc_id": source_doc_id,
-						})
-						reason_set[msg] = true
-					invalid_count += 1
+						}
+					)
 					continue
 
 				var source_meta: Dictionary = source_availability.get(source_doc_id, {})
 				var source_doc_type: String = String(source_meta.get("doc_type", ""))
 				if source_doc_type != "purchase_order" and source_doc_type != "contract":
-					var msg := "Invalid source type %s on bill of sale %s." \
-						% [source_doc_type, bill_doc_id]
-					if not reason_set.has(msg):
-						reasons.append(msg)
-						findings.append({
-							"code": "invalid_source_type",
+					add_finding.call(
+						"L2-07",
+						"invalid",
+						"Invalid source type %s on bill of sale %s." \
+							% [source_doc_type, bill_doc_id],
+						{
 							"doc_id": bill_doc_id,
 							"source_doc_id": source_doc_id,
 							"source_doc_type": source_doc_type,
-						})
-						reason_set[msg] = true
-					invalid_count += 1
+						}
+					)
 					continue
 
 				if bool(source_meta.get("is_destroyed", false)):
-					var msg := "Destroyed source document %s referenced by bill of sale %s." \
-						% [source_doc_id, bill_doc_id]
-					if not reason_set.has(msg):
-						reasons.append(msg)
-						findings.append({
-							"code": "destroyed_source_doc",
+					add_finding.call(
+						"L2-08",
+						"invalid",
+						"Destroyed source document %s referenced by bill of sale %s." \
+							% [source_doc_id, bill_doc_id],
+						{
 							"doc_id": bill_doc_id,
 							"source_doc_id": source_doc_id,
-						})
-						reason_set[msg] = true
-					invalid_count += 1
+						}
+					)
 					continue
 
 				var source_commodities: Dictionary = source_meta.get("commodity_qty", {})
 				var available_qty: int = int(source_commodities.get(commodity_id, 0))
 				if available_qty <= 0:
-					var msg := "Source %s lacks commodity %s for bill of sale %s." \
-						% [source_doc_id, commodity_id, bill_doc_id]
-					if not reason_set.has(msg):
-						reasons.append(msg)
-						findings.append({
-							"code": "source_missing_commodity",
+					add_finding.call(
+						"L2-09",
+						"invalid",
+						"Source %s lacks commodity %s for bill of sale %s." \
+							% [source_doc_id, commodity_id, bill_doc_id],
+						{
 							"doc_id": bill_doc_id,
 							"source_doc_id": source_doc_id,
 							"commodity_id": commodity_id,
-						})
-						reason_set[msg] = true
-					invalid_count += 1
+						}
+					)
 					continue
 
 				var source_tick: int = int(source_meta.get("tick", -1))
 				if sale_tick >= 0 and source_tick >= 0 and source_tick > sale_tick:
-					var msg := "Source %s post-dates bill of sale %s." \
-						% [source_doc_id, bill_doc_id]
-					if not reason_set.has(msg):
-						reasons.append(msg)
-						findings.append({
-							"code": "temporal_contradiction",
+					add_finding.call(
+						"L2-10",
+						"invalid",
+						"Source %s post-dates bill of sale %s." \
+							% [source_doc_id, bill_doc_id],
+						{
 							"doc_id": bill_doc_id,
 							"source_doc_id": source_doc_id,
-						})
-						reason_set[msg] = true
-					invalid_count += 1
+						}
+					)
 				elif sale_tick >= 0 and source_tick < 0 and source_doc_type == "purchase_order":
-					var msg := "Missing source tick for bill of sale %s." % bill_doc_id
-					if not reason_set.has(msg):
-						reasons.append(msg)
-						findings.append({
-							"code": "missing_source_tick",
+					add_finding.call(
+						"L2-11",
+						"suspicious",
+						"Missing source tick for bill of sale %s." % bill_doc_id,
+						{
 							"doc_id": bill_doc_id,
 							"source_doc_id": source_doc_id,
-						})
-						reason_set[msg] = true
-					suspicious_count += 1
+						}
+					)
 
 				total_source_qty += source_qty
 				var key: String = "%s|%s" % [source_doc_id, commodity_id]
 				sold_by_source[key] = int(sold_by_source.get(key, 0)) + source_qty
 
 			if total_source_qty != sold_qty:
-				var msg := "Source totals do not match sold quantity for bill of sale %s." \
-					% bill_doc_id
-				if not reason_set.has(msg):
-					reasons.append(msg)
-					findings.append({
-						"code": "sold_qty_mismatch",
+				add_finding.call(
+					"L2-12",
+					"invalid",
+					"Source totals do not match sold quantity for bill of sale %s." \
+						% bill_doc_id,
+					{
 						"doc_id": bill_doc_id,
 						"commodity_id": commodity_id,
 						"sold_qty": sold_qty,
 						"sourced_qty": total_source_qty,
-					})
-					reason_set[msg] = true
-				invalid_count += 1
+					}
+				)
 
 	if not sold_by_source.is_empty():
 		var sold_keys: Array = sold_by_source.keys()
@@ -1981,25 +1981,24 @@ func run_level2_customs_audit(context: Dictionary = {}) -> Dictionary:
 			var source_meta: Dictionary = source_availability.get(source_doc_id, {})
 			var available: int = int((source_meta.get("commodity_qty", {}) as Dictionary).get(commodity_id, 0))
 			if sold_qty > available and available > 0:
-				var msg := "Oversold source %s for commodity %s." % [source_doc_id, commodity_id]
-				if not reason_set.has(msg):
-					reasons.append(msg)
-					findings.append({
-						"code": "oversold_source",
+				add_finding.call(
+					"L2-13",
+					"invalid",
+					"Oversold source %s for commodity %s." % [source_doc_id, commodity_id],
+					{
 						"source_doc_id": source_doc_id,
 						"commodity_id": commodity_id,
 						"available_qty": available,
 						"sold_qty": sold_qty,
-					})
-					reason_set[msg] = true
-				invalid_count += 1
+					}
+				)
 
-	if invalid_count > 0:
-		result.ok = false
-		result.classification = "invalid"
-	elif suspicious_count > 0:
-		result.ok = false
-		result.classification = "suspicious"
+	if severity_rank == 2:
+		classification = "invalid"
+	elif severity_rank == 1:
+		classification = "suspicious"
+	result.classification = classification
+	result.ok = classification == "clean"
 
 	return result
 
