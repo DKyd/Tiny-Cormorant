@@ -1,10 +1,10 @@
-# Roadmap — Inspections, Smuggling, and Customs (Aligned)
+# Roadmap — Inspections, Smuggling, and Customs
+**(Rebased to Current Code State)**
 
 > **Status:** Authoritative roadmap slice
->
-> **Scope:** Incremental implementation plan aligned with current Tiny Cormorant game state and the merged *Freight Inspections & Evidence Model*.
->
-> **Constraint:** No enforcement, no AI behavior, no port authority simulation until ship crew systems exist.
+> **Audience:** Developer + Codex
+> **Scope:** Inspections and smuggling through **Level 1**, with deterministic triggers and zero enforcement
+> **Hard constraint:** No fines, seizures, holds, or Port Authority simulation until ship crew systems exist
 
 ---
 
@@ -12,220 +12,132 @@
 
 This roadmap follows three hard rules:
 
-1. **Perception before simulation** — players understand risk before it acts.
-2. **Paperwork before force** — friction lives in documents, not punishment.
-3. **Infrastructure before outcomes** — detection primitives must exist before consequences.
+1. **Perception before simulation** — players understand risk before it acts
+2. **Paperwork before force** — friction lives in documents, not punishment
+3. **Infrastructure before outcomes** — detection primitives precede consequences
 
-Each phase is safe to ship independently and does not invalidate later work.
-
----
-
-## Phase 0 — Current State (Complete)
-
-Already implemented and considered stable:
-
-* Deterministic organization influence (government / cartel)
-* Black market access gating
-* Read-only customs pressure derivation
-* Customs pressure UI surfacing
-* Organization presence display
-* Developer-facing org influence inspector
-* Freight documents as mutable, first-class objects
-* Evidence concepts (edit events, provenance, container metadata — conceptual)
-
-**No inspections. No enforcement. No persistence side effects.**
+Each phase is:
+- shippable on its own
+- deterministic
+- explainable
+- forward-compatible
 
 ---
 
-## Phase 1 — Paperwork Formalism (Foundational)
+## Phase 0 — World Pressure & Perception (COMPLETE)
 
-> **Purpose:** Make sloppy smuggling possible to detect without punishing it yet.
+> **Purpose:** Make the universe legible before it becomes dangerous.
+
+### Implemented & Stable
+
+- Deterministic organization influence (government / cartel)
+- Black market access gating
+- Read-only customs pressure derivation
+- Customs pressure UI surfacing
+- Organization presence display
+- Developer-facing influence inspector
+- Freight documents as first-class mutable objects
+- Evidence model primitives:
+  - edit events
+  - provenance
+  - container metadata
+
+### Guarantees
+
+- No inspections
+- No enforcement
+- No penalties
+- No persistence side effects
+
+✅ **Phase 0 is complete and closed.**
+
+---
+
+## Phase 1 — Paperwork Formalism & Deterministic Inspections
+**(ACTIVE / Mostly Complete)**
+
+> **Purpose:** Make sloppy paperwork detectable — without punishment.
+
+### What Is Already Implemented
+
+#### Document Formalism
+- Required fields per document type (`SURFACE_COMPLIANCE_RULES`)
+- Cargo line validation
+- Container metadata validation
+- Action-scoped requirements (`ENTRY_CLEARANCE`, `SELL_CARGO_LEGAL`)
+- Immutable edit-event evidence model
+
+#### Deterministic Inspection Infrastructure
+- Deterministic customs pressure calculation
+- Deterministic entry jurisdiction selection:
+  - highest-pressure location in system
+  - lexicographic tie-break
+- Deterministic inspection roll:
+  - seeded by `(system_id, location_id, action, time_tick)`
+  - randomness affects **whether**, never **what**
+
+#### Active Inspection Execution
+- `Customs.run_entry_check()` exists
+- `GameState.run_customs_inspection()`:
+  - evaluates evidence
+  - produces explainable classification
+  - logs findings
+  - emits completion signals
+- No cargo, credit, or document mutation occurs as a result
+
+> **Note:** Level 1 inspections are already live in code, even if not fully wired to all triggers yet.
+
+### What Phase 1 Explicitly Does *Not* Do
+
+- No fines
+- No cargo denial
+- No travel blocking
+- No reputation effects
+- No Port Authority simulation
+
+---
+
+## Phase 1.5 — Inspection Trigger Completion (NEXT)
+
+> **Purpose:** Ensure inspections occur *only* at correct player-action boundaries.
+
+### Required Wiring
+
+| Trigger | Status | Required Action |
+| --- | --- | --- |
+| System entry clearance | Partially wired | Ensure `Customs.run_entry_check()` fires on actual system arrival |
+| Legal cargo sale | Over-eager | Gate inspection behind pressure + deterministic roll |
+| Port departure clearance | Missing | Add departure-triggered inspection hook |
+
+### Design Rules (Non-Negotiable)
+
+- All triggers must:
+  - be player-action boundaries
+  - use deterministic rolls
+  - be pressure-gated
+- No trigger may:
+  - mutate cargo
+  - mutate credits
+  - destroy documents
+  - block player action
+
+### Outcome
+
+- Inspections feel consistent and fair
+- Logs match player expectations
+- No gameplay punishment yet
+
+➡️ **This phase is the current focus of the epic.**
+
+---
+
+## Phase 2 — Read-Only Inspection Preview (Player Education)
+
+> **Purpose:** Teach players how Customs thinks before consequences exist.
 
 ### Features
 
-* Define **required fields** per freight document type
-
-  * manifest
-  * bill of sale
-  * contract docs (where applicable)
-* Add a **player contract-signature marker** at job-board acceptance
-
-  * minimal attestation such as `signed_by_player_at_tick` (exact field name **TBD**)
-* Add document validation hooks
-
-  * presence checks
-  * malformed data checks
-
-### What This Enables
-
-* Level 1: Surface Compliance Checks
-* Low-grade tedium for smugglers
-* Clear difference between careful and sloppy paperwork
-
-### What This Does NOT Do
-
-* No inspections triggered yet
-* No penalties or blocks
-* No reputation effects
-
-## Phase 2 — Read-Only Inspection Preview (Player Perception)
-
-> **Purpose:** Teach players how Customs *would* think, without acting.
-
-### Features
-
-* New helper:
-
+- New helper:
   ```gdscript
   GameState.get_inspection_preview(context) -> Dictionary
   ```
-* Preview includes:
-
-  * likelihood of inspection (qualitative)
-  * maximum possible inspection depth
-  * top contributing reasons (pressure, docs, routing)
-* UI surfacing near Customs pressure in Port view
-
-### What This Enables
-
-* Player learning and planning
-* Debugging and balance validation
-* Zero-risk iteration
-
-### What This Does NOT Do
-
-* No actual inspections
-* No randomness applied
-
----
-
-## Phase 3 — Surface Compliance Checks (Level 1 Active)
-
-> **Purpose:** Introduce the first real friction point.
-
-### Features
-
-* Activate Level 1 checks at:
-
-  * port departure
-  * cargo sale
-* Validation uses Phase 1 primitives only
-* Outcomes:
-
-  * pass
-  * fail → increased customs pressure only
-
-### What This Enables
-
-* Meaningful paperwork discipline
-* Early smuggling skill expression
-
-### What This Does NOT Do
-
-* No cargo denial
-* No fines or delays
-* No container opening
-
----
-
-## Phase 4 — Document Audit Infrastructure (Level 2 Ready)
-
-> **Purpose:** Enable deep detection without enforcement.
-
-### Features
-
-* Container capacity metadata
-* Sovereignty stamp metadata + authenticity checks
-* Cross-document linking invariants
-
-  * manifest ↔ bill of sale
-  * bill of sale ↔ container
-
-### Activation
-
-* Audits run **only** in:
-
-  * core worlds
-  * capital systems
-
-### Outcomes
-
-* Detection generates:
-
-  * pressure increases
-  * inspection logs
-
-### What This Does NOT Do
-
-* No reconciliation
-* No container opening
-
----
-
-## Phase 5 — Reconciliation Data (Level 3 Ready)
-
-> **Purpose:** Make sealed-container smuggling risky in high-security space.
-
-### Features
-
-* Ship hull baseline mass
-* Container tare weights
-* Commodity mass-per-unit data
-* Discrepancy tolerance rules
-
-### Activation
-
-* Very high-security systems only
-* Or triggered by prior evidence accumulation
-
-### Outcomes
-
-* Probable cause flags
-* Pressure escalation
-
-### What This Does NOT Do
-
-* No warrants
-* No seizures
-
----
-
-## Explicitly Deferred Phases (Do Not Start Yet)
-
-These phases depend on **crew, ship operations, or enforcement gameplay** and must not be started early.
-
-### Deferred A — Enforcement
-
-* Fines
-* Seizures
-* Holds
-* Forced offloads
-
-### Deferred B — Physical Inspections
-
-* Container opening
-* Warrant systems
-* Scan mechanics
-
-### Deferred C — Port Authority Simulation
-
-* Crew inspections
-* Hazard handling checks
-* Operational failures
-
----
-
-## Guardrails (Non-Negotiable)
-
-* No phase introduces punishment without prior player-facing explanation
-* No inspection logic bypasses document evidence
-* No randomness decides outcomes — only whether checks occur
-* Legal trade remains low-friction at all phases
-
----
-
-## Closing Reminder
-
-> **Smuggling is a paperwork game until it becomes a crew game.**
-
-This roadmap ensures Tiny Cormorant grows depth without losing clarity, fairness, or debuggability.

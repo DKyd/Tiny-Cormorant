@@ -154,6 +154,10 @@ const SURFACE_ACTION_REQUIREMENTS := {
 		"required_any_of_doc_types": ["purchase_order", "contract"],
 		"requires_cargo_present": true,
 	},
+	"PORT_DEPARTURE_CLEARANCE": {
+		"required_any_of_doc_types": ["purchase_order", "contract"],
+		"requires_cargo_present": true,
+	},
 	"SELL_CARGO_LEGAL": {
 		"required_any_of_doc_types": ["purchase_order", "contract"],
 		"requires_cargo_present": true,
@@ -231,6 +235,10 @@ func travel_to_system(new_system_id: String) -> void:
 		push_warning("Not enough credits to travel.")
 		return
 
+	var departure_location_id: String = current_location_id
+	if departure_location_id != "":
+		Customs.run_departure_check(current_system_id, departure_location_id)
+
 	player_money -= cost
 	current_system_id = new_system_id
 
@@ -242,6 +250,8 @@ func travel_to_system(new_system_id: String) -> void:
 		INTER_SYSTEM_TRAVEL_TICKS,
 		"Inter-system travel to %s" % system_name
 	)
+
+	Customs.run_entry_check(new_system_id)
 
 	Log.add_entry("Traveled to %s. +%d ticks." % [system_name, INTER_SYSTEM_TRAVEL_TICKS], "SHIP")
 	emit_signal("system_changed", current_system_id)
@@ -418,6 +428,53 @@ func get_customs_pressure_bucket(location_id: String = "") -> String:
 	if pressure <= CUSTOMS_PRESSURE_ELEVATED_MAX:
 		return "Elevated"
 	return "High"
+
+
+func get_inspection_preview(context: Dictionary = {}) -> Dictionary:
+	var system_id: String = String(context.get("system_id", current_system_id))
+	var location_id: String = String(context.get("location_id", current_location_id))
+	var reasons: Array[String] = []
+
+	if system_id == "" or Galaxy.get_system(system_id).is_empty():
+		return {
+			"ok": false,
+			"system_id": system_id,
+			"location_id": "",
+			"likelihood": "Unknown",
+			"max_depth": 1,
+			"reasons": ["Missing system context."],
+		}
+
+	if location_id == "":
+		location_id = get_entry_customs_location_id(system_id)
+		if location_id != "":
+			reasons.append("Using entry jurisdiction selection.")
+	else:
+		reasons.append("Using current docked location.")
+
+	if location_id == "" or Galaxy.get_location(location_id).is_empty():
+		return {
+			"ok": false,
+			"system_id": system_id,
+			"location_id": "",
+			"likelihood": "Unknown",
+			"max_depth": 1,
+			"reasons": ["Missing location context."],
+		}
+
+	var bucket: String = String(get_customs_pressure_bucket(location_id)).strip_edges()
+	if bucket == "":
+		bucket = "Unknown"
+	reasons.append("Pressure bucket: %s" % bucket)
+
+	return {
+		"ok": true,
+		"system_id": system_id,
+		"location_id": location_id,
+		"likelihood": bucket,
+		"max_depth": 1,
+		"reasons": reasons,
+	}
 
 
 func get_entry_customs_location_id(system_id: String) -> String:
@@ -2373,11 +2430,7 @@ func sell_manifest_goods(
 	var location_name: String = String(location.get("name", location_id))
 
 	if market_kind == MARKET_KIND_LEGAL:
-		run_customs_inspection({
-			"system_id": system_id,
-			"location_id": location_id,
-			"action": "SELL_CARGO_LEGAL",
-		})
+		Customs.run_sale_check(system_id, location_id)
 
 	remove_cargo(commodity_id, qty)
 	player_money += total_price

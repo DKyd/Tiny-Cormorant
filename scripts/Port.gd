@@ -107,6 +107,23 @@ func _refresh_header() -> void:
 	var org_summary: String = _build_org_presence_summary(loc)
 	var customs_bucket: String = GameState.get_customs_pressure_bucket()
 	var customs_line := "Customs: %s" % customs_bucket
+	var preview: Dictionary = GameState.get_inspection_preview({
+		"system_id": sys_id,
+		"location_id": GameState.current_location_id,
+	})
+	var preview_ok: bool = bool(preview.get("ok", false))
+	var preview_likelihood: String = String(preview.get("likelihood", "Unknown")).strip_edges()
+	if preview_likelihood == "":
+		preview_likelihood = "Unknown"
+	var preview_line: String = ""
+	if preview_ok:
+		var preview_depth: int = int(preview.get("max_depth", 1))
+		preview_line = "Inspection preview (advisory): Likelihood %s, Max depth L%d" % [
+			preview_likelihood,
+			preview_depth,
+		]
+	else:
+		preview_line = "Inspection preview (advisory): Unknown"
 
 	if loc_name != "":
 		var base_line := "%s / %s  [%s, %s]" % [
@@ -115,7 +132,7 @@ func _refresh_header() -> void:
 			sys_type.capitalize(),
 			sec.capitalize()
 		]
-		var parts: Array = [base_line, customs_line]
+		var parts: Array = [base_line, customs_line, preview_line]
 		if org_summary != "":
 			parts.append(org_summary)
 		system_info_label.text = "\n".join(parts)
@@ -125,7 +142,7 @@ func _refresh_header() -> void:
 			sys_type.capitalize(),
 			sec.capitalize()
 		]
-		var parts: Array = [base_line, customs_line]
+		var parts: Array = [base_line, customs_line, preview_line]
 		if org_summary != "":
 			parts.append(org_summary)
 		system_info_label.text = "\n".join(parts)
