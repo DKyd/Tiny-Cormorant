@@ -528,13 +528,17 @@ func get_inspection_preview(context: Dictionary = {}) -> Dictionary:
 	if bucket == "":
 		bucket = "Unknown"
 	reasons.append("Pressure bucket: %s" % bucket)
+	var max_depth := 1
+	if bucket == "High":
+		max_depth = 2
+	reasons.append("Max depth: %d (%s pressure jurisdiction)." % [max_depth, bucket])
 
 	return {
 		"ok": true,
 		"system_id": system_id,
 		"location_id": location_id,
 		"likelihood": bucket,
-		"max_depth": 1,
+		"max_depth": max_depth,
 		"reasons": reasons,
 	}
 
