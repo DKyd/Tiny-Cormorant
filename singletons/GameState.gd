@@ -173,6 +173,8 @@ signal freight_doc_changed(doc_id: String, change_kind: String)
 signal customs_inspection_completed(report: Dictionary)
 
 const CUSTOMS_AUTHENTICITY_THRESHOLD: int = 80
+const CUSTOMS_LEVEL2_LOG_TOP_N: int = 3
+
 
 func _ready() -> void:
 	_ensure_starting_system()
@@ -1677,23 +1679,111 @@ func _format_customs_log_entry(report: Dictionary) -> String:
 		message = "%s %s" % [message, level2_summary]
 	return message
 
+func _normalize_customs_classification(raw_value: String) -> String:
+	var classification_raw: String = raw_value.to_upper()
+	match classification_raw:
+		"CLEAN", "SUSPICIOUS", "INVALID":
+			return classification_raw
+		_:
+			return "SUSPICIOUS"
+
+
+func _get_level2_display_severity_rank(severity_value: String) -> int:
+	var severity: String = severity_value.to_lower()
+	if severity == "invalid":
+		return 0
+	if severity == "suspicious":
+		return 1
+	return 2
+
+
+func _sort_level2_display_findings(a: Dictionary, b: Dictionary) -> bool:
+	var rank_a: int = _get_level2_display_severity_rank(String(a.get("severity", "")))
+	var rank_b: int = _get_level2_display_severity_rank(String(b.get("severity", "")))
+	if rank_a != rank_b:
+		return rank_a < rank_b
+	var code_a: String = String(a.get("code", ""))
+	var code_b: String = String(b.get("code", ""))
+	if code_a != code_b:
+		return code_a < code_b
+	var message_a: String = String(a.get("message", ""))
+	var message_b: String = String(b.get("message", ""))
+	return message_a < message_b
+
+
+func _trim_for_customs_log(text: String, max_chars: int = 72) -> String:
+	var trimmed: String = text.strip_edges()
+	if trimmed.length() <= max_chars:
+		return trimmed
+	if max_chars <= 3:
+		return trimmed.substr(0, max(0, max_chars))
+	return "%s..." % trimmed.substr(0, max_chars - 3)
+
+
+func _build_level2_display_findings(level2: Dictionary) -> Array:
+	var findings_variant = level2.get("findings", [])
+	if not (findings_variant is Array):
+		return []
+	var findings: Array = findings_variant
+	var reasons: Array = []
+	var reasons_variant = level2.get("reasons", [])
+	if reasons_variant is Array:
+		reasons = reasons_variant
+
+	var display_findings: Array = []
+	for index in range(findings.size()):
+		var finding_variant = findings[index]
+		if not (finding_variant is Dictionary):
+			continue
+		var finding: Dictionary = finding_variant
+		var code: String = String(finding.get("code", "")).strip_edges()
+		if code == "":
+			continue
+		var severity: String = String(finding.get("severity", "")).to_lower()
+		var message: String = String(finding.get("message", "")).strip_edges()
+		if message == "" and index < reasons.size():
+			message = String(reasons[index]).strip_edges()
+		if message == "":
+			message = "Issue flagged."
+		display_findings.append({
+			"code": code,
+			"severity": severity,
+			"message": message,
+		})
+
+	display_findings.sort_custom(Callable(self, "_sort_level2_display_findings"))
+	return display_findings
+
 
 func _format_level2_log_snippet(report: Dictionary) -> String:
 	var level2_variant = report.get("level2_audit", null)
 	if not (level2_variant is Dictionary):
 		return ""
 	var level2: Dictionary = level2_variant
-	var classification_raw: String = String(level2.get("classification", "")).to_upper()
+	var classification_raw: String = String(level2.get("classification", ""))
 	if classification_raw == "":
 		return ""
-	var classification: String = classification_raw
-	match classification_raw:
-		"CLEAN", "SUSPICIOUS", "INVALID":
-			classification = classification_raw
-		_:
-			classification = "SUSPICIOUS"
-	var summary: String = _format_customs_summary(classification, level2.get("reasons", []))
-	return "Level-2: %s — %s" % [classification, summary]
+	var classification: String = _normalize_customs_classification(classification_raw)
+	var message: String = "Level-2: %s" % classification
+	var display_findings: Array = _build_level2_display_findings(level2)
+	if classification != "CLEAN" and not display_findings.is_empty():
+		var visible_count: int = min(CUSTOMS_LEVEL2_LOG_TOP_N, display_findings.size())
+		var parts: Array[String] = []
+		for i in range(visible_count):
+			var item: Dictionary = display_findings[i]
+			var code: String = String(item.get("code", "")).strip_edges()
+			var reason: String = _trim_for_customs_log(String(item.get("message", "")), 64)
+			parts.append("%s: %s" % [code, reason])
+		var details: String = ", ".join(parts)
+		var remaining: int = display_findings.size() - visible_count
+		if remaining > 0:
+			details = "%s, +%d more" % [details, remaining]
+		message = "%s [%s]" % [message, details]
+	elif classification != "CLEAN":
+		var summary: String = _format_customs_summary(classification, level2.get("reasons", []))
+		message = "%s — %s" % [message, summary]
+
+	return message
 
 
 # Level-2 audit: cross-document coherence checks for Customs inspections.
