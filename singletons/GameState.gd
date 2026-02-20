@@ -374,6 +374,8 @@ func get_current_location() -> Dictionary:
 const CUSTOMS_PRESSURE_LOW_MAX: float = 0.33
 const CUSTOMS_PRESSURE_ELEVATED_MAX: float = 0.66
 const CUSTOMS_PRESSURE_ESCALATION_DELTA: float = 0.05
+const CUSTOMS_SCRUTINY_DELTA_FIELD: String = "customs_scrutiny_delta"
+const CUSTOMS_SCRUTINY_DELTA_SOURCE: String = "customs_scrutiny"
 
 func get_customs_pressure(location_id: String) -> float:
 	# Deterministic, read-only "pressure" derived from existing world facts.
@@ -433,22 +435,37 @@ func get_customs_pressure_bucket(location_id: String = "") -> String:
 	return "High"
 
 
-func apply_customs_pressure_increase(jurisdiction_id: String, reason: String) -> void:
+func _get_customs_scrutiny_delta_from_location(location: Dictionary) -> float:
+	# Source of truth: dedicated per-location scrutiny field only.
+	if location.is_empty():
+		return 0.0
+	var field_variant = location.get(CUSTOMS_SCRUTINY_DELTA_FIELD, 0.0)
+	if not (field_variant is int or field_variant is float):
+		return 0.0
+	return clamp(float(field_variant), 0.0, 1.0)
+
+
+func _set_customs_scrutiny_delta_for_location(jurisdiction_id: String, delta_value: float) -> bool:
 	if jurisdiction_id == "":
-		return
+		return false
 	var location: Dictionary = Galaxy.get_location(jurisdiction_id)
 	if location.is_empty():
-		return
-	if Galaxy.ORG_ID_GOVERNMENT == "":
-		return
+		return false
+
+	var clamped_delta: float = clamp(delta_value, 0.0, 1.0)
+	location[CUSTOMS_SCRUTINY_DELTA_FIELD] = clamped_delta
 
 	var delta_variant = location.get("delta_influences", [])
 	var delta: Array = []
 	if delta_variant is Array:
 		delta = delta_variant
 
-	var did_apply := false
-	var updated := false
+	if Galaxy.ORG_ID_GOVERNMENT == "":
+		location["delta_influences"] = delta
+		Galaxy.locations[jurisdiction_id] = location
+		return true
+
+	var tagged_index := -1
 	for i in range(delta.size()):
 		var entry_variant = delta[i]
 		if not (entry_variant is Dictionary):
@@ -456,44 +473,97 @@ func apply_customs_pressure_increase(jurisdiction_id: String, reason: String) ->
 		var entry: Dictionary = entry_variant
 		if String(entry.get("org_id", "")) != Galaxy.ORG_ID_GOVERNMENT:
 			continue
-		var weight: float = float(entry.get("weight", 0.0))
-		weight = clamp(weight + CUSTOMS_PRESSURE_ESCALATION_DELTA, 0.0, 1.0)
-		entry["weight"] = weight
-		delta[i] = entry
-		updated = true
-		did_apply = true
+		if String(entry.get("source", "")) != CUSTOMS_SCRUTINY_DELTA_SOURCE:
+			continue
+		tagged_index = i
 		break
 
-	if not updated:
-		delta.append({
+	if clamped_delta > 0.0:
+		var tagged_entry := {
 			"org_id": Galaxy.ORG_ID_GOVERNMENT,
-			"weight": CUSTOMS_PRESSURE_ESCALATION_DELTA,
-		})
-		did_apply = true
+			"weight": clamped_delta,
+			"source": CUSTOMS_SCRUTINY_DELTA_SOURCE,
+		}
+		if tagged_index >= 0:
+			delta[tagged_index] = tagged_entry
+		else:
+			delta.append(tagged_entry)
+	elif tagged_index >= 0:
+		delta.remove_at(tagged_index)
 
 	location["delta_influences"] = delta
 	Galaxy.locations[jurisdiction_id] = location
-	if did_apply:
-		var system_id: String = String(location.get("system_id", ""))
-		var system: Dictionary = Galaxy.get_system(system_id)
-		var system_name: String = String(system.get("name", system_id))
-		var location_name: String = String(location.get("name", jurisdiction_id))
-		if system_name == "":
-			system_name = system_id
-		if location_name == "":
-			location_name = jurisdiction_id
-		var reason_text: String = reason.strip_edges()
-		if reason_text == "level1_invalid" or reason_text == "surface_invalid":
-			reason_text = "Documentation irregularities noted"
-		elif reason_text == "":
-			reason_text = "Documentation irregularities noted"
-		Log.add_entry(
-			"CUSTOMS: %s at %s (%s). Customs scrutiny increases."
-				% [reason_text, location_name, system_name],
-			"CUSTOMS"
-		)
+	return true
 
 
+func _get_customs_scrutiny_deltas_by_location() -> Dictionary:
+	var result: Dictionary = {}
+	for location_id_variant in Galaxy.locations.keys():
+		var location_id: String = String(location_id_variant)
+		if location_id == "":
+			continue
+		var location: Dictionary = Galaxy.get_location(location_id)
+		if location.is_empty():
+			continue
+		var delta_value: float = _get_customs_scrutiny_delta_from_location(location)
+		if delta_value > 0.0:
+			result[location_id] = delta_value
+	return result
+
+
+func _restore_customs_scrutiny_deltas_by_location(saved_variant) -> int:
+	if not (saved_variant is Dictionary):
+		return 0
+	var restored_count := 0
+	var saved: Dictionary = saved_variant
+	for location_id_variant in saved.keys():
+		var location_id: String = String(location_id_variant)
+		if location_id == "":
+			continue
+		var delta_variant = saved[location_id_variant]
+		if not (delta_variant is int or delta_variant is float):
+			continue
+		var delta_value: float = clamp(float(delta_variant), 0.0, 1.0)
+		if delta_value <= 0.0:
+			continue
+		if _set_customs_scrutiny_delta_for_location(location_id, delta_value):
+			restored_count += 1
+	return restored_count
+
+
+func apply_customs_pressure_increase(jurisdiction_id: String, reason: String) -> void:
+	if jurisdiction_id == "":
+		return
+	var location: Dictionary = Galaxy.get_location(jurisdiction_id)
+	if location.is_empty():
+		return
+
+	var previous_delta: float = _get_customs_scrutiny_delta_from_location(location)
+	var next_delta: float = clamp(previous_delta + CUSTOMS_PRESSURE_ESCALATION_DELTA, 0.0, 1.0)
+	if not _set_customs_scrutiny_delta_for_location(jurisdiction_id, next_delta):
+		return
+	if next_delta <= previous_delta:
+		return
+
+	location = Galaxy.get_location(jurisdiction_id)
+	var system_id: String = String(location.get("system_id", ""))
+	var system: Dictionary = Galaxy.get_system(system_id)
+	var system_name: String = String(system.get("name", system_id))
+	var location_name: String = String(location.get("name", jurisdiction_id))
+	if system_name == "":
+		system_name = system_id
+	if location_name == "":
+		location_name = jurisdiction_id
+	var reason_text: String = reason.strip_edges()
+	if reason_text == "level1_invalid" or reason_text == "surface_invalid":
+		reason_text = "Documentation irregularities noted"
+	elif reason_text == "":
+		reason_text = "Documentation irregularities noted"
+	Log.add_entry(
+		"CUSTOMS: %s at %s (%s). Customs scrutiny increases."
+			% [reason_text, location_name, system_name],
+		"CUSTOMS"
+	)
 func get_inspection_preview(context: Dictionary = {}) -> Dictionary:
 	var system_id: String = String(context.get("system_id", current_system_id))
 	var location_id: String = String(context.get("location_id", current_location_id))
@@ -977,6 +1047,7 @@ func save_game() -> void:
 	"cargo": cargo,
 	"active_contracts": active_contracts,
 	"galaxy_systems": Galaxy.systems,
+"customs_scrutiny_deltas_by_location": _get_customs_scrutiny_deltas_by_location(),
 
 	# ship-related
 	"ship_name": ship_name,
@@ -1023,6 +1094,9 @@ func load_game() -> void:
 	if not saved_systems.is_empty():
 		Galaxy.systems = saved_systems
 	Galaxy.ensure_location_influences()
+	var restored_customs_scrutiny_deltas: int = _restore_customs_scrutiny_deltas_by_location(
+		data.get("customs_scrutiny_deltas_by_location", {})
+	)
 
 	# restore ship fields
 	ship_name = data.get("ship_name", ship_name)
@@ -1050,6 +1124,13 @@ func load_game() -> void:
 
 	if current_location_id == "" or Galaxy.get_location(current_location_id).is_empty():
 		_ensure_starting_location()
+
+	if restored_customs_scrutiny_deltas > 0:
+		Log.add_entry(
+			"CUSTOMS: Restored scrutiny escalation at %d location(s)."
+				% restored_customs_scrutiny_deltas,
+			"CUSTOMS"
+		)
 
 	Log.add_entry("Game loaded.")
 	emit_signal("system_changed", current_system_id)
