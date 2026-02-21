@@ -38,6 +38,26 @@ func _log_inspection(action_label: String, system_id: String, location_id: Strin
 	)
 
 
+func run_level_2_audit(context: Dictionary = {}) -> Dictionary:
+	var normalized_context: Dictionary = context.duplicate(true)
+	if String(normalized_context.get("system_id", "")).strip_edges() == "":
+		normalized_context["system_id"] = GameState.current_system_id
+	if String(normalized_context.get("location_id", "")).strip_edges() == "":
+		var current_location_id: String = String(GameState.current_location_id).strip_edges()
+		if current_location_id != "":
+			normalized_context["location_id"] = current_location_id
+	if String(normalized_context.get("action", "")).strip_edges() == "":
+		normalized_context["action"] = "UNKNOWN_ACTION"
+	if not normalized_context.has("docs"):
+		var chain_snapshot: Dictionary = GameState.get_freightdoc_chain_snapshot()
+		normalized_context["docs"] = chain_snapshot.get("docs", {})
+		if not normalized_context.has("tick"):
+			normalized_context["tick"] = int(chain_snapshot.get("tick", GameState.time_tick))
+	elif not normalized_context.has("tick"):
+		normalized_context["tick"] = int(GameState.time_tick)
+	return GameState.run_level2_customs_audit(normalized_context)
+
+
 func run_sale_check(system_id: String, location_id: String) -> void:
 	if system_id == "" or location_id == "":
 		return

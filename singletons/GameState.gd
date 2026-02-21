@@ -1867,6 +1867,22 @@ func _format_level2_log_snippet(report: Dictionary) -> String:
 	return message
 
 
+func get_freightdoc_chain_snapshot() -> Dictionary:
+	var docs_by_id: Dictionary = {}
+	for doc_variant in freight_docs:
+		if not (doc_variant is Dictionary):
+			continue
+		var doc: Dictionary = (doc_variant as Dictionary).duplicate(true)
+		var doc_id: String = String(doc.get("doc_id", ""))
+		if doc_id == "":
+			continue
+		docs_by_id[doc_id] = doc
+	return {
+		"tick": int(time_tick),
+		"docs": docs_by_id,
+	}
+
+
 # Level-2 audit: cross-document coherence checks for Customs inspections.
 func run_level2_customs_audit(context: Dictionary = {}) -> Dictionary:
 	var result := {
