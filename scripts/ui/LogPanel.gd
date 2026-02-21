@@ -28,14 +28,22 @@ func _refresh_log() -> void:
 	var count: int = Log.get_entry_count()
 	var show_dev: bool = dev_toggle != null and dev_toggle.button_pressed
 	for i in range(count):
-		var text: String = Log.get_entry_text(i)
-		var category: String = Log.get_entry_category(i)
+		var entry: Dictionary = Log.get_entry(i)
+		if entry.is_empty():
+			continue
+		var is_dev: bool = bool(entry.get("is_dev", false))
+		if is_dev and not show_dev:
+			continue
+
+		var text: String = String(entry.get("text", ""))
+		if text == "":
+			continue
+		var category: String = String(entry.get("category", "OTHER"))
 		var prefix: String = ""
 		if show_dev:
-			var context: Dictionary = Log.get_entry_context(i)
-			var tick: int = int(context.get("tick", -1))
-			var system_id: String = String(context.get("system_id", ""))
-			var location_id: String = String(context.get("location_id", ""))
+			var tick: int = int(entry.get("tick", -1))
+			var system_id: String = String(entry.get("system_id", ""))
+			var location_id: String = String(entry.get("location_id", ""))
 			prefix = "[t=%d sys=%s loc=%s] " % [tick, system_id, location_id]
 
 		log_output.push_color(_get_color_for_category(category))

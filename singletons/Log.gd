@@ -9,14 +9,15 @@ signal message_added
 var entries: Array[Dictionary] = []
 var messages: Array[String] = []
 # Public API: add_entry(text) appends a message and emits message_added.
-func add_entry(text: String, category: String = "") -> void:
-	if _should_skip_entry(text):
+func add_entry(text: String, category: String = "", is_dev: bool = false) -> void:
+	if _should_skip_entry(text, is_dev):
 		return
 	var normalized_category: String = _normalize_category(category, text)
 	var context: Dictionary = _capture_context()
 	var entry := {
 		"text": text,
 		"category": normalized_category,
+		"is_dev": is_dev,
 		"tick": int(context.get("tick", -1)),
 		"system_id": String(context.get("system_id", "")),
 		"location_id": String(context.get("location_id", "")),
@@ -33,7 +34,9 @@ func add_entry(text: String, category: String = "") -> void:
 
 	emit_signal("message_added")
 
-func _should_skip_entry(text: String) -> bool:
+func _should_skip_entry(text: String, is_dev: bool) -> bool:
+	if is_dev:
+		return false
 	var trimmed: String = text.strip_edges()
 	if trimmed.begins_with("Customs inspection requested:"):
 		return true
@@ -71,6 +74,40 @@ func get_entry_context(index: int) -> Dictionary:
 		"location_id": String(entry.get("location_id", "")),
 	}
 
+func get_tail(max_entries: int, include_dev: bool) -> Array[Dictionary]:
+	if max_entries <= 0:
+		return []
+	var tail: Array[Dictionary] = []
+	for i in range(entries.size() - 1, -1, -1):
+		var entry: Dictionary = entries[i]
+		if entry.is_empty():
+			continue
+		var is_dev: bool = bool(entry.get("is_dev", false))
+		if is_dev and not include_dev:
+			continue
+		tail.append(entry.duplicate())
+		if tail.size() >= max_entries:
+			break
+	tail.reverse()
+	return tail
+
+func format_tail_text(max_entries: int, include_dev: bool, include_prefix: bool) -> String:
+	var tail: Array[Dictionary] = get_tail(max_entries, include_dev)
+	if tail.is_empty():
+		return ""
+	var lines: PackedStringArray = []
+	for entry in tail:
+		var text: String = String(entry.get("text", ""))
+		if text == "":
+			continue
+		var line: String = text
+		if include_prefix:
+			line = "%s%s" % [_format_entry_prefix(entry), text]
+		lines.append(line)
+	if lines.is_empty():
+		return ""
+	return "\n".join(lines) + "\n"
+
 func _capture_context() -> Dictionary:
 	var tick: int = -1
 	var system_id: String = ""
@@ -106,3 +143,9 @@ func _infer_category(text: String) -> String:
 	if upper.begins_with("TRAVEL:") or upper.begins_with("SHIP:") or upper.begins_with("WAIT:"):
 		return "SHIP"
 	return "OTHER"
+
+func _format_entry_prefix(entry: Dictionary) -> String:
+	var tick: int = int(entry.get("tick", -1))
+	var system_id: String = String(entry.get("system_id", ""))
+	var location_id: String = String(entry.get("location_id", ""))
+	return "[t=%d sys=%s loc=%s] " % [tick, system_id, location_id]

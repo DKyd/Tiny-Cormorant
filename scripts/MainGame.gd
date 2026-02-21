@@ -128,6 +128,13 @@ func _consume_input() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key_event := event as InputEventKey
+		if key_event.keycode == KEY_F8:
+			var feedback_capture: Node = get_node_or_null("/root/FeedbackCapture")
+			if feedback_capture != null and feedback_capture.has_method("capture"):
+				feedback_capture.call("capture")
+				_consume_input()
+				return
+			Log.add_entry("Feedback capture unavailable: /root/FeedbackCapture autoload missing.", "OTHER", true)
 		if key_event.keycode == KEY_ESCAPE:
 			_ensure_in_session_menu()
 			if _menu_open:
