@@ -1713,10 +1713,17 @@ func _ensure_sentence_end(text: String) -> String:
 	return "%s." % trimmed
 
 
+func _extract_reason_message(reason_variant) -> String:
+	if reason_variant is Dictionary:
+		var reason: Dictionary = reason_variant
+		return String(reason.get("message", "")).strip_edges()
+	return String(reason_variant).strip_edges()
+
+
 func _format_customs_summary(classification: String, reasons_variant) -> String:
 	var summary: String = ""
 	if reasons_variant is Array and reasons_variant.size() > 0:
-		summary = String(reasons_variant[0])
+		summary = _extract_reason_message(reasons_variant[0])
 	if summary == "":
 		if classification == "CLEAN":
 			summary = "No irregularities detected"
@@ -1823,7 +1830,7 @@ func _build_level2_display_findings(level2: Dictionary) -> Array:
 		var severity: String = String(finding.get("severity", "")).to_lower()
 		var message: String = String(finding.get("message", "")).strip_edges()
 		if message == "" and index < reasons.size():
-			message = String(reasons[index]).strip_edges()
+			message = _extract_reason_message(reasons[index])
 		if message == "":
 			message = "Issue flagged."
 		display_findings.append({
@@ -1894,23 +1901,27 @@ func run_level2_customs_audit(context: Dictionary = {}) -> Dictionary:
 	var reasons: Array = result["reasons"]
 	var findings: Array = result["findings"]
 
-	var docs_variant = context.get("docs", freight_docs)
-	if not (docs_variant is Array):
+	var docs_variant = context.get("docs", {})
+	if not (docs_variant is Dictionary):
 		result.ok = false
 		result.classification = "invalid"
 		reasons.clear()
-		reasons.append("Missing freight documents for Level-2 audit.")
+		reasons.append({
+			"severity": "invalid",
+			"message": "Missing freight documents for Level-2 audit.",
+		})
 		return result
 
-	var docs: Array = docs_variant
-	var doc_by_id: Dictionary = {}
-	for doc_variant in docs:
-		if not (doc_variant is Dictionary):
-			continue
-		var doc: Dictionary = doc_variant
-		var doc_id: String = String(doc.get("doc_id", ""))
-		if doc_id != "":
-			doc_by_id[doc_id] = doc
+	var doc_by_id: Dictionary = (docs_variant as Dictionary).duplicate(true)
+	if doc_by_id.is_empty():
+		result.ok = false
+		result.classification = "invalid"
+		reasons.clear()
+		reasons.append({
+			"severity": "invalid",
+			"message": "No freight documents found for Level-2 audit.",
+		})
+		return result
 
 	var source_availability: Dictionary = {}
 	for doc_id_variant in doc_by_id.keys():
@@ -1951,6 +1962,7 @@ func run_level2_customs_audit(context: Dictionary = {}) -> Dictionary:
 		source_availability[doc_id] = {
 			"doc_type": doc_type,
 			"commodity_qty": commodity_qty,
+			"has_quantity_data": commodity_qty.size() > 0,
 			"tick": doc_tick,
 			"is_destroyed": bool(doc.get("is_destroyed", false)),
 		}
@@ -1963,10 +1975,15 @@ func run_level2_customs_audit(context: Dictionary = {}) -> Dictionary:
 	var add_finding := func(code: String, severity: String, message: String, data: Dictionary = {}) -> void:
 		if reason_set.has(message):
 			return
-		reasons.append(message)
+		reasons.append({
+			"code": code,
+			"severity": severity,
+			"message": message,
+		})
 		var entry := {
 			"code": code,
 			"severity": severity,
+			"message": message,
 		}
 		for key_variant in data.keys():
 			var key: String = String(key_variant)
@@ -2001,7 +2018,7 @@ func run_level2_customs_audit(context: Dictionary = {}) -> Dictionary:
 		if not (cargo_lines_variant is Array):
 			add_finding.call(
 				"L2-02",
-				"invalid",
+				"suspicious",
 				"Missing cargo lines for bill of sale %s." % bill_doc_id,
 				{"doc_id": bill_doc_id}
 			)
@@ -2026,7 +2043,7 @@ func run_level2_customs_audit(context: Dictionary = {}) -> Dictionary:
 			if not (sources_variant is Array) or (sources_variant as Array).is_empty():
 				add_finding.call(
 					"L2-04",
-					"invalid",
+					"suspicious",
 					"Missing sources for bill of sale %s." % bill_doc_id,
 					{
 						"doc_id": bill_doc_id,
@@ -2046,7 +2063,7 @@ func run_level2_customs_audit(context: Dictionary = {}) -> Dictionary:
 				if source_doc_id == "" or source_qty <= 0:
 					add_finding.call(
 						"L2-05",
-						"invalid",
+						"suspicious",
 						"Invalid source entry on bill of sale %s." % bill_doc_id,
 						{
 							"doc_id": bill_doc_id,
@@ -2098,6 +2115,20 @@ func run_level2_customs_audit(context: Dictionary = {}) -> Dictionary:
 					continue
 
 				var source_commodities: Dictionary = source_meta.get("commodity_qty", {})
+				var source_has_quantity_data: bool = bool(source_meta.get("has_quantity_data", false))
+				if not source_has_quantity_data:
+					add_finding.call(
+						"L2-09A",
+						"suspicious",
+						"Incomplete source quantity data for %s on bill of sale %s." \
+							% [source_doc_id, bill_doc_id],
+						{
+							"doc_id": bill_doc_id,
+							"source_doc_id": source_doc_id,
+							"commodity_id": commodity_id,
+						}
+					)
+					continue
 				var available_qty: int = int(source_commodities.get(commodity_id, 0))
 				if available_qty <= 0:
 					add_finding.call(
@@ -2184,6 +2215,12 @@ func run_level2_customs_audit(context: Dictionary = {}) -> Dictionary:
 		classification = "invalid"
 	elif severity_rank == 1:
 		classification = "suspicious"
+	if classification != "clean" and reasons.is_empty():
+		reasons.append({
+			"code": "L2-GENERIC",
+			"severity": classification,
+			"message": "Level-2 audit flagged document chain issues.",
+		})
 	result.classification = classification
 	result.ok = classification == "clean"
 
@@ -2335,8 +2372,13 @@ func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
 	}
 
 	if max_depth >= 2:
+		var chain_snapshot: Dictionary = get_freightdoc_chain_snapshot()
 		var level2_audit: Dictionary = run_level2_customs_audit({
-			"docs": freight_docs,
+			"docs": chain_snapshot.get("docs", {}),
+			"tick": int(chain_snapshot.get("tick", time_tick)),
+			"action": action,
+			"system_id": system_id,
+			"location_id": location_id,
 		})
 		report["level2_audit"] = level2_audit
 		if String(level2_audit.get("classification", "")) == "invalid":
