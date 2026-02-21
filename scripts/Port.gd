@@ -3,7 +3,6 @@ extends Control
 
 @onready var title_label: Label = $MarginContainer/VBoxContainer/HeaderRow/TitleLabel
 @onready var system_info_label: Label = $MarginContainer/VBoxContainer/HeaderRow/SystemInfoLabel
-@onready var to_bridge_button: Button = $MarginContainer/VBoxContainer/HeaderRow/ToBridgeButton
 
 @onready var market_button: Button = $MarginContainer/VBoxContainer/FacilitiesRow/MarketButton
 @onready var contracts_button: Button = $MarginContainer/VBoxContainer/FacilitiesRow/ContractsButton
@@ -34,7 +33,6 @@ func _ready() -> void:
 	else:
 		push_error("Port: market_button is null")
 
-	to_bridge_button.pressed.connect(_on_ToBridgeButton_pressed)
 	contracts_button.pressed.connect(_on_ContractsButton_pressed)
 	ship_button.pressed.connect(_on_ShipButton_pressed)
 	cantina_button.pressed.connect(_on_CantinaButton_pressed)
@@ -230,7 +228,7 @@ func _refresh_facility_buttons() -> void:
 	# Cantina: only if location has a cantina space
 	cantina_button.disabled = not (has_cantina or has_back_room)
 
-	# Docs: always accessible (ship’s paperwork travels with the ship)
+	# Docs: always accessible (shipÃ¢â‚¬â„¢s paperwork travels with the ship)
 	docs_button.disabled = false
 	customs_button.disabled = GameState.current_location_id == ""
 
@@ -388,12 +386,6 @@ func _on_DocsButton_pressed() -> void:
 
 func _on_CantinaButton_pressed() -> void:
 	_show_cantina()
-
-
-func _on_ToBridgeButton_pressed() -> void:
-	var root := get_tree().current_scene
-	if root != null and root.has_method("goto_bridge"):
-		root.call_deferred("goto_bridge")
 
 
 # ---------------------------------------------------

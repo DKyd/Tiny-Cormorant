@@ -406,4 +406,3 @@ func _on_sell_confirm_pressed() -> void:
 func _on_sell_cancel_pressed() -> void:
 	if _sell_dialog != null:
 		_sell_dialog.hide()
-

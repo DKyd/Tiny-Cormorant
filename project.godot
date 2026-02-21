@@ -8,11 +8,15 @@
 
 config_version=5
 
+[animation]
+
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
+
 [application]
 
 config/name="Tiny Cormorant"
 run/main_scene="res://scenes/MainMenu.tscn"
-config/features=PackedStringArray("4.2", "Forward Plus")
+config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
@@ -24,6 +28,7 @@ Economy="*res://singletons/Economy.gd"
 Contracts="*res://singletons/Contracts.gd"
 Log="*res://singletons/Log.gd"
 Customs="*res://singletons/Customs.gd"
+FeedbackCapture="*uid://djwab4xr50ujm"
 
 [display]
 

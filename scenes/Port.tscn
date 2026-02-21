@@ -1,8 +1,8 @@
-[gd_scene load_steps=2 format=3 uid="uid://cv3mbmkoqnw6o"]
+[gd_scene format=3 uid="uid://cv3mbmkoqnw6o"]
 
-[ext_resource type="Script" path="res://scripts/Port.gd" id="1_k33gy"]
+[ext_resource type="Script" uid="uid://d14mpim20oxgj" path="res://scripts/Port.gd" id="1_k33gy"]
 
-[node name="Port" type="Control"]
+[node name="Port" type="Control" unique_id=1523172910]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -11,71 +11,69 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_k33gy")
 
-[node name="MarginContainer" type="MarginContainer" parent="."]
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=1136059606]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 16
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 16
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 22
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 22
 
-[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer" unique_id=1157235533]
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 16
 
-[node name="HeaderRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+[node name="HeaderRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=2048108485]
 layout_mode = 2
 size_flags_vertical = 4
+theme_override_constants/separation = 12
 
-[node name="TitleLabel" type="Label" parent="MarginContainer/VBoxContainer/HeaderRow"]
+[node name="TitleLabel" type="Label" parent="MarginContainer/VBoxContainer/HeaderRow" unique_id=1132965561]
 layout_mode = 2
 text = "Port"
 
-[node name="SystemInfoLabel" type="Label" parent="MarginContainer/VBoxContainer/HeaderRow"]
+[node name="SystemInfoLabel" type="Label" parent="MarginContainer/VBoxContainer/HeaderRow" unique_id=225455287]
 layout_mode = 2
 
-[node name="Spacer" type="Control" parent="MarginContainer/VBoxContainer/HeaderRow"]
+[node name="Spacer" type="Control" parent="MarginContainer/VBoxContainer/HeaderRow" unique_id=2020546089]
 layout_mode = 2
 
-[node name="ToBridgeButton" type="Button" parent="MarginContainer/VBoxContainer/HeaderRow"]
-layout_mode = 2
-text = "To Bridge"
-
-[node name="FacilitiesRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+[node name="FacilitiesRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=1918041979]
 layout_mode = 2
 size_flags_vertical = 4
+theme_override_constants/separation = 10
 
-[node name="MarketButton" type="Button" parent="MarginContainer/VBoxContainer/FacilitiesRow"]
+[node name="MarketButton" type="Button" parent="MarginContainer/VBoxContainer/FacilitiesRow" unique_id=52322215]
 layout_mode = 2
 text = "Market"
 
-[node name="ContractsButton" type="Button" parent="MarginContainer/VBoxContainer/FacilitiesRow"]
+[node name="ContractsButton" type="Button" parent="MarginContainer/VBoxContainer/FacilitiesRow" unique_id=1397055427]
 layout_mode = 2
 text = "Contracts"
 
-[node name="ShipButton" type="Button" parent="MarginContainer/VBoxContainer/FacilitiesRow"]
+[node name="ShipButton" type="Button" parent="MarginContainer/VBoxContainer/FacilitiesRow" unique_id=1125351338]
 layout_mode = 2
 text = "Ship"
 
-[node name="CantinaButton" type="Button" parent="MarginContainer/VBoxContainer/FacilitiesRow"]
+[node name="CantinaButton" type="Button" parent="MarginContainer/VBoxContainer/FacilitiesRow" unique_id=905264017]
 layout_mode = 2
 text = "Cantina"
 
-[node name="DocsButton" type="Button" parent="MarginContainer/VBoxContainer/FacilitiesRow"]
+[node name="DocsButton" type="Button" parent="MarginContainer/VBoxContainer/FacilitiesRow" unique_id=733448123]
 layout_mode = 2
 text = "Docs"
 
-[node name="CustomsButton" type="Button" parent="MarginContainer/VBoxContainer/FacilitiesRow"]
+[node name="CustomsButton" type="Button" parent="MarginContainer/VBoxContainer/FacilitiesRow" unique_id=2036148699]
 layout_mode = 2
 text = "Customs"
 
-[node name="FacilityPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer"]
+[node name="FacilityPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer" unique_id=1594753113]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="FacilityHost" type="Control" parent="MarginContainer/VBoxContainer/FacilityPanel"]
+[node name="FacilityHost" type="Control" parent="MarginContainer/VBoxContainer/FacilityPanel" unique_id=1764944178]
 layout_mode = 2

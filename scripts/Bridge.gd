@@ -204,7 +204,18 @@ func _on_map_navigate_to_location_requested(dest_system_id: String, dest_locatio
 		_map_panel.call_deferred("request_refresh")
 
 func _on_map_close_requested() -> void:
-	pass
+	if _map_panel == null or not is_instance_valid(_map_panel):
+		_map_panel = null
+		if to_port_button != null and is_instance_valid(to_port_button):
+			to_port_button.grab_focus()
+		return
+
+	var panel := _map_panel
+	_map_panel = null
+	panel.queue_free()
+
+	if to_port_button != null and is_instance_valid(to_port_button):
+		to_port_button.grab_focus()
 
 
 func _unhandled_input(event: InputEvent) -> void:

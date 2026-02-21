@@ -10,6 +10,7 @@ signal close_requested()
 @onready var search_clear_button: Button = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer/SearchClearBtn
 @onready var systems_tree: Tree = $PanelContainer/MarginContainer/VBoxContainer/SystemTree
 @onready var set_course_button: Button = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer2/SetCourseButton
+@onready var dock_button: Button = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer2/DockButton
 @onready var close_button: Button = $PanelContainer/MarginContainer/VBoxContainer/HBoxContainer2/CloseButton
 @onready var info_label: Label = $PanelContainer/MarginContainer/VBoxContainer/InfoLabel
 
@@ -20,7 +21,9 @@ var _did_empty_retry: bool = false
 
 func _ready() -> void:
 	title_label.text = "Galaxy Map"
-	close_button.text = "Dock"
+	set_course_button.text = "Set Course"
+	dock_button.text = "Dock"
+	close_button.text = "Close"
 
 	search_box.text = ""
 	_refresh_all()
@@ -32,6 +35,7 @@ func _ready() -> void:
 	systems_tree.item_activated.connect(_on_tree_item_activated)
 
 	set_course_button.pressed.connect(_on_set_course_pressed)
+	dock_button.pressed.connect(_on_set_course_pressed)
 	close_button.pressed.connect(_on_close_pressed)
 
 	GameState.system_changed.connect(_on_system_changed)
