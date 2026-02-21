@@ -67,6 +67,45 @@ Add job-specific invariants here if needed.
 
 ---
 
+## Git Preflight Gate (Mandatory)
+Before ANY code changes, Codex must run and report:
+
+- `git branch --show-current`
+- `git status --short`
+- `git log --oneline -n 5 --decorate`
+- `git show HEAD:codex/runs/ACTIVE_RUN.txt`
+
+Rules:
+- If `git status --short` is not empty (modified OR untracked files), Codex MUST STOP and ask the user to choose ONE:
+  A) Stash WIP (must include untracked): `git stash push -u -m "wip: <short description>"`
+  B) Run the current issue’s Closeout Gate (stage → staged diff review → commit → push)
+- Codex must not proceed with any implementation until the working tree is clean.
+
+## Git Postflight & Closeout Gate (Mandatory)
+After implementation is complete, Codex must perform these gates in order:
+
+1) Review Gate (Staged Diff)
+- Stage ONLY:
+  - `codex/runs/ACTIVE_RUN.txt`
+  - `codex/runs/<Run Folder Name>/**`
+  - Whitelisted files for this job
+- Then show:
+  - `git diff --stat --staged`
+  - `git diff --staged`
+- STOP and wait for the user’s explicit approval.
+
+2) Closeout Gate (Commit + Push)
+- Only after the user replies exactly: “Green light: commit and push”
+- Run:
+  - `git commit -m "<Issue/Task ID>: <Short Title>"`
+  - `git push --porcelain`
+- Then show proof:
+  - `git log --oneline -n 3`
+  - `git show HEAD:codex/runs/ACTIVE_RUN.txt`
+  - `git status --short` (must be clean)
+- STOP.
+
+---
 ## Codex Scaffolding & Output Requirements (Mandatory)
 
 Codex must perform the following before any code changes:
