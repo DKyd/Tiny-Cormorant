@@ -113,23 +113,45 @@ func _refresh_header() -> void:
 	var preview_likelihood: String = String(preview.get("likelihood", "Unknown")).strip_edges()
 	if preview_likelihood == "":
 		preview_likelihood = "Unknown"
+	var depth_bias: int = 0
+	var depth_bias_variant = preview.get("depth_bias", 0)
+	if depth_bias_variant is int:
+		depth_bias = int(depth_bias_variant)
+	elif depth_bias_variant is float:
+		depth_bias = int(depth_bias_variant)
+	if depth_bias < 0:
+		depth_bias = 0
+	var scrutiny_state: String = "Unknown"
+	if preview_ok:
+		if depth_bias > 0:
+			scrutiny_state = "Heightened (+%d)" % depth_bias
+		else:
+			scrutiny_state = "Normal"
 	var preview_line: String = ""
 	if preview_ok:
 		var preview_depth: int = int(preview.get("max_depth", 1))
-		preview_line = "Inspection preview (advisory): Likelihood %s, Max depth L%d" % [
+		var details: String = "Likelihood %s, Scrutiny %s, Final max depth L%d" % [
 			preview_likelihood,
+			scrutiny_state,
 			preview_depth,
 		]
+		var reasons_variant = preview.get("reasons", [])
+		if reasons_variant is Array:
+			var reason_parts: Array[String] = []
+			for reason_variant in reasons_variant:
+				if not (reason_variant is String):
+					continue
+				var reason_text: String = String(reason_variant).strip_edges()
+				if reason_text == "":
+					continue
+				reason_parts.append(reason_text)
+			if not reason_parts.is_empty():
+				details = "%s. %s" % [details, " / ".join(reason_parts)]
+		preview_line = "Inspection preview (advisory): %s" % details
 	else:
 		preview_line = "Inspection preview (advisory): Unknown"
 	var scrutiny_line: String = "Customs scrutiny: Unknown"
-	if preview_ok:
-		var depth_bias_variant = preview.get("depth_bias", 0)
-		var depth_bias: int = 0
-		if depth_bias_variant is int:
-			depth_bias = int(depth_bias_variant)
-		elif depth_bias_variant is float:
-			depth_bias = int(depth_bias_variant)
+	if preview_ok and scrutiny_state != "Unknown":
 		if depth_bias > 0:
 			scrutiny_line = "Customs scrutiny: Heightened (+%d depth)" % depth_bias
 		else:
