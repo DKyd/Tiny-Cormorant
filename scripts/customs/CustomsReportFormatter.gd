@@ -99,6 +99,86 @@ static func _trim_for_customs_log(text: String, max_chars: int = 72) -> String:
 	return "%s..." % trimmed.substr(0, max_chars - 3)
 
 
+static func _collect_level2_related_report_keys(report: Dictionary) -> Array[String]:
+	var related_keys: Array[String] = []
+	for key_variant in report.keys():
+		var key: String = String(key_variant).strip_edges()
+		if key == "":
+			continue
+		var key_lower: String = key.to_lower()
+		if key_lower.find("level2") != -1 or key_lower.find("invariant") != -1:
+			related_keys.append(key)
+	related_keys.sort()
+	return related_keys
+
+
+static func _build_level2_invariant_sample_from_audit(
+	level2_invariants: Array,
+	level2_log_top_n: int
+) -> Array[String]:
+	var samples: Array[String] = []
+	for invariant_variant in level2_invariants:
+		if not (invariant_variant is Dictionary):
+			continue
+		var invariant: Dictionary = invariant_variant
+		var invariant_id: String = String(invariant.get("invariant_id", invariant.get("id", invariant.get("code", "")))).strip_edges()
+		if invariant_id == "":
+			continue
+		var status: String = String(invariant.get("status", "unknown")).to_lower().strip_edges()
+		if status == "":
+			status = "unknown"
+		var severity: String = String(invariant.get("severity", "none")).to_lower().strip_edges()
+		if severity == "":
+			severity = "none"
+		samples.append("%s[%s/%s]" % [invariant_id, status, severity])
+
+	samples.sort()
+	var max_count: int = max(level2_log_top_n, 1)
+	var sample_count: int = min(max_count, samples.size())
+	var truncated: Array[String] = []
+	for i in range(sample_count):
+		truncated.append(samples[i])
+	return truncated
+
+
+static func _format_level2_audit_invariant_diagnostics(
+	report: Dictionary,
+	level2_log_top_n: int
+) -> String:
+	var level2_variant = report.get("level2_audit", null)
+	if not (level2_variant is Dictionary):
+		var related_keys: Array[String] = _collect_level2_related_report_keys(report)
+		var related_display: String = "none"
+		if not related_keys.is_empty():
+			related_display = ", ".join(related_keys)
+		return "missing level2_audit; related keys=%s" % related_display
+
+	var level2: Dictionary = level2_variant
+	var invariants_variant = level2.get("invariants", [])
+	var findings_variant = level2.get("findings", [])
+	var invariant_count: int = 0
+	var finding_count: int = 0
+	var level2_invariants: Array = []
+	if invariants_variant is Array:
+		level2_invariants = invariants_variant
+		invariant_count = level2_invariants.size()
+	if findings_variant is Array:
+		finding_count = (findings_variant as Array).size()
+
+	var sample_items: Array[String] = _build_level2_invariant_sample_from_audit(
+		level2_invariants,
+		level2_log_top_n
+	)
+	var sample_display: String = "none"
+	if not sample_items.is_empty():
+		sample_display = ", ".join(sample_items)
+	return "level2_audit present; invariants=%d, findings=%d, sample=%s" % [
+		invariant_count,
+		finding_count,
+		sample_display
+	]
+
+
 static func _build_level2_display_findings(level2: Dictionary) -> Array:
 	var findings_variant = level2.get("findings", [])
 	if not (findings_variant is Array):
@@ -197,14 +277,15 @@ static func build_level2_invariant_log_summary(
 	report: Dictionary,
 	level2_log_top_n: int = DEFAULT_LEVEL2_LOG_TOP_N
 ) -> String:
+	var audit_diagnostics: String = _format_level2_audit_invariant_diagnostics(report, level2_log_top_n)
 	var invariant_variant = report.get("invariant_violations", null)
 	if invariant_variant == null:
-		return "Level-2 invariants: unavailable."
+		return "Level-2 invariants: unavailable (%s)." % audit_diagnostics
 	if not (invariant_variant is Array):
-		return "Level-2 invariants: unavailable."
+		return "Level-2 invariants: unavailable (%s)." % audit_diagnostics
 	var invariant_violations: Array = invariant_variant
 	if invariant_violations.is_empty():
-		return "Level-2 invariants: none found."
+		return "Level-2 invariants: none found (%s)." % audit_diagnostics
 
 	var display_findings: Array = []
 	for finding_variant in invariant_violations:
@@ -226,7 +307,7 @@ static func build_level2_invariant_log_summary(
 
 	_sort_display_findings_in_place(display_findings)
 	if display_findings.is_empty():
-		return "Level-2 invariants: unavailable."
+		return "Level-2 invariants: unavailable (%s)." % audit_diagnostics
 
 	var visible_count: int = min(level2_log_top_n, display_findings.size())
 	var parts: Array[String] = []
@@ -239,7 +320,7 @@ static func build_level2_invariant_log_summary(
 	var remaining: int = display_findings.size() - visible_count
 	if remaining > 0:
 		details = "%s, +%d more" % [details, remaining]
-	return "Level-2 invariants: %d violation(s) [%s]" % [display_findings.size(), details]
+	return "Level-2 invariants: %d violation(s) [%s] (%s)." % [display_findings.size(), details, audit_diagnostics]
 
 
 static func format_customs_log_entry(
