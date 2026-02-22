@@ -1,7 +1,0 @@
-res://scenes/ui/BlackMarketPanel.tscn
-res://scripts/MarketPanel.gd
-res://scripts/MainGame.gd
-res://scenes/MainGame.tscn
-res://scripts/Port.gd
-res://scenes/Port.tscn
-res://scripts/MapPanel.gd
