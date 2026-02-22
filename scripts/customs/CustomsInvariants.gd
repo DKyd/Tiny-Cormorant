@@ -75,6 +75,22 @@ static func _result(
 	}
 
 
+static func _build_not_evaluable_details(reason: String, missing_inputs: Array = []) -> Dictionary:
+	var normalized_missing_inputs: Array = []
+	for item_variant in missing_inputs:
+		var item: String = String(item_variant).strip_edges()
+		if item == "":
+			continue
+		normalized_missing_inputs.append(item)
+	normalized_missing_inputs.sort()
+	var details := {
+		"reason": reason,
+	}
+	if not normalized_missing_inputs.is_empty():
+		details["missing_inputs"] = normalized_missing_inputs
+	return details
+
+
 static func _get_docs_by_type(docs_by_id: Dictionary, doc_types: Array) -> Array:
 	var docs: Array = []
 	var doc_ids: Array = docs_by_id.keys()
@@ -132,7 +148,10 @@ static func _evaluate_quantity_consistency(docs_by_id: Dictionary, cargo_snapsho
 			"none",
 			3,
 			"Quantity consistency not evaluable: no declaration-like documents found.",
-			{"reason": "missing_declaration_docs"}
+			_build_not_evaluable_details(
+				"missing_declaration_docs",
+				["docs.declaration_or_purchase_order"]
+			)
 		)
 	if cargo_snapshot.is_empty():
 		return _result(
@@ -141,7 +160,7 @@ static func _evaluate_quantity_consistency(docs_by_id: Dictionary, cargo_snapsho
 			"none",
 			3,
 			"Quantity consistency not evaluable: cargo snapshot is unavailable.",
-			{"reason": "missing_cargo_snapshot"}
+			_build_not_evaluable_details("missing_cargo_snapshot", ["cargo"])
 		)
 
 	var declared_totals: Dictionary = _collect_declared_totals(declaration_docs)
@@ -152,7 +171,15 @@ static func _evaluate_quantity_consistency(docs_by_id: Dictionary, cargo_snapsho
 			"none",
 			3,
 			"Quantity consistency not evaluable: declarations have no usable quantity fields.",
-			{"reason": "missing_declaration_quantities"}
+			_build_not_evaluable_details(
+				"missing_declaration_quantities",
+				[
+					"declaration.cargo_lines[].commodity_id",
+					"declaration.cargo_lines[].declared_qty|quantity",
+					"declaration.commodity_id",
+					"declaration.quantity",
+				]
+			)
 		)
 
 	var commodity_ids: Dictionary = {}
@@ -205,7 +232,7 @@ static func _evaluate_origin_destination_consistency_policy_disabled() -> Dictio
 		"none",
 		2,
 		"Route consistency not evaluable: policy-disabled until mandated routes exist.",
-		{"reason": "policy_disabled_no_mandated_routes"}
+		_build_not_evaluable_details("policy_disabled_no_mandated_routes")
 	)
 
 
@@ -305,7 +332,14 @@ static func _evaluate_timestamp_order_consistency(docs_by_id: Dictionary) -> Dic
 			"none",
 			2,
 			"Timestamp/order consistency not evaluable: no comparable timestamps found.",
-			{"reason": "missing_comparable_timestamps"}
+			_build_not_evaluable_details(
+				"missing_comparable_timestamps",
+				[
+					"bill_of_sale.cargo_lines[].sources[].doc_id",
+					"contract.purchase_tick|tick|container_meta.packed_tick",
+					"declaration_or_purchase_order.purchase_tick|tick|container_meta.packed_tick",
+				]
+			)
 		)
 
 	if not violations.is_empty():
@@ -345,7 +379,10 @@ static func _evaluate_container_meta_consistency(docs_by_id: Dictionary) -> Dict
 			"none",
 			2,
 			"Container metadata consistency not evaluable: missing container fields.",
-			{"reason": "missing_container_fields"}
+			_build_not_evaluable_details(
+				"missing_container_fields",
+				["docs.contract|declaration|purchase_order|bill_of_sale"]
+			)
 		)
 
 	var docs_with_meta: int = 0
@@ -387,7 +424,10 @@ static func _evaluate_container_meta_consistency(docs_by_id: Dictionary) -> Dict
 			"none",
 			2,
 			"Container metadata consistency not evaluable: missing container fields.",
-			{"reason": "missing_container_fields"}
+			_build_not_evaluable_details(
+				"missing_container_fields",
+				["container_meta.container_id", "container_meta.seal_state"]
+			)
 		)
 
 	if docs_with_meta > 0 and docs_with_meta < relevant_docs.size():
