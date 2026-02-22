@@ -93,3 +93,6 @@ bin/
 __pycache__/
 *.pyc
 
+# Godot editor cache (do not version)
+.godot/
+*.uid
