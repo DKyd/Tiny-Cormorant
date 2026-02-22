@@ -144,10 +144,16 @@ After implementation is complete, Codex must perform these gates in order:
 - Then show:
   - `git diff --stat --staged`
   - `git diff --staged`
-- STOP and wait for the user’s explicit approval.
+- Show staged diffs, then auto-closeout unless a gate violation is detected.
+- STOP and request user input only if a gate violation or ambiguity is detected.
 
 2) Closeout Gate (Commit + Push)
-- Only after the user replies exactly: “Green light: commit and push”
+- If all gates pass and the staged set is whitelist-clean, Codex MUST auto-run closeout immediately (no explicit approval required).
+- STOP conditions (user input required):
+  - Working tree is dirty.
+  - Branch is behind origin.
+  - Staged set includes files outside ACTIVE_RUN.txt, codex/runs/<Run Folder Name>/**, or job whitelist.
+  - Scope/whitelist/blacklist conflict or ambiguous instruction.
 - Run:
   - `git commit -m "<Issue/Task ID>: <Short Title>"`
   - `git push --porcelain`
