@@ -1872,10 +1872,24 @@ func _format_level2_log_snippet(report: Dictionary) -> String:
 		var summary: String = _format_customs_summary(classification, level2.get("reasons", []))
 		message = "%s — %s" % [message, summary]
 	if CUSTOMS_LEVEL2_VERBOSE_LOG:
+		var findings_variant = level2.get("findings", [])
+		var total_finding_count: int = display_findings.size()
+		if findings_variant is Array:
+			total_finding_count = (findings_variant as Array).size()
+		var top_findings: Array = []
+		var top_count: int = min(CUSTOMS_LEVEL2_LOG_TOP_N, display_findings.size())
+		for i in range(top_count):
+			var item: Dictionary = display_findings[i]
+			top_findings.append({
+				"code": String(item.get("code", "")).strip_edges(),
+				"severity": String(item.get("severity", "")).strip_edges(),
+				"message": _trim_for_customs_log(String(item.get("message", "")), 64),
+			})
 		var verbose_payload := {
 			"classification": String(level2.get("classification", "")).to_lower(),
-			"finding_count": int(display_findings.size()),
-			"top_findings": display_findings.slice(0, min(CUSTOMS_LEVEL2_LOG_TOP_N, display_findings.size()), 1, true),
+			"total_finding_count": total_finding_count,
+			"display_count": int(display_findings.size()),
+			"top_findings": top_findings,
 		}
 		message = "%s [DEV:%s]" % [message, JSON.stringify(verbose_payload)]
 
