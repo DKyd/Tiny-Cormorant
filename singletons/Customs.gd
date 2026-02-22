@@ -39,15 +39,14 @@ func _log_inspection(action_label: String, system_id: String, location_id: Strin
 
 
 func _resolve_inspection_max_depth(system_id: String, location_id: String) -> int:
-	var preview: Dictionary = GameState.get_inspection_preview({
+	var resolved: Dictionary = GameState.resolve_customs_inspection_depth({
 		"system_id": system_id,
 		"location_id": location_id,
 	})
-	var max_depth: int = int(preview.get("max_depth", 1))
-	if not bool(preview.get("ok", false)):
+	var max_depth: int = int(resolved.get("max_depth", 1))
+	if not bool(resolved.get("ok", false)):
 		return 1
-	max_depth = clamp(max_depth, 0, 2)
-	var depth_bias: int = int(preview.get("depth_bias", 0))
+	var depth_bias: int = int(resolved.get("depth_bias", 0))
 	if depth_bias > 0:
 		var location_label: String = _format_location_label(system_id, location_id)
 		Log.add_entry(

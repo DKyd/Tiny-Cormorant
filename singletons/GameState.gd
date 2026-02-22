@@ -660,7 +660,7 @@ func _get_customs_level2_depth_bias(location_id: String, tick_value: int) -> int
 	return CUSTOMS_LEVEL2_VIOLATION_DEPTH_BIAS
 
 
-func get_inspection_preview(context: Dictionary = {}) -> Dictionary:
+func resolve_customs_inspection_depth(context: Dictionary = {}) -> Dictionary:
 	var system_id: String = String(context.get("system_id", current_system_id))
 	var location_id: String = String(context.get("location_id", current_location_id))
 	var reasons: Array[String] = []
@@ -719,6 +719,10 @@ func get_inspection_preview(context: Dictionary = {}) -> Dictionary:
 		"max_depth": max_depth,
 		"reasons": reasons,
 	}
+
+
+func get_inspection_preview(context: Dictionary = {}) -> Dictionary:
+	return resolve_customs_inspection_depth(context)
 
 
 func get_entry_customs_location_id(system_id: String) -> String:
