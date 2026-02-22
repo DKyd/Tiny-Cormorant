@@ -174,6 +174,7 @@ signal customs_inspection_completed(report: Dictionary)
 
 const CUSTOMS_AUTHENTICITY_THRESHOLD: int = 80
 const CUSTOMS_LEVEL2_LOG_TOP_N: int = 3
+const CUSTOMS_LEVEL2_VERBOSE_LOG: bool = false
 
 
 func _ready() -> void:
@@ -1870,6 +1871,13 @@ func _format_level2_log_snippet(report: Dictionary) -> String:
 	elif classification != "CLEAN":
 		var summary: String = _format_customs_summary(classification, level2.get("reasons", []))
 		message = "%s — %s" % [message, summary]
+	if CUSTOMS_LEVEL2_VERBOSE_LOG:
+		var verbose_payload := {
+			"classification": String(level2.get("classification", "")).to_lower(),
+			"finding_count": int(display_findings.size()),
+			"top_findings": display_findings.slice(0, min(CUSTOMS_LEVEL2_LOG_TOP_N, display_findings.size()), 1, true),
+		}
+		message = "%s [DEV:%s]" % [message, JSON.stringify(verbose_payload)]
 
 	return message
 
