@@ -2381,6 +2381,11 @@ func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
 			"location_id": location_id,
 		})
 		report["level2_audit"] = level2_audit
+		var level2_findings_variant = level2_audit.get("findings", [])
+		if level2_findings_variant is Array:
+			report["level2_evidence_flags"] = (level2_findings_variant as Array).duplicate(true)
+		else:
+			report["level2_evidence_flags"] = []
 		if String(level2_audit.get("classification", "")) == "invalid":
 			apply_customs_pressure_increase(location_id, "level2_invalid")
 
