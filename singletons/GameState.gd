@@ -560,7 +560,28 @@ func _restore_customs_scrutiny_deltas_by_location(saved_variant) -> int:
 	return restored_count
 
 
+func _prune_customs_recent_level2_violation_ticks(current_tick: int) -> void:
+	var normalized_tick: int = max(0, current_tick)
+	var pruned: Dictionary = {}
+	for location_id_variant in customs_recent_level2_violation_tick_by_location.keys():
+		var location_id: String = String(location_id_variant).strip_edges()
+		if location_id == "":
+			continue
+		if Galaxy.get_location(location_id).is_empty():
+			continue
+		var tick_variant = customs_recent_level2_violation_tick_by_location[location_id_variant]
+		if not (tick_variant is int):
+			continue
+		var last_tick: int = max(0, int(tick_variant))
+		var tick_delta: int = normalized_tick - last_tick
+		if tick_delta >= 0 and tick_delta > CUSTOMS_LEVEL2_VIOLATION_WINDOW_TICKS:
+			continue
+		pruned[location_id] = last_tick
+	customs_recent_level2_violation_tick_by_location = pruned
+
+
 func _get_customs_recent_level2_violation_ticks_by_location() -> Dictionary:
+	_prune_customs_recent_level2_violation_ticks(time_tick)
 	var result: Dictionary = {}
 	for location_id_variant in customs_recent_level2_violation_tick_by_location.keys():
 		var location_id: String = String(location_id_variant).strip_edges()
@@ -693,6 +714,8 @@ func resolve_customs_inspection_depth(context: Dictionary = {}) -> Dictionary:
 			"depth_bias": 0,
 			"reasons": ["Missing location context."],
 		}
+
+	_prune_customs_recent_level2_violation_ticks(time_tick)
 
 	var bucket: String = String(get_customs_pressure_bucket(location_id)).strip_edges()
 	if bucket == "":
