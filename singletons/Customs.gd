@@ -76,8 +76,11 @@ func _evaluate_cross_document_invariants(
 	return findings
 
 
-func evaluate_level2_cross_document_invariants(inspection_ctx: Dictionary = {}) -> Array:
-	return _evaluate_cross_document_invariants(inspection_ctx)
+func evaluate_level2_cross_document_invariants(
+	inspection_ctx: Dictionary = {},
+	precomputed_audit: Dictionary = {}
+) -> Array:
+	return _evaluate_cross_document_invariants(inspection_ctx, precomputed_audit)
 
 
 func run_sale_check(system_id: String, location_id: String) -> void:

@@ -2434,7 +2434,7 @@ func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
 			report["level2_evidence_flags"] = (level2_findings_variant as Array).duplicate(true)
 		else:
 			report["level2_evidence_flags"] = []
-		report["invariant_violations"] = Customs._evaluate_cross_document_invariants(
+		report["invariant_violations"] = Customs.evaluate_level2_cross_document_invariants(
 			level2_context,
 			level2_audit
 		)

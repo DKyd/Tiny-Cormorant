@@ -60,7 +60,7 @@ A short, high-level plan (3–6 bullets).
 Only these files may be edited.
 
 - `res://singletons/Customs.gd`
-- `res://singletons/GameState.gd` (read-only access expansion only; no structural mutation)
+- `res://singletons/GameState.gd` (inspection report wiring for Level-2 invariant output; no gameplay/enforcement mutation)
 
 ---
 
