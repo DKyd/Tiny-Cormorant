@@ -59,6 +59,74 @@ func _resolve_inspection_max_depth(system_id: String, location_id: String) -> in
 	return max_depth
 
 
+func _normalize_level2_docs_for_audit(docs_variant) -> Dictionary:
+	var docs_by_id: Dictionary = {}
+	if docs_variant is Dictionary:
+		var source_docs: Dictionary = docs_variant
+		var source_keys: Array = source_docs.keys()
+		source_keys.sort()
+		for key_variant in source_keys:
+			var key: String = String(key_variant).strip_edges()
+			if key == "":
+				continue
+			var value_variant = source_docs[key_variant]
+			if value_variant is Dictionary:
+				var doc: Dictionary = (value_variant as Dictionary).duplicate(true)
+				var doc_id: String = String(doc.get("doc_id", key)).strip_edges()
+				if doc_id == "":
+					doc_id = key
+				doc["doc_id"] = doc_id
+				docs_by_id[doc_id] = doc
+				continue
+			if value_variant is Array:
+				var bucket_docs: Array = value_variant
+				for i in range(bucket_docs.size()):
+					var bucket_doc_variant = bucket_docs[i]
+					if not (bucket_doc_variant is Dictionary):
+						continue
+					var bucket_doc: Dictionary = (bucket_doc_variant as Dictionary).duplicate(true)
+					var bucket_doc_id: String = String(bucket_doc.get("doc_id", "")).strip_edges()
+					if bucket_doc_id == "":
+						bucket_doc_id = "%s_%03d" % [key, i]
+					bucket_doc["doc_id"] = bucket_doc_id
+					if String(bucket_doc.get("doc_type", "")).strip_edges() == "":
+						bucket_doc["doc_type"] = key
+					docs_by_id[bucket_doc_id] = bucket_doc
+
+	var normalized_ids: Array = docs_by_id.keys()
+	normalized_ids.sort()
+	for doc_id_variant in normalized_ids:
+		var doc_id: String = String(doc_id_variant).strip_edges()
+		if doc_id == "":
+			continue
+		if not docs_by_id.has(doc_id):
+			continue
+		var doc_variant = docs_by_id[doc_id]
+		if not (doc_variant is Dictionary):
+			continue
+		var doc: Dictionary = doc_variant
+		var doc_type: String = String(doc.get("doc_type", "")).strip_edges().to_lower()
+		var should_derive_declaration_like: bool = (
+			String(doc_id).begins_with("FDOC-")
+			or doc_type == "contract"
+			or doc_type == "freightdoc"
+			or doc_type == "freight_doc"
+			or doc_type == "freight_docs"
+		)
+		if not should_derive_declaration_like:
+			continue
+		var declaration_like_id: String = "%s__declaration_like" % doc_id
+		if docs_by_id.has(declaration_like_id):
+			continue
+		var declaration_like_doc: Dictionary = doc.duplicate(true)
+		declaration_like_doc["doc_id"] = declaration_like_id
+		declaration_like_doc["doc_type"] = "purchase_order"
+		declaration_like_doc["derived_from_doc_id"] = doc_id
+		docs_by_id[declaration_like_id] = declaration_like_doc
+
+	return docs_by_id
+
+
 func run_level_2_audit(context: Dictionary = {}) -> Dictionary:
 	var normalized_context: Dictionary = context.duplicate(true)
 	if String(normalized_context.get("system_id", "")).strip_edges() == "":
@@ -69,13 +137,16 @@ func run_level_2_audit(context: Dictionary = {}) -> Dictionary:
 			normalized_context["location_id"] = current_location_id
 	if String(normalized_context.get("action", "")).strip_edges() == "":
 		normalized_context["action"] = "UNKNOWN_ACTION"
-	if not normalized_context.has("docs"):
+	var docs_variant = normalized_context.get("docs", null)
+	if docs_variant == null:
 		var chain_snapshot: Dictionary = GameState.get_freightdoc_chain_snapshot()
-		normalized_context["docs"] = chain_snapshot.get("docs", {})
+		docs_variant = chain_snapshot.get("docs", {})
 		if not normalized_context.has("tick"):
 			normalized_context["tick"] = int(chain_snapshot.get("tick", GameState.time_tick))
 	elif not normalized_context.has("tick"):
 		normalized_context["tick"] = int(GameState.time_tick)
+
+	normalized_context["docs"] = _normalize_level2_docs_for_audit(docs_variant)
 	if not normalized_context.has("cargo"):
 		normalized_context["cargo"] = GameState.cargo.duplicate(true)
 	return CustomsLevel2Audit.build_level2_audit(normalized_context)
