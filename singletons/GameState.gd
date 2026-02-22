@@ -406,6 +406,9 @@ func get_customs_pressure(location_id: String) -> float:
 	var gov: float = 0.0
 	if Galaxy.ORG_ID_GOVERNMENT != "":
 		gov = _get_effective_org_influence(location_id, Galaxy.ORG_ID_GOVERNMENT)
+		var scrutiny_from_influences: float = _get_customs_scrutiny_delta_from_delta_influences(loc)
+		var scrutiny_from_field: float = _get_customs_scrutiny_delta_from_location(loc)
+		gov = max(0.0, gov - scrutiny_from_influences + scrutiny_from_field)
 
 	var cartel: float = 0.0
 	if Galaxy.ORG_ID_CARTEL != "":
@@ -441,9 +444,31 @@ func _get_customs_scrutiny_delta_from_location(location: Dictionary) -> float:
 	if location.is_empty():
 		return 0.0
 	var field_variant = location.get(CUSTOMS_SCRUTINY_DELTA_FIELD, 0.0)
-	if not (field_variant is int or field_variant is float):
+	if field_variant is int or field_variant is float:
+		return clamp(float(field_variant), 0.0, 1.0)
+	return _get_customs_scrutiny_delta_from_delta_influences(location)
+
+
+func _get_customs_scrutiny_delta_from_delta_influences(location: Dictionary) -> float:
+	if location.is_empty():
 		return 0.0
-	return clamp(float(field_variant), 0.0, 1.0)
+	if Galaxy.ORG_ID_GOVERNMENT == "":
+		return 0.0
+	var delta_variant = location.get("delta_influences", [])
+	if not (delta_variant is Array):
+		return 0.0
+	var delta: Array = delta_variant
+	var total := 0.0
+	for entry_variant in delta:
+		if not (entry_variant is Dictionary):
+			continue
+		var entry: Dictionary = entry_variant
+		if String(entry.get("org_id", "")) != Galaxy.ORG_ID_GOVERNMENT:
+			continue
+		if String(entry.get("source", "")) != CUSTOMS_SCRUTINY_DELTA_SOURCE:
+			continue
+		total += float(entry.get("weight", 0.0))
+	return clamp(total, 0.0, 1.0)
 
 
 func _set_customs_scrutiny_delta_for_location(jurisdiction_id: String, delta_value: float) -> bool:
