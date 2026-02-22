@@ -1,6 +1,8 @@
 #C res://singletons/Customs.gd
 extends Node
 
+const CustomsLevel2Audit = preload("res://scripts/customs/CustomsLevel2Audit.gd")
+
 # chance of customs inspection by pressure bucket
 var inspection_chance := {
 	"Low": 0.1,
@@ -74,7 +76,9 @@ func run_level_2_audit(context: Dictionary = {}) -> Dictionary:
 			normalized_context["tick"] = int(chain_snapshot.get("tick", GameState.time_tick))
 	elif not normalized_context.has("tick"):
 		normalized_context["tick"] = int(GameState.time_tick)
-	return GameState.run_level2_customs_audit(normalized_context)
+	if not normalized_context.has("cargo"):
+		normalized_context["cargo"] = GameState.cargo.duplicate(true)
+	return CustomsLevel2Audit.build_level2_audit(normalized_context)
 
 
 func _evaluate_cross_document_invariants(
