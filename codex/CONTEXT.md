@@ -134,6 +134,8 @@ Codex must:
 
 If a change would benefit from a refactor, recommend it; do not perform it automatically.
 
+All changes must follow the staged diff review process defined in `codex/README.md`.
+
 ---
 
 ## Assumptions Codex Must NOT Make

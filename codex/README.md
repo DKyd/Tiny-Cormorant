@@ -16,14 +16,61 @@ All work must be performed through a **job** created from a predefined **job typ
 3. A **job instance** is created under `codex/runs/`.
 4. The job template is filled out completely as `job.md`.
 5. Codex executes the job strictly within the rules of that job type.
-6. Codex writes `results.md` in the run folder.
-7. Human reviews diffs and either accepts or requests revisions.
+6. Codex stages allowed changes.
+7. Codex presents the staged diff for review.
+8. Human reviews diffs and either accepts or requests revisions.
+9. Codex writes `results.md` in the run folder after approval.
 
 Codex must not:
 - invent new workflows
 - skip templates
 - combine unrelated changes
 - modify files outside the declared scope
+
+---
+
+## Mandatory Diff Review Policy
+
+All jobs must follow this review gate:
+
+### Primary Gate — Staged Diff Review (Required)
+
+Before writing `results.md` or concluding the job:
+
+Codex must:
+
+1. Stage only allowed files (`git add` respecting job scope).
+2. Run:
+   - `git diff --cached`
+   - `git diff --cached --stat`
+3. Paste the full staged diff in chat.
+4. STOP and wait for human approval.
+
+Codex must not:
+- write `results.md`
+- mark the job complete
+- imply the change is finalized
+
+until the staged diff is approved.
+
+---
+
+## Escalation Rule (Large or Risky Changes)
+
+If a patch is:
+
+- Larger than ~200 lines changed
+- Touching more than 3 files
+- Modifying core systems (e.g., Customs, GameState, serialization)
+- A structural refactor
+
+Codex must pause **before staging** and present a preview diff:
+
+- `git diff`
+- `git diff --stat`
+
+This is a preview gate only when appropriate.
+It is not mandatory for small or contained jobs.
 
 ---
 
