@@ -122,12 +122,16 @@ Before ANY code changes, Codex must run and report:
 - `git status --short`
 - `git log --oneline -n 5 --decorate`
 - `git show HEAD:codex/runs/ACTIVE_RUN.txt`
+- `git fetch origin`
+- `git status -sb`
+- Preferred wrapper: `powershell -ExecutionPolicy Bypass -File codex/tools/git_gates.ps1 -Mode Preflight`
 
 Rules:
 - If `git status --short` is not empty (modified OR untracked files), Codex MUST STOP and ask the user to choose ONE:
   A) Stash WIP (must include untracked): `git stash push -u -m "wip: <short description>"`
   B) Run the current issue’s Closeout Gate (stage → staged diff review → commit → push)
-- Codex must not proceed with any implementation until the working tree is clean.
+- If `git status -sb` shows the branch is behind origin (e.g. `[behind N]`), Codex MUST STOP and instruct `git pull --ff-only` (or stash-or-closeout first if the tree is dirty).
+- Codex must not proceed with any implementation until the working tree is clean AND the branch is not behind origin.
 
 ## Git Postflight & Closeout Gate (Mandatory)
 After implementation is complete, Codex must perform these gates in order:
