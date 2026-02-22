@@ -89,7 +89,7 @@ func _refresh_header() -> void:
 	var loc: Dictionary = GameState.get_current_location()
 
 	if sys_id == "":
-		system_info_label.text = "(unknown system)"
+		system_info_label.text = "(unknown system)\nCustoms scrutiny: Unknown"
 		return
 
 	var system: Dictionary = Galaxy.get_system(sys_id)
@@ -105,7 +105,7 @@ func _refresh_header() -> void:
 	var org_summary: String = _build_org_presence_summary(loc)
 	var customs_bucket: String = GameState.get_customs_pressure_bucket()
 	var customs_line := "Customs: %s" % customs_bucket
-	var preview: Dictionary = GameState.get_inspection_preview({
+	var preview: Dictionary = GameState.resolve_customs_inspection_depth({
 		"system_id": sys_id,
 		"location_id": GameState.current_location_id,
 	})
@@ -122,6 +122,18 @@ func _refresh_header() -> void:
 		]
 	else:
 		preview_line = "Inspection preview (advisory): Unknown"
+	var scrutiny_line: String = "Customs scrutiny: Unknown"
+	if preview_ok:
+		var depth_bias_variant = preview.get("depth_bias", 0)
+		var depth_bias: int = 0
+		if depth_bias_variant is int:
+			depth_bias = int(depth_bias_variant)
+		elif depth_bias_variant is float:
+			depth_bias = int(depth_bias_variant)
+		if depth_bias > 0:
+			scrutiny_line = "Customs scrutiny: Heightened (+%d depth)" % depth_bias
+		else:
+			scrutiny_line = "Customs scrutiny: Normal"
 
 	if loc_name != "":
 		var base_line := "%s / %s  [%s, %s]" % [
@@ -130,7 +142,7 @@ func _refresh_header() -> void:
 			sys_type.capitalize(),
 			sec.capitalize()
 		]
-		var parts: Array = [base_line, customs_line, preview_line]
+		var parts: Array = [base_line, customs_line, scrutiny_line, preview_line]
 		if org_summary != "":
 			parts.append(org_summary)
 		system_info_label.text = "\n".join(parts)
@@ -140,7 +152,7 @@ func _refresh_header() -> void:
 			sys_type.capitalize(),
 			sec.capitalize()
 		]
-		var parts: Array = [base_line, customs_line, preview_line]
+		var parts: Array = [base_line, customs_line, scrutiny_line, preview_line]
 		if org_summary != "":
 			parts.append(org_summary)
 		system_info_label.text = "\n".join(parts)
