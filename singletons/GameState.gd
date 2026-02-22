@@ -1870,6 +1870,9 @@ func _build_level2_display_findings(level2: Dictionary) -> Array:
 
 
 func _format_level2_log_snippet(report: Dictionary) -> String:
+	var invariant_summary: String = String(report.get("level2_invariant_summary", "")).strip_edges()
+	if invariant_summary != "":
+		return invariant_summary
 	var level2_variant = report.get("level2_audit", null)
 	if not (level2_variant is Dictionary):
 		return ""
@@ -1919,6 +1922,52 @@ func _format_level2_log_snippet(report: Dictionary) -> String:
 		message = "%s [DEV:%s]" % [message, JSON.stringify(verbose_payload)]
 
 	return message
+
+
+func _build_level2_invariant_log_summary(report: Dictionary) -> String:
+	var invariant_variant = report.get("invariant_violations", null)
+	if invariant_variant == null:
+		return "Level-2 invariants: unavailable."
+	if not (invariant_variant is Array):
+		return "Level-2 invariants: unavailable."
+	var invariant_violations: Array = invariant_variant
+	if invariant_violations.is_empty():
+		return "Level-2 invariants: none found."
+
+	var display_findings: Array = []
+	for finding_variant in invariant_violations:
+		if not (finding_variant is Dictionary):
+			continue
+		var finding: Dictionary = finding_variant
+		var code: String = String(finding.get("code", "")).strip_edges()
+		if code == "":
+			code = "L2-UNKNOWN"
+		var severity: String = String(finding.get("severity", "")).to_lower()
+		var message: String = String(finding.get("message", "")).strip_edges()
+		if message == "":
+			message = "Issue flagged."
+		display_findings.append({
+			"code": code,
+			"severity": severity,
+			"message": message,
+		})
+
+	display_findings.sort_custom(Callable(self, "_sort_level2_display_findings"))
+	if display_findings.is_empty():
+		return "Level-2 invariants: unavailable."
+
+	var visible_count: int = min(CUSTOMS_LEVEL2_LOG_TOP_N, display_findings.size())
+	var parts: Array[String] = []
+	for i in range(visible_count):
+		var item: Dictionary = display_findings[i]
+		var code: String = String(item.get("code", "")).strip_edges()
+		var reason: String = _trim_for_customs_log(String(item.get("message", "")), 64)
+		parts.append("%s: %s" % [code, reason])
+	var details: String = ", ".join(parts)
+	var remaining: int = display_findings.size() - visible_count
+	if remaining > 0:
+		details = "%s, +%d more" % [details, remaining]
+	return "Level-2 invariants: %d violation(s) [%s]" % [display_findings.size(), details]
 
 
 func get_freightdoc_chain_snapshot() -> Dictionary:
@@ -2438,6 +2487,7 @@ func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
 			level2_context,
 			level2_audit
 		)
+		report["level2_invariant_summary"] = _build_level2_invariant_log_summary(report)
 		if String(level2_audit.get("classification", "")) == "invalid":
 			apply_customs_pressure_increase(location_id, "level2_invalid")
 
