@@ -38,6 +38,26 @@ func _log_inspection(action_label: String, system_id: String, location_id: Strin
 	)
 
 
+func _resolve_inspection_max_depth(system_id: String, location_id: String) -> int:
+	var preview: Dictionary = GameState.get_inspection_preview({
+		"system_id": system_id,
+		"location_id": location_id,
+	})
+	var max_depth: int = int(preview.get("max_depth", 1))
+	if not bool(preview.get("ok", false)):
+		return 1
+	max_depth = clamp(max_depth, 0, 2)
+	var depth_bias: int = int(preview.get("depth_bias", 0))
+	if depth_bias > 0:
+		var location_label: String = _format_location_label(system_id, location_id)
+		Log.add_entry(
+			"CUSTOMS: Heightened scrutiny at %s: +%d inspection depth due to recent Level-2 violations."
+				% [location_label, depth_bias],
+			"CUSTOMS"
+		)
+	return max_depth
+
+
 func run_level_2_audit(context: Dictionary = {}) -> Dictionary:
 	var normalized_context: Dictionary = context.duplicate(true)
 	if String(normalized_context.get("system_id", "")).strip_edges() == "":
@@ -96,14 +116,7 @@ func run_sale_check(system_id: String, location_id: String) -> void:
 	if not GameState.roll_customs_inspection(system_id, location_id, "SELL_CARGO_LEGAL", chance):
 		return
 
-	var preview: Dictionary = GameState.get_inspection_preview({
-		"system_id": system_id,
-		"location_id": location_id,
-	})
-	var max_depth: int = int(preview.get("max_depth", 1))
-	if not bool(preview.get("ok", false)):
-		max_depth = 1
-	max_depth = clamp(max_depth, 0, 2)
+	var max_depth: int = _resolve_inspection_max_depth(system_id, location_id)
 
 	var report: Dictionary = GameState.run_customs_inspection({
 		"system_id": system_id,
@@ -126,14 +139,7 @@ func run_departure_check(system_id: String, location_id: String) -> void:
 	if not GameState.roll_customs_inspection(system_id, location_id, "PORT_DEPARTURE_CLEARANCE", chance):
 		return
 
-	var preview: Dictionary = GameState.get_inspection_preview({
-		"system_id": system_id,
-		"location_id": location_id,
-	})
-	var max_depth: int = int(preview.get("max_depth", 1))
-	if not bool(preview.get("ok", false)):
-		max_depth = 1
-	max_depth = clamp(max_depth, 0, 2)
+	var max_depth: int = _resolve_inspection_max_depth(system_id, location_id)
 
 	var report: Dictionary = GameState.run_customs_inspection({
 		"system_id": system_id,
@@ -158,14 +164,7 @@ func run_entry_check(system_id: String, location_id: String = "") -> void:
 	if not GameState.roll_customs_inspection(system_id, location_id, "ENTRY_CLEARANCE", chance):
 		return  # no customs check this time
 
-	var preview: Dictionary = GameState.get_inspection_preview({
-		"system_id": system_id,
-		"location_id": location_id,
-	})
-	var max_depth: int = int(preview.get("max_depth", 1))
-	if not bool(preview.get("ok", false)):
-		max_depth = 1
-	max_depth = clamp(max_depth, 0, 2)
+	var max_depth: int = _resolve_inspection_max_depth(system_id, location_id)
 
 	var report: Dictionary = GameState.run_customs_inspection({
 		"system_id": system_id,

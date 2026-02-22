@@ -40,6 +40,7 @@ var freight_docs: Array = []          # array of freight doc dictionaries
 var next_freight_doc_id: int = 1
 var next_freight_doc_event_id: int = 1
 var next_customs_inspection_id: int = 1
+var customs_recent_level2_violation_tick_by_location: Dictionary = {}  # location_id -> tick
 var cargo_lines: Array = []           # array of cargo line dictionaries
 var next_cargo_line_id: int = 1
 var _has_initialized_location: bool = false
@@ -377,6 +378,8 @@ const CUSTOMS_PRESSURE_ELEVATED_MAX: float = 0.66
 const CUSTOMS_PRESSURE_ESCALATION_DELTA: float = 0.05
 const CUSTOMS_SCRUTINY_DELTA_FIELD: String = "customs_scrutiny_delta"
 const CUSTOMS_SCRUTINY_DELTA_SOURCE: String = "customs_scrutiny"
+const CUSTOMS_LEVEL2_VIOLATION_WINDOW_TICKS: int = 24
+const CUSTOMS_LEVEL2_VIOLATION_DEPTH_BIAS: int = 1
 
 func get_customs_pressure(location_id: String) -> float:
 	# Deterministic, read-only "pressure" derived from existing world facts.
@@ -557,6 +560,39 @@ func _restore_customs_scrutiny_deltas_by_location(saved_variant) -> int:
 	return restored_count
 
 
+func _get_customs_recent_level2_violation_ticks_by_location() -> Dictionary:
+	var result: Dictionary = {}
+	for location_id_variant in customs_recent_level2_violation_tick_by_location.keys():
+		var location_id: String = String(location_id_variant).strip_edges()
+		if location_id == "":
+			continue
+		var tick_variant = customs_recent_level2_violation_tick_by_location[location_id_variant]
+		if not (tick_variant is int):
+			continue
+		result[location_id] = max(0, int(tick_variant))
+	return result
+
+
+func _restore_customs_recent_level2_violation_ticks_by_location(saved_variant) -> int:
+	customs_recent_level2_violation_tick_by_location = {}
+	if not (saved_variant is Dictionary):
+		return 0
+	var restored_count := 0
+	var saved: Dictionary = saved_variant
+	for location_id_variant in saved.keys():
+		var location_id: String = String(location_id_variant).strip_edges()
+		if location_id == "":
+			continue
+		if Galaxy.get_location(location_id).is_empty():
+			continue
+		var tick_variant = saved[location_id_variant]
+		if not (tick_variant is int):
+			continue
+		customs_recent_level2_violation_tick_by_location[location_id] = max(0, int(tick_variant))
+		restored_count += 1
+	return restored_count
+
+
 func apply_customs_pressure_increase(jurisdiction_id: String, reason: String) -> void:
 	if jurisdiction_id == "":
 		return
@@ -590,6 +626,40 @@ func apply_customs_pressure_increase(jurisdiction_id: String, reason: String) ->
 			% [reason_text, location_name, system_name],
 		"CUSTOMS"
 	)
+
+
+func _record_customs_level2_invariant_violation(location_id: String, tick_value: int) -> void:
+	var normalized_location_id: String = String(location_id).strip_edges()
+	if normalized_location_id == "":
+		return
+	if Galaxy.get_location(normalized_location_id).is_empty():
+		return
+	var normalized_tick: int = max(0, tick_value)
+	customs_recent_level2_violation_tick_by_location[normalized_location_id] = normalized_tick
+
+
+func _get_customs_level2_depth_bias(location_id: String, tick_value: int) -> int:
+	var normalized_location_id: String = String(location_id).strip_edges()
+	if normalized_location_id == "":
+		return 0
+	if not customs_recent_level2_violation_tick_by_location.has(normalized_location_id):
+		return 0
+	var last_tick_variant = customs_recent_level2_violation_tick_by_location.get(
+		normalized_location_id,
+		-1
+	)
+	if not (last_tick_variant is int):
+		return 0
+	var last_tick: int = int(last_tick_variant)
+	var normalized_tick: int = max(0, tick_value)
+	var tick_delta: int = normalized_tick - last_tick
+	if tick_delta < 0:
+		return 0
+	if tick_delta > CUSTOMS_LEVEL2_VIOLATION_WINDOW_TICKS:
+		return 0
+	return CUSTOMS_LEVEL2_VIOLATION_DEPTH_BIAS
+
+
 func get_inspection_preview(context: Dictionary = {}) -> Dictionary:
 	var system_id: String = String(context.get("system_id", current_system_id))
 	var location_id: String = String(context.get("location_id", current_location_id))
@@ -602,6 +672,7 @@ func get_inspection_preview(context: Dictionary = {}) -> Dictionary:
 			"location_id": "",
 			"likelihood": "Unknown",
 			"max_depth": 1,
+			"depth_bias": 0,
 			"reasons": ["Missing system context."],
 		}
 
@@ -619,6 +690,7 @@ func get_inspection_preview(context: Dictionary = {}) -> Dictionary:
 			"location_id": "",
 			"likelihood": "Unknown",
 			"max_depth": 1,
+			"depth_bias": 0,
 			"reasons": ["Missing location context."],
 		}
 
@@ -626,16 +698,24 @@ func get_inspection_preview(context: Dictionary = {}) -> Dictionary:
 	if bucket == "":
 		bucket = "Unknown"
 	reasons.append("Pressure bucket: %s" % bucket)
-	var max_depth := 1
+	var base_max_depth := 1
 	if bucket == "High":
-		max_depth = 2
-	reasons.append("Max depth: %d (%s pressure jurisdiction)." % [max_depth, bucket])
+		base_max_depth = 2
+	var depth_bias: int = _get_customs_level2_depth_bias(location_id, time_tick)
+	var max_depth: int = clamp(base_max_depth + depth_bias, 0, 2)
+	reasons.append("Max depth: %d (%s pressure jurisdiction)." % [base_max_depth, bucket])
+	if depth_bias > 0:
+		reasons.append(
+			"Heightened scrutiny: +%d depth due to recent Level-2 invariant violations."
+				% depth_bias
+		)
 
 	return {
 		"ok": true,
 		"system_id": system_id,
 		"location_id": location_id,
 		"likelihood": bucket,
+		"depth_bias": depth_bias,
 		"max_depth": max_depth,
 		"reasons": reasons,
 	}
@@ -1074,6 +1154,7 @@ func save_game() -> void:
 	"active_contracts": active_contracts,
 	"galaxy_systems": Galaxy.systems,
 "customs_scrutiny_deltas_by_location": _get_customs_scrutiny_deltas_by_location(),
+"customs_recent_level2_violation_tick_by_location": _get_customs_recent_level2_violation_ticks_by_location(),
 
 	# ship-related
 	"ship_name": ship_name,
@@ -1123,6 +1204,9 @@ func load_game() -> void:
 	var restored_customs_scrutiny_deltas: int = _restore_customs_scrutiny_deltas_by_location(
 		data.get("customs_scrutiny_deltas_by_location", {})
 	)
+	var restored_level2_violation_ticks: int = _restore_customs_recent_level2_violation_ticks_by_location(
+		data.get("customs_recent_level2_violation_tick_by_location", {})
+	)
 
 	# restore ship fields
 	ship_name = data.get("ship_name", ship_name)
@@ -1155,6 +1239,12 @@ func load_game() -> void:
 		Log.add_entry(
 			"CUSTOMS: Restored scrutiny escalation at %d location(s)."
 				% restored_customs_scrutiny_deltas,
+			"CUSTOMS"
+		)
+	if restored_level2_violation_ticks > 0:
+		Log.add_entry(
+			"CUSTOMS: Restored Level-2 violation memory at %d location(s)."
+				% restored_level2_violation_ticks,
 			"CUSTOMS"
 		)
 
@@ -2487,6 +2577,9 @@ func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
 			level2_context,
 			level2_audit
 		)
+		var invariant_variant = report.get("invariant_violations", [])
+		if invariant_variant is Array and not (invariant_variant as Array).is_empty():
+			_record_customs_level2_invariant_violation(location_id, time_tick)
 		report["level2_invariant_summary"] = _build_level2_invariant_log_summary(report)
 		if String(level2_audit.get("classification", "")) == "invalid":
 			apply_customs_pressure_increase(location_id, "level2_invalid")
