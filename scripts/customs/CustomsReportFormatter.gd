@@ -130,7 +130,15 @@ static func _build_level2_invariant_sample_from_audit(
 		var severity: String = String(invariant.get("severity", "none")).to_lower().strip_edges()
 		if severity == "":
 			severity = "none"
-		samples.append("%s[%s/%s]" % [invariant_id, status, severity])
+		var reason_suffix: String = ""
+		if status == "not_evaluable":
+			var details_variant = invariant.get("details", null)
+			if details_variant is Dictionary:
+				var details: Dictionary = details_variant
+				var reason: String = String(details.get("reason", "")).strip_edges()
+				if reason != "":
+					reason_suffix = ":%s" % _trim_for_customs_log(reason, 48)
+		samples.append("%s[%s/%s%s]" % [invariant_id, status, severity, reason_suffix])
 
 	samples.sort()
 	var max_count: int = max(level2_log_top_n, 1)
