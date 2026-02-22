@@ -1,4 +1,4 @@
-﻿# res://singletons/GameState.gd
+# res://singletons/GameState.gd
 extends Node
 
 var current_system_id: String = ""
@@ -51,119 +51,8 @@ const BLACK_MARKET_CARTEL_THRESHOLD: float = 0.10
 const EVIDENCE_FLAG_DECLARED_QTY_MODIFIED: String = "declared_quantity_modified"
 const EVIDENCE_FLAG_CONTAINER_META_MODIFIED: String = "container_meta_modified"
 const EVIDENCE_FLAG_DOCUMENT_DESTROYED: String = "document_destroyed"
-const SURFACE_COMPLIANCE_RULES := {
-	"contract": {
-		"required_fields": [
-			"doc_id",
-			"doc_type",
-			"contract_id",
-			"status",
-			"origin_system_id",
-			"destination_system_id",
-			"cargo_lines",
-			"container_meta",
-		],
-		"required_arrays": [
-			"cargo_lines",
-		],
-		"cargo_line_required_fields": [
-			"commodity_id",
-			"declared_qty",
-		],
-		"numeric_fields": [
-			"declared_qty",
-		],
-		"container_meta_required_fields": [
-			"container_id",
-			"seal_state",
-		],
-		"seal_requires_id": true,
-	},
-	"purchase_order": {
-		"required_fields": [
-			"doc_id",
-			"doc_type",
-			"status",
-			"commodity_id",
-			"quantity",
-			"unit_price",
-			"total_cost",
-			"purchase_tick",
-			"purchase_system_id",
-			"purchase_location_id",
-			"container_meta",
-			"cargo_lines",
-		],
-		"required_arrays": [
-			"cargo_lines",
-		],
-		"cargo_line_required_fields": [
-			"commodity_id",
-			"declared_qty",
-		],
-		"numeric_fields": [
-			"quantity",
-			"unit_price",
-			"total_cost",
-			"purchase_tick",
-			"declared_qty",
-		],
-		"container_meta_required_fields": [
-			"container_id",
-			"seal_state",
-		],
-		"seal_requires_id": false,
-	},
-	"bill_of_sale": {
-		"required_fields": [
-			"doc_id",
-			"doc_type",
-			"status",
-			"market_kind",
-			"system_id",
-			"location_id",
-			"tick",
-			"cargo_lines",
-			"container_meta",
-		],
-		"required_arrays": [
-			"cargo_lines",
-		],
-		"cargo_line_required_fields": [
-			"commodity_id",
-			"sold_qty",
-			"unit_price",
-			"total_price",
-			"sources",
-		],
-		"numeric_fields": [
-			"sold_qty",
-			"unit_price",
-			"total_price",
-			"tick",
-			"qty",
-		],
-		"container_meta_required_fields": [
-			"container_id",
-			"seal_state",
-		],
-		"seal_requires_id": false,
-	},
-}
-const SURFACE_ACTION_REQUIREMENTS := {
-	"ENTRY_CLEARANCE": {
-		"required_any_of_doc_types": ["purchase_order", "contract"],
-		"requires_cargo_present": true,
-	},
-	"PORT_DEPARTURE_CLEARANCE": {
-		"required_any_of_doc_types": ["purchase_order", "contract"],
-		"requires_cargo_present": true,
-	},
-	"SELL_CARGO_LEGAL": {
-		"required_any_of_doc_types": ["purchase_order", "contract"],
-		"requires_cargo_present": true,
-	},
-}
+const FreightDocRules = preload("res://scripts/freight/FreightDocRules.gd")
+const CustomsReportFormatter = preload("res://scripts/customs/CustomsReportFormatter.gd")
 
 signal system_changed(new_system_id: String)
 signal location_changed(new_location_id: String)
@@ -1554,212 +1443,10 @@ func _derive_doc_evidence_flags(doc: Dictionary) -> Array:
 	return flags
 
 
-func _is_non_empty_string(value) -> bool:
-	return value is String and value.strip_edges() != ""
-
-
-func _append_surface_issue(issues: Array, code: String, message: String, path: String) -> void:
-	issues.append({
-		"code": code,
-		"message": message,
-		"path": path,
-	})
-
-
-func _validate_numeric_field(value, issues: Array, path: String) -> void:
-	if not (value is int or value is float):
-		_append_surface_issue(issues, "invalid_type", "Expected numeric value.", path)
-		return
-	if float(value) < 0.0:
-		_append_surface_issue(issues, "negative_value", "Value must be non-negative.", path)
-
-
-func _validate_required_field(
-	doc: Dictionary,
-	field: String,
-	issues: Array,
-	path_prefix: String = ""
-) -> void:
-	var path: String = field if path_prefix == "" else "%s.%s" % [path_prefix, field]
-	if not doc.has(field):
-		_append_surface_issue(issues, "missing_field", "Missing required field.", path)
-		return
-	var value = doc.get(field)
-	if value is String and value.strip_edges() == "":
-		_append_surface_issue(issues, "missing_field", "Missing required field.", path)
-
-
-func _validate_container_meta(
-	container_meta_variant,
-	rules: Dictionary,
-	issues: Array
-) -> void:
-	if not (container_meta_variant is Dictionary):
-		_append_surface_issue(issues, "invalid_type", "Container metadata must be a dictionary.", "container_meta")
-		return
-	var container_meta: Dictionary = container_meta_variant
-	for field_variant in rules.get("container_meta_required_fields", []):
-		var field: String = String(field_variant)
-		if not _is_non_empty_string(container_meta.get(field, "")):
-			_append_surface_issue(
-				issues,
-				"missing_field",
-				"Missing required container field.",
-				"container_meta.%s" % field
-			)
-	if bool(rules.get("seal_requires_id", false)) and String(container_meta.get("seal_state", "")) == "sealed":
-		if not _is_non_empty_string(container_meta.get("seal_id", "")):
-			_append_surface_issue(
-				issues,
-				"missing_field",
-				"Missing required container field when sealed.",
-				"container_meta.seal_id"
-			)
-
-
-func _validate_cargo_lines(
-	cargo_lines_variant,
-	rules: Dictionary,
-	issues: Array
-) -> void:
-	if not (cargo_lines_variant is Array):
-		_append_surface_issue(issues, "invalid_type", "Cargo lines must be an array.", "cargo_lines")
-		return
-	var cargo_lines: Array = cargo_lines_variant
-	for index in range(cargo_lines.size()):
-		var line_variant = cargo_lines[index]
-		var path_prefix: String = "cargo_lines[%d]" % index
-		if not (line_variant is Dictionary):
-			_append_surface_issue(issues, "invalid_type", "Cargo line must be a dictionary.", path_prefix)
-			continue
-		var line: Dictionary = line_variant
-		for field_variant in rules.get("cargo_line_required_fields", []):
-			var field: String = String(field_variant)
-			_validate_required_field(line, field, issues, path_prefix)
-			if rules.get("numeric_fields", []).has(field) and line.has(field):
-				_validate_numeric_field(line.get(field), issues, "%s.%s" % [path_prefix, field])
-		if line.has("sources"):
-			var sources_variant = line.get("sources")
-			if not (sources_variant is Array):
-				_append_surface_issue(
-					issues,
-					"invalid_type",
-					"Sources must be an array.",
-					"%s.sources" % path_prefix
-				)
-			else:
-				var sources: Array = sources_variant
-				if sources.is_empty():
-					_append_surface_issue(
-						issues,
-						"missing_field",
-						"Sources must not be empty.",
-						"%s.sources" % path_prefix
-					)
-				for source_index in range(sources.size()):
-					var source_variant = sources[source_index]
-					var source_path: String = "%s.sources[%d]" % [path_prefix, source_index]
-					if not (source_variant is Dictionary):
-						_append_surface_issue(
-							issues,
-							"invalid_type",
-							"Source entry must be a dictionary.",
-							source_path
-						)
-						continue
-					var source: Dictionary = source_variant
-					if not _is_non_empty_string(source.get("doc_id", "")):
-						_append_surface_issue(
-							issues,
-							"missing_field",
-							"Missing required source field.",
-							"%s.doc_id" % source_path
-						)
-					if not source.has("qty"):
-						_append_surface_issue(
-							issues,
-							"missing_field",
-							"Missing required source field.",
-							"%s.qty" % source_path
-						)
-					else:
-						_validate_numeric_field(source.get("qty"), issues, "%s.qty" % source_path)
-
-
-func validate_freight_doc_surface(doc: Dictionary) -> Dictionary:
-	var issues: Array = []
-	var doc_id: String = str(doc.get("doc_id", ""))
-	var doc_type: String = str(doc.get("doc_type", ""))
-
-	if not _is_non_empty_string(doc.get("doc_id", "")):
-		_append_surface_issue(issues, "missing_field", "Missing required field.", "doc_id")
-	if not _is_non_empty_string(doc.get("doc_type", "")):
-		_append_surface_issue(issues, "missing_field", "Missing required field.", "doc_type")
-
-	if doc_type == "" or not SURFACE_COMPLIANCE_RULES.has(doc_type):
-		if doc_type != "":
-			_append_surface_issue(
-				issues,
-				"unsupported_doc_type",
-				"Unsupported document type.",
-				"doc_type"
-			)
-		return {
-			"doc_id": doc_id,
-			"doc_type": doc_type,
-			"ok": issues.is_empty(),
-			"issues": issues,
-		}
-
-	var rules: Dictionary = SURFACE_COMPLIANCE_RULES.get(doc_type, {})
-	for field_variant in rules.get("required_fields", []):
-		var field: String = String(field_variant)
-		_validate_required_field(doc, field, issues)
-
-	for field_variant in rules.get("required_arrays", []):
-		var field: String = String(field_variant)
-		var arr_variant = doc.get(field)
-		if not (arr_variant is Array) or (arr_variant as Array).is_empty():
-			_append_surface_issue(
-				issues,
-				"missing_field",
-				"Required array must be present and non-empty.",
-				field
-			)
-
-	for field_variant in rules.get("numeric_fields", []):
-		var field: String = String(field_variant)
-		if doc.has(field):
-			_validate_numeric_field(doc.get(field), issues, field)
-
-	_validate_container_meta(doc.get("container_meta"), rules, issues)
-	_validate_cargo_lines(doc.get("cargo_lines"), rules, issues)
-
-	return {
-		"doc_id": doc_id,
-		"doc_type": doc_type,
-		"ok": issues.is_empty(),
-		"issues": issues,
-	}
-
-
-func validate_freight_docs_for_action(context: Dictionary = {}) -> Array:
-	var docs_variant = context.get("docs", freight_docs)
-	if not (docs_variant is Array):
-		return []
-	var results: Array = []
-	var docs: Array = docs_variant
-	for doc_variant in docs:
-		if not (doc_variant is Dictionary):
-			continue
-		results.append(validate_freight_doc_surface(doc_variant))
-	return results
-
-
 func _debug_validate_freight_doc_surface(doc: Dictionary, context_label: String) -> void:
 	if not OS.is_debug_build():
 		return
-	var result: Dictionary = validate_freight_doc_surface(doc)
+	var result: Dictionary = FreightDocRules.validate_freight_doc_surface(doc)
 	var issues_variant = result.get("issues", [])
 	if not (issues_variant is Array):
 		return
@@ -1777,314 +1464,10 @@ func _debug_validate_freight_doc_surface(doc: Dictionary, context_label: String)
 	)
 
 
-func _has_positive_cargo(cargo_variant) -> bool:
-	if not (cargo_variant is Dictionary):
-		return false
-	var cargo_dict: Dictionary = cargo_variant
-	for qty_variant in cargo_dict.values():
-		if qty_variant is int or qty_variant is float:
-			if float(qty_variant) > 0.0:
-				return true
-	return false
-
-
-func validate_action_surface_compliance(action: String, context: Dictionary = {}) -> Dictionary:
-	var result := {
-		"action": action,
-		"ok": true,
-		"issues": [],
-	}
-
-	if action == "":
-		return result
-	if not SURFACE_ACTION_REQUIREMENTS.has(action):
-		result.issues.append({
-			"code": "unsupported_action",
-			"message": "Unsupported action for surface compliance.",
-			"path": "action",
-		})
-		result.ok = false
-		return result
-
-	var rules: Dictionary = SURFACE_ACTION_REQUIREMENTS.get(action, {})
-	var cargo_present: bool = _has_positive_cargo(context.get("cargo", cargo))
-	if bool(rules.get("requires_cargo_present", false)) and not cargo_present:
-		return result
-
-	var required_any_variant = rules.get("required_any_of_doc_types", [])
-	if not (required_any_variant is Array) or required_any_variant.is_empty():
-		return result
-
-	var required_any_of: Array = required_any_variant
-	var docs_variant = context.get("docs", freight_docs)
-	var found := false
-	if docs_variant is Array:
-		var docs: Array = docs_variant
-		for doc_variant in docs:
-			if not (doc_variant is Dictionary):
-				continue
-			var doc: Dictionary = doc_variant
-			var doc_type: String = String(doc.get("doc_type", ""))
-			if required_any_of.has(doc_type):
-				found = true
-				break
-
-	if not found:
-		result.issues.append({
-			"code": "missing_required_doc_type",
-			"message": "Missing required document types for action.",
-			"path": "freight_docs.doc_type",
-			"required_any_of_doc_types": required_any_of.duplicate(),
-		})
-		result.ok = false
-
-	return result
-
-
 func _next_customs_inspection_id() -> String:
 	var inspection_id: String = "CINS-%04d" % next_customs_inspection_id
 	next_customs_inspection_id += 1
 	return inspection_id
-
-
-func _ensure_sentence_end(text: String) -> String:
-	var trimmed: String = text.strip_edges()
-	if trimmed == "":
-		return ""
-	if trimmed.ends_with("."):
-		return trimmed
-	return "%s." % trimmed
-
-
-func _extract_reason_message(reason_variant) -> String:
-	if reason_variant is Dictionary:
-		var reason: Dictionary = reason_variant
-		return String(reason.get("message", "")).strip_edges()
-	return String(reason_variant).strip_edges()
-
-
-func _format_customs_summary(classification: String, reasons_variant) -> String:
-	var summary: String = ""
-	if reasons_variant is Array and reasons_variant.size() > 0:
-		summary = _extract_reason_message(reasons_variant[0])
-	if summary == "":
-		if classification == "CLEAN":
-			summary = "No irregularities detected"
-		else:
-			summary = "Inspection flagged issues"
-	return _ensure_sentence_end(summary)
-
-
-func _format_customs_recommendation(report: Dictionary) -> String:
-	var penalty_variant = report.get("recommended_penalty", {})
-	if not (penalty_variant is Dictionary):
-		return ""
-	var penalty: Dictionary = penalty_variant
-	var action: String = String(penalty.get("recommended_action", ""))
-	if action == "":
-		action = String(penalty.get("action", ""))
-	if action != "":
-		return _ensure_sentence_end("Recommended action: %s" % action)
-	var suggested_amount: float = float(penalty.get("suggested_amount", 0.0))
-	if suggested_amount > 0.0:
-		return "Recommended fine: %.0f credits." % suggested_amount
-	return ""
-
-
-func _format_customs_log_entry(report: Dictionary) -> String:
-	var classification_raw: String = String(report.get("classification", "")).to_upper()
-	var classification: String = classification_raw
-	match classification_raw:
-		"CLEAN", "SUSPICIOUS", "INVALID":
-			classification = classification_raw
-		_:
-			classification = "SUSPICIOUS"
-
-	var summary: String = _format_customs_summary(classification, report.get("reasons", []))
-	var recommendation: String = _format_customs_recommendation(report)
-	var message: String = "CUSTOMS: %s — %s" % [classification, summary]
-	if recommendation != "":
-		message = "%s %s" % [message, recommendation]
-	var level2_summary: String = _format_level2_log_snippet(report)
-	if level2_summary != "":
-		message = "%s %s" % [message, level2_summary]
-	return message
-
-func _normalize_customs_classification(raw_value: String) -> String:
-	var classification_raw: String = raw_value.to_upper()
-	match classification_raw:
-		"CLEAN", "SUSPICIOUS", "INVALID":
-			return classification_raw
-		_:
-			return "SUSPICIOUS"
-
-
-func _get_level2_display_severity_rank(severity_value: String) -> int:
-	var severity: String = severity_value.to_lower()
-	if severity == "invalid":
-		return 0
-	if severity == "suspicious":
-		return 1
-	return 2
-
-
-func _sort_level2_display_findings(a: Dictionary, b: Dictionary) -> bool:
-	var rank_a: int = _get_level2_display_severity_rank(String(a.get("severity", "")))
-	var rank_b: int = _get_level2_display_severity_rank(String(b.get("severity", "")))
-	if rank_a != rank_b:
-		return rank_a < rank_b
-	var code_a: String = String(a.get("code", ""))
-	var code_b: String = String(b.get("code", ""))
-	if code_a != code_b:
-		return code_a < code_b
-	var message_a: String = String(a.get("message", ""))
-	var message_b: String = String(b.get("message", ""))
-	return message_a < message_b
-
-
-func _trim_for_customs_log(text: String, max_chars: int = 72) -> String:
-	var trimmed: String = text.strip_edges()
-	if trimmed.length() <= max_chars:
-		return trimmed
-	if max_chars <= 3:
-		return trimmed.substr(0, max(0, max_chars))
-	return "%s..." % trimmed.substr(0, max_chars - 3)
-
-
-func _build_level2_display_findings(level2: Dictionary) -> Array:
-	var findings_variant = level2.get("findings", [])
-	if not (findings_variant is Array):
-		return []
-	var findings: Array = findings_variant
-	var reasons: Array = []
-	var reasons_variant = level2.get("reasons", [])
-	if reasons_variant is Array:
-		reasons = reasons_variant
-
-	var display_findings: Array = []
-	for index in range(findings.size()):
-		var finding_variant = findings[index]
-		if not (finding_variant is Dictionary):
-			continue
-		var finding: Dictionary = finding_variant
-		var code: String = String(finding.get("code", "")).strip_edges()
-		if code == "":
-			continue
-		var severity: String = String(finding.get("severity", "")).to_lower()
-		var message: String = String(finding.get("message", "")).strip_edges()
-		if message == "" and index < reasons.size():
-			message = _extract_reason_message(reasons[index])
-		if message == "":
-			message = "Issue flagged."
-		display_findings.append({
-			"code": code,
-			"severity": severity,
-			"message": message,
-		})
-
-	display_findings.sort_custom(Callable(self, "_sort_level2_display_findings"))
-	return display_findings
-
-
-func _format_level2_log_snippet(report: Dictionary) -> String:
-	var invariant_summary: String = String(report.get("level2_invariant_summary", "")).strip_edges()
-	if invariant_summary != "":
-		return invariant_summary
-	var level2_variant = report.get("level2_audit", null)
-	if not (level2_variant is Dictionary):
-		return ""
-	var level2: Dictionary = level2_variant
-	var classification_raw: String = String(level2.get("classification", ""))
-	if classification_raw == "":
-		return ""
-	var classification: String = _normalize_customs_classification(classification_raw)
-	var message: String = "Level-2: %s" % classification
-	var display_findings: Array = _build_level2_display_findings(level2)
-	if classification != "CLEAN" and not display_findings.is_empty():
-		var visible_count: int = min(CUSTOMS_LEVEL2_LOG_TOP_N, display_findings.size())
-		var parts: Array[String] = []
-		for i in range(visible_count):
-			var item: Dictionary = display_findings[i]
-			var code: String = String(item.get("code", "")).strip_edges()
-			var reason: String = _trim_for_customs_log(String(item.get("message", "")), 64)
-			parts.append("%s: %s" % [code, reason])
-		var details: String = ", ".join(parts)
-		var remaining: int = display_findings.size() - visible_count
-		if remaining > 0:
-			details = "%s, +%d more" % [details, remaining]
-		message = "%s [%s]" % [message, details]
-	elif classification != "CLEAN":
-		var summary: String = _format_customs_summary(classification, level2.get("reasons", []))
-		message = "%s — %s" % [message, summary]
-	if CUSTOMS_LEVEL2_VERBOSE_LOG:
-		var findings_variant = level2.get("findings", [])
-		var total_finding_count: int = display_findings.size()
-		if findings_variant is Array:
-			total_finding_count = (findings_variant as Array).size()
-		var top_findings: Array = []
-		var top_count: int = min(CUSTOMS_LEVEL2_LOG_TOP_N, display_findings.size())
-		for i in range(top_count):
-			var item: Dictionary = display_findings[i]
-			top_findings.append({
-				"code": String(item.get("code", "")).strip_edges(),
-				"severity": String(item.get("severity", "")).strip_edges(),
-				"message": _trim_for_customs_log(String(item.get("message", "")), 64),
-			})
-		var verbose_payload := {
-			"classification": String(level2.get("classification", "")).to_lower(),
-			"total_finding_count": total_finding_count,
-			"display_count": int(display_findings.size()),
-			"top_findings": top_findings,
-		}
-		message = "%s [DEV:%s]" % [message, JSON.stringify(verbose_payload)]
-
-	return message
-
-
-func _build_level2_invariant_log_summary(report: Dictionary) -> String:
-	var invariant_variant = report.get("invariant_violations", null)
-	if invariant_variant == null:
-		return "Level-2 invariants: unavailable."
-	if not (invariant_variant is Array):
-		return "Level-2 invariants: unavailable."
-	var invariant_violations: Array = invariant_variant
-	if invariant_violations.is_empty():
-		return "Level-2 invariants: none found."
-
-	var display_findings: Array = []
-	for finding_variant in invariant_violations:
-		if not (finding_variant is Dictionary):
-			continue
-		var finding: Dictionary = finding_variant
-		var code: String = String(finding.get("code", "")).strip_edges()
-		if code == "":
-			code = "L2-UNKNOWN"
-		var severity: String = String(finding.get("severity", "")).to_lower()
-		var message: String = String(finding.get("message", "")).strip_edges()
-		if message == "":
-			message = "Issue flagged."
-		display_findings.append({
-			"code": code,
-			"severity": severity,
-			"message": message,
-		})
-
-	display_findings.sort_custom(Callable(self, "_sort_level2_display_findings"))
-	if display_findings.is_empty():
-		return "Level-2 invariants: unavailable."
-
-	var visible_count: int = min(CUSTOMS_LEVEL2_LOG_TOP_N, display_findings.size())
-	var parts: Array[String] = []
-	for i in range(visible_count):
-		var item: Dictionary = display_findings[i]
-		var code: String = String(item.get("code", "")).strip_edges()
-		var reason: String = _trim_for_customs_log(String(item.get("message", "")), 64)
-		parts.append("%s: %s" % [code, reason])
-	var details: String = ", ".join(parts)
-	var remaining: int = display_findings.size() - visible_count
-	if remaining > 0:
-		details = "%s, +%d more" % [details, remaining]
-	return "Level-2 invariants: %d violation(s) [%s]" % [display_findings.size(), details]
 
 
 func get_freightdoc_chain_snapshot() -> Dictionary:
@@ -2465,7 +1848,7 @@ func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
 
 	var declared_qty_modified_count := 0
 	var container_meta_modified_count := 0
-	var surface_findings: Array = validate_freight_docs_for_action({
+	var surface_findings: Array = FreightDocRules.validate_freight_docs_for_action({
 		"docs": freight_docs,
 	})
 	var action_surface_result: Dictionary = {}
@@ -2473,7 +1856,7 @@ func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
 	var action_missing_required_docs := 0
 	var action_unsupported := false
 	if action != "":
-		action_surface_result = validate_action_surface_compliance(action, {
+		action_surface_result = FreightDocRules.validate_action_surface_compliance(action, {
 			"docs": freight_docs,
 			"cargo": cargo,
 		})
@@ -2607,11 +1990,21 @@ func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
 		var invariant_variant = report.get("invariant_violations", [])
 		if invariant_variant is Array and not (invariant_variant as Array).is_empty():
 			_record_customs_level2_invariant_violation(location_id, time_tick)
-		report["level2_invariant_summary"] = _build_level2_invariant_log_summary(report)
+		report["level2_invariant_summary"] = CustomsReportFormatter.build_level2_invariant_log_summary(
+			report,
+			CUSTOMS_LEVEL2_LOG_TOP_N
+		)
 		if String(level2_audit.get("classification", "")) == "invalid":
 			apply_customs_pressure_increase(location_id, "level2_invalid")
 
-	Log.add_entry(_format_customs_log_entry(report), "CUSTOMS")
+	Log.add_entry(
+		CustomsReportFormatter.format_customs_log_entry(
+			report,
+			CUSTOMS_LEVEL2_LOG_TOP_N,
+			CUSTOMS_LEVEL2_VERBOSE_LOG
+		),
+		"CUSTOMS"
+	)
 	emit_signal("customs_inspection_completed", report)
 	return report
 
