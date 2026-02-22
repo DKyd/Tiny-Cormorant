@@ -2420,19 +2420,24 @@ func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
 
 	if max_depth >= 2:
 		var chain_snapshot: Dictionary = get_freightdoc_chain_snapshot()
-		var level2_audit: Dictionary = run_level2_customs_audit({
+		var level2_context := {
 			"docs": chain_snapshot.get("docs", {}),
 			"tick": int(chain_snapshot.get("tick", time_tick)),
 			"action": action,
 			"system_id": system_id,
 			"location_id": location_id,
-		})
+		}
+		var level2_audit: Dictionary = Customs.run_level_2_audit(level2_context)
 		report["level2_audit"] = level2_audit
 		var level2_findings_variant = level2_audit.get("findings", [])
 		if level2_findings_variant is Array:
 			report["level2_evidence_flags"] = (level2_findings_variant as Array).duplicate(true)
 		else:
 			report["level2_evidence_flags"] = []
+		report["invariant_violations"] = Customs._evaluate_cross_document_invariants(
+			level2_context,
+			level2_audit
+		)
 		if String(level2_audit.get("classification", "")) == "invalid":
 			apply_customs_pressure_increase(location_id, "level2_invalid")
 

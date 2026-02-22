@@ -58,8 +58,13 @@ func run_level_2_audit(context: Dictionary = {}) -> Dictionary:
 	return GameState.run_level2_customs_audit(normalized_context)
 
 
-func evaluate_level2_cross_document_invariants(inspection_ctx: Dictionary = {}) -> Array:
-	var audit: Dictionary = run_level_2_audit(inspection_ctx)
+func _evaluate_cross_document_invariants(
+	inspection_ctx: Dictionary = {},
+	precomputed_audit: Dictionary = {}
+) -> Array:
+	var audit: Dictionary = precomputed_audit
+	if audit.is_empty():
+		audit = run_level_2_audit(inspection_ctx)
 	var findings_variant = audit.get("findings", [])
 	if not (findings_variant is Array):
 		return []
@@ -69,6 +74,10 @@ func evaluate_level2_cross_document_invariants(inspection_ctx: Dictionary = {}) 
 			continue
 		findings.append((finding_variant as Dictionary).duplicate(true))
 	return findings
+
+
+func evaluate_level2_cross_document_invariants(inspection_ctx: Dictionary = {}) -> Array:
+	return _evaluate_cross_document_invariants(inspection_ctx)
 
 
 func run_sale_check(system_id: String, location_id: String) -> void:
