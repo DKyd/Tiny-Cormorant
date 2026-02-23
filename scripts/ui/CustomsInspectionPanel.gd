@@ -9,6 +9,7 @@ signal close_requested
 @onready var location_value: Label = $MarginContainer/VBoxContainer/MetaGrid/LocationValue
 @onready var classification_value: Label = $MarginContainer/VBoxContainer/MetaGrid/ClassificationValue
 @onready var reasons_text: RichTextLabel = $MarginContainer/VBoxContainer/ReasonsText
+@onready var surface_audit_panel: SurfaceAuditPanel = $MarginContainer/VBoxContainer/SurfaceAuditPanel
 @onready var docs_considered_value: Label = $MarginContainer/VBoxContainer/DocSummaryGrid/DocsConsideredValue
 @onready var destroyed_docs_value: Label = $MarginContainer/VBoxContainer/DocSummaryGrid/DestroyedDocsValue
 @onready var min_authenticity_value: Label = $MarginContainer/VBoxContainer/DocSummaryGrid/MinAuthenticityValue
@@ -39,6 +40,8 @@ func set_report(report: Dictionary) -> void:
 	classification_value.text = str(report.get("classification", "-"))
 
 	reasons_text.text = _format_reasons(report.get("reasons", []))
+	if surface_audit_panel:
+		surface_audit_panel.set_audit(report.get("level1_audit", {}))
 
 	var doc_summary: Dictionary = report.get("doc_summary", {})
 	docs_considered_value.text = str(doc_summary.get("num_docs_considered", 0))
@@ -60,6 +63,8 @@ func _set_empty_report() -> void:
 	location_value.text = "-"
 	classification_value.text = "-"
 	reasons_text.text = "None"
+	if surface_audit_panel:
+		surface_audit_panel.set_audit({})
 	docs_considered_value.text = "0"
 	destroyed_docs_value.text = "0"
 	min_authenticity_value.text = "0"

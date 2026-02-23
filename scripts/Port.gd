@@ -1,6 +1,8 @@
 # res://scripts/Port.gd
 extends Control
 
+const CustomsLevel1Audit = preload("res://scripts/customs/CustomsLevel1Audit.gd")
+
 @onready var title_label: Label = $MarginContainer/VBoxContainer/HeaderRow/TitleLabel
 @onready var system_info_label: Label = $MarginContainer/VBoxContainer/HeaderRow/SystemInfoLabel
 
@@ -450,6 +452,8 @@ func _on_customs_pressed() -> void:
 		"system_id": GameState.current_system_id,
 		"location_id": GameState.current_location_id,
 	})
+	if not report.has("level1_audit"):
+		report["level1_audit"] = _build_level1_audit_snapshot("PORT_CUSTOMS_INSPECTION")
 
 	Log.add_entry("Customs inspection requested: %s." % str(report.get("classification", "unknown")), "CUSTOMS")
 	_show_customs_inspection(report)
@@ -478,3 +482,16 @@ func _show_customs_inspection(report: Dictionary) -> void:
 	# IMPORTANT: call after add_child so @onready vars exist
 	if panel.has_method("set_report"):
 		panel.call_deferred("set_report", report)
+
+
+func _build_level1_audit_snapshot(action: String) -> Dictionary:
+	var chain_snapshot: Dictionary = GameState.get_freightdoc_chain_snapshot()
+	var context := {
+		"system_id": GameState.current_system_id,
+		"location_id": GameState.current_location_id,
+		"action": action,
+		"tick": int(chain_snapshot.get("tick", GameState.time_tick)),
+		"docs": chain_snapshot.get("docs", {}),
+		"cargo": GameState.cargo.duplicate(true),
+	}
+	return CustomsLevel1Audit.build_level1_audit(context)

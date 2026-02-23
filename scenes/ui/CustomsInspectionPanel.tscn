@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://c5g3h3k2x6w0l"]
+[gd_scene load_steps=3 format=3 uid="uid://c5g3h3k2x6w0l"]
 
 [ext_resource type="Script" path="res://scripts/ui/CustomsInspectionPanel.gd" id="1_2c5ux"]
+[ext_resource type="PackedScene" path="res://scenes/ui/SurfaceAuditPanel.tscn" id="2_surface"]
 
 [node name="CustomsInspectionPanel" type="Control"]
 layout_mode = 3
@@ -83,6 +84,9 @@ text = "Reasons"
 layout_mode = 2
 fit_content = true
 text = "None"
+
+[node name="SurfaceAuditPanel" parent="MarginContainer/VBoxContainer" instance=ExtResource("2_surface")]
+layout_mode = 2
 
 [node name="DocSummaryLabel" type="Label" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
