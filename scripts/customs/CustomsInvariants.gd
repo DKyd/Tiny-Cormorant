@@ -17,10 +17,8 @@ const INVARIANT_ID_BILL_SOURCE_OVERSELL: String = "L2INV-009"
 
 static func evaluate(context: Dictionary = {}) -> Array:
 	var docs_by_id: Dictionary = _extract_docs_by_id(context)
-	var cargo_snapshot: Dictionary = _extract_cargo_snapshot(context)
-
 	var results: Array = []
-	results.append(_evaluate_quantity_consistency(docs_by_id, cargo_snapshot))
+	results.append(_evaluate_quantity_consistency_policy_disabled_until_level3(docs_by_id))
 	results.append(_evaluate_origin_destination_consistency_policy_disabled())
 	results.append(_evaluate_timestamp_order_consistency(docs_by_id))
 	results.append(_evaluate_container_meta_consistency(docs_by_id))
@@ -49,22 +47,6 @@ static func _extract_docs_by_id(context: Dictionary) -> Dictionary:
 			continue
 		docs_by_id[doc_id] = (doc_variant as Dictionary).duplicate(true)
 	return docs_by_id
-
-
-static func _extract_cargo_snapshot(context: Dictionary) -> Dictionary:
-	var cargo_variant = context.get("cargo", {})
-	if not (cargo_variant is Dictionary):
-		return {}
-	var source_cargo: Dictionary = cargo_variant
-	var cargo_snapshot: Dictionary = {}
-	var commodity_ids: Array = source_cargo.keys()
-	commodity_ids.sort()
-	for commodity_id_variant in commodity_ids:
-		var commodity_id: String = String(commodity_id_variant).strip_edges()
-		if commodity_id == "":
-			continue
-		cargo_snapshot[commodity_id] = max(0, int(source_cargo[commodity_id_variant]))
-	return cargo_snapshot
 
 
 static func _result(
@@ -149,7 +131,9 @@ static func _collect_declared_totals(doc_entries: Array) -> Dictionary:
 	return totals
 
 
-static func _evaluate_quantity_consistency(docs_by_id: Dictionary, cargo_snapshot: Dictionary) -> Dictionary:
+# L2INV-001 intentionally policy-disabled at Level 2.
+# Runtime cargo reconciliation belongs to Level 3.
+static func _evaluate_quantity_consistency_policy_disabled_until_level3(docs_by_id: Dictionary) -> Dictionary:
 	var declaration_docs: Array = _get_docs_by_type(docs_by_id, ["declaration", "purchase_order"])
 	if declaration_docs.is_empty():
 		return _result(
@@ -157,20 +141,11 @@ static func _evaluate_quantity_consistency(docs_by_id: Dictionary, cargo_snapsho
 			STATUS_NOT_EVALUABLE,
 			"none",
 			3,
-			"Quantity consistency not evaluable: no declaration-like documents found.",
+			"Quantity consistency not evaluable: policy-disabled until Level 3 cargo reconciliation.",
 			_build_not_evaluable_details(
-				"missing_declaration_docs",
-				["docs.declaration_or_purchase_order"]
+				"policy_disabled_until_level3",
+				["level3_cargo_reconciliation"]
 			)
-		)
-	if cargo_snapshot.is_empty():
-		return _result(
-			INVARIANT_ID_QTY,
-			STATUS_NOT_EVALUABLE,
-			"none",
-			3,
-			"Quantity consistency not evaluable: cargo snapshot is unavailable.",
-			_build_not_evaluable_details("missing_cargo_snapshot", ["cargo"])
 		)
 
 	var declared_totals: Dictionary = _collect_declared_totals(declaration_docs)
@@ -192,46 +167,16 @@ static func _evaluate_quantity_consistency(docs_by_id: Dictionary, cargo_snapsho
 			)
 		)
 
-	var commodity_ids: Dictionary = {}
-	for commodity_id_variant in declared_totals.keys():
-		commodity_ids[String(commodity_id_variant)] = true
-	for commodity_id_variant in cargo_snapshot.keys():
-		commodity_ids[String(commodity_id_variant)] = true
-
-	var mismatches: Array = []
-	var sorted_ids: Array = commodity_ids.keys()
-	sorted_ids.sort()
-	for commodity_id_variant in sorted_ids:
-		var commodity_id: String = String(commodity_id_variant)
-		var declared_qty: int = int(declared_totals.get(commodity_id, 0))
-		var cargo_qty: int = int(cargo_snapshot.get(commodity_id, 0))
-		if declared_qty == cargo_qty:
-			continue
-		mismatches.append({
-			"commodity_id": commodity_id,
-			"declared_qty": declared_qty,
-			"cargo_qty": cargo_qty,
-		})
-
-	if not mismatches.is_empty():
-		return _result(
-			INVARIANT_ID_QTY,
-			STATUS_FAIL,
-			"invalid",
-			3,
-			"Declaration quantities do not match cargo totals.",
-			{
-				"mismatch_count": mismatches.size(),
-				"mismatches": mismatches,
-			}
-		)
-
 	return _result(
 		INVARIANT_ID_QTY,
-		STATUS_PASS,
+		STATUS_NOT_EVALUABLE,
 		"none",
 		3,
-		"Declaration quantities match cargo totals."
+		"Quantity consistency not evaluable: policy-disabled until Level 3 cargo reconciliation.",
+		_build_not_evaluable_details(
+			"policy_disabled_until_level3",
+			["level3_cargo_reconciliation"]
+		)
 	)
 
 
@@ -1096,5 +1041,4 @@ static func _evaluate_bill_source_oversell(docs_by_id: Dictionary) -> Dictionary
 		3,
 		"Bill-of-sale source quantities are not oversold."
 	)
-
 
