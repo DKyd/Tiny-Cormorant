@@ -15,6 +15,7 @@ const CHECK_DECLARATION_FIELDS: String = "L1CHK-003"
 const CHECK_BILL_OF_SALE_FIELDS: String = "L1CHK-004"
 const CHECK_CONTAINER_META: String = "L1CHK-005"
 const CHECK_CARGO_SNAPSHOT: String = "L1CHK-006"
+const CHECK_ISSUER_FIELDS: String = "L1CHK-007"
 
 const FINDING_MISSING_DOCS: String = "L1F-001"
 const FINDING_MISSING_DECLARATION_DOCS: String = "L1F-002"
@@ -22,6 +23,7 @@ const FINDING_DECLARATION_FIELD_ISSUE: String = "L1F-003"
 const FINDING_BILL_OF_SALE_FIELD_ISSUE: String = "L1F-004"
 const FINDING_CONTAINER_META_ISSUE: String = "L1F-005"
 const FINDING_MISSING_CARGO_SNAPSHOT: String = "L1F-006"
+const FINDING_ISSUER_FIELD_ISSUE: String = "L1F-007"
 
 
 static func build_level1_audit(ctx: Dictionary) -> Dictionary:
@@ -152,6 +154,43 @@ static func build_level1_audit(ctx: Dictionary) -> Dictionary:
 				SEVERITY_SUSPICIOUS,
 				String(issue.get("code", "missing_required_field")),
 				String(issue.get("message", "Bill-of-sale required field missing.")),
+				issue
+			))
+
+	var issuer_target_docs: Array = _collect_issuer_target_docs(docs_by_id)
+	var issuer_field_issues: Array = _collect_issuer_field_issues(docs_by_id, context)
+	if issuer_target_docs.is_empty():
+		checks.append(_check(
+			CHECK_ISSUER_FIELDS,
+			STATUS_NOT_EVALUABLE,
+			SEVERITY_NONE,
+			"Issuer-field checks not evaluable: no issuer-required docs present.",
+			{"reason": "missing_issuer_target_docs"}
+		))
+	elif issuer_field_issues.is_empty():
+		checks.append(_check(
+			CHECK_ISSUER_FIELDS,
+			STATUS_PASS,
+			SEVERITY_NONE,
+			"Issuer required fields are present."
+		))
+	else:
+		checks.append(_check(
+			CHECK_ISSUER_FIELDS,
+			STATUS_FAIL,
+			SEVERITY_INVALID,
+			"Issuer required-field issues detected.",
+			{"issue_count": issuer_field_issues.size()}
+		))
+		for issue_variant in issuer_field_issues:
+			if not (issue_variant is Dictionary):
+				continue
+			var issue: Dictionary = issue_variant
+			findings.append(_finding(
+				FINDING_ISSUER_FIELD_ISSUE,
+				SEVERITY_INVALID,
+				String(issue.get("code", "missing_issuer_field")),
+				String(issue.get("message", "Issuer required field missing.")),
 				issue
 			))
 
@@ -377,6 +416,68 @@ static func _collect_bill_of_sale_field_issues(bill_docs: Array) -> Array:
 	return issues
 
 
+static func _collect_issuer_target_docs(docs_by_id: Dictionary) -> Array:
+	var docs: Array = []
+	var doc_ids: Array = docs_by_id.keys()
+	doc_ids.sort()
+	for doc_id_variant in doc_ids:
+		var doc_id: String = String(doc_id_variant)
+		var doc_variant = docs_by_id.get(doc_id_variant, {})
+		if not (doc_variant is Dictionary):
+			continue
+		var doc: Dictionary = doc_variant
+		var doc_type: String = String(doc.get("doc_type", "")).strip_edges().to_lower()
+		if doc_type != "purchase_order" and doc_type != "bill_of_sale" and doc_type != "contract":
+			continue
+		docs.append({
+			"doc_id": doc_id,
+			"doc": doc,
+		})
+	return docs
+
+
+static func _collect_issuer_field_issues(docs_by_id: Dictionary, context: Dictionary = {}) -> Array:
+	var issues: Array = []
+	var issuer_docs: Array = _collect_issuer_target_docs(docs_by_id)
+	var context_system_id: String = String(context.get("system_id", "")).strip_edges()
+	var context_location_id: String = String(context.get("location_id", "")).strip_edges()
+	for entry_variant in issuer_docs:
+		if not (entry_variant is Dictionary):
+			continue
+		var entry: Dictionary = entry_variant
+		var doc_id: String = String(entry.get("doc_id", "")).strip_edges()
+		var doc_variant = entry.get("doc", {})
+		if not (doc_variant is Dictionary):
+			continue
+		var doc: Dictionary = doc_variant
+		var doc_type: String = String(doc.get("doc_type", "")).strip_edges().to_lower()
+		var issuer_org_id: String = String(doc.get("issuer_org_id", "")).strip_edges()
+		var issuer_marker: String = String(doc.get("issuer_marker", "")).strip_edges()
+		var missing_fields: Array = []
+		if issuer_org_id == "":
+			missing_fields.append("issuer_org_id")
+		if issuer_marker == "":
+			missing_fields.append("issuer_marker")
+		if missing_fields.is_empty():
+			continue
+		var details: Dictionary = {
+			"doc_id": doc_id,
+			"doc_type": doc_type,
+			"missing_fields": missing_fields.duplicate(),
+		}
+		if context_system_id != "":
+			details["system_id"] = context_system_id
+		if context_location_id != "":
+			details["location_id"] = context_location_id
+		issues.append(_issue(
+			"missing_issuer_required_fields",
+			"Issuer required fields missing on %s: %s."
+				% [doc_id, ", ".join(missing_fields)],
+			details
+		))
+	return issues
+
+
 static func _collect_container_meta_issues(docs_by_id: Dictionary) -> Array:
 	var issues: Array = []
 	var doc_ids: Array = docs_by_id.keys()
@@ -519,3 +620,4 @@ static func _sort_findings_in_place(findings: Array) -> void:
 			if should_swap:
 				findings[i] = right
 				findings[j] = left
+

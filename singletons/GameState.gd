@@ -1231,7 +1231,9 @@ func create_freight_doc_for_contract(contract: Dictionary) -> Dictionary:
 	var origin_id: String = contract.get("origin", current_system_id)
 	var origin_location_id: String = str(contract.get("origin_location_id", current_location_id))
 	var dest_id: String = contract.get("destination", "")
-
+	var contract_market_kind: String = _normalize_market_kind(String(contract.get("market_kind", MARKET_KIND_LEGAL)))
+	var issuer_org_id: String = _resolve_issuer_org_id_for_doc(contract_market_kind)
+	var contract_doc_type: String = "contract"
 	var cargo_lines: Array = []
 
 	# If the contract already has a cargo_lines array, copy it
@@ -1260,9 +1262,11 @@ func create_freight_doc_for_contract(contract: Dictionary) -> Dictionary:
 
 	var doc := {
 		"doc_id": doc_id,
-		"doc_type": "contract",
+		"doc_type": contract_doc_type,
 		"contract_id": contract.get("id", ""),
 		"status": "active",
+		"issuer_org_id": issuer_org_id,
+		"issuer_marker": _build_issuer_marker(contract_doc_type, issuer_org_id),
 
 		"origin_system_id": origin_id,
 		"destination_system_id": dest_id,
@@ -1276,7 +1280,6 @@ func create_freight_doc_for_contract(contract: Dictionary) -> Dictionary:
 
 		"cargo_lines": cargo_lines,
 	}
-
 
 	freight_docs.append(doc)
 	_debug_validate_freight_doc_surface(doc, "create_contract_doc")
@@ -1882,6 +1885,19 @@ func _normalize_market_kind(value: String) -> String:
 	return MARKET_KIND_LEGAL
 
 
+func _resolve_issuer_org_id_for_doc(market_kind: String = MARKET_KIND_LEGAL) -> String:
+	var normalized_market_kind: String = _normalize_market_kind(market_kind)
+	if normalized_market_kind == MARKET_KIND_BLACK_MARKET:
+		return "cartel"
+	return "government"
+
+
+func _build_issuer_marker(doc_type: String, issuer_org_id: String) -> String:
+	var normalized_doc_type: String = String(doc_type).strip_edges().to_lower()
+	var normalized_issuer_org_id: String = String(issuer_org_id).strip_edges().to_lower()
+	return "phase_a_%s_%s" % [normalized_issuer_org_id, normalized_doc_type]
+
+
 func _create_bill_of_sale_doc(
 	cargo_line_id: String,
 	commodity_id: String,
@@ -1899,11 +1915,15 @@ func _create_bill_of_sale_doc(
 	var location: Dictionary = get_current_location()
 	if not location.is_empty():
 		location_name = String(location.get("name", location_id))
+	var issuer_org_id: String = _resolve_issuer_org_id_for_doc(market_kind)
+	var bill_of_sale_doc_type: String = "bill_of_sale"
 
 	var doc := {
 		"doc_id": doc_id,
-		"doc_type": "bill_of_sale",
+		"doc_type": bill_of_sale_doc_type,
 		"status": "active",
+		"issuer_org_id": issuer_org_id,
+		"issuer_marker": _build_issuer_marker(bill_of_sale_doc_type, issuer_org_id),
 
 		"cargo_line_id": cargo_line_id,
 		"commodity_id": commodity_id,
@@ -1966,7 +1986,8 @@ func record_market_purchase(
 		unit_price,
 		total_cost,
 		current_system_id,
-		current_location_id
+		current_location_id,
+		market_kind
 	)
 
 	cargo_lines.append({
@@ -1988,7 +2009,8 @@ func create_purchase_order(
 	unit_price: float,
 	total_cost: float,
 	system_id: String,
-	location_id: String
+	location_id: String,
+	market_kind: String = MARKET_KIND_LEGAL
 ) -> String:
 	var doc_id: String = "FDOC-%04d" % next_freight_doc_id
 	next_freight_doc_id += 1
@@ -1997,11 +2019,15 @@ func create_purchase_order(
 	var location: Dictionary = Galaxy.get_location(location_id)
 	if not location.is_empty():
 		location_name = String(location.get("name", location_id))
+	var issuer_org_id: String = _resolve_issuer_org_id_for_doc(market_kind)
+	var purchase_order_doc_type: String = "purchase_order"
 
 	var doc := {
 		"doc_id": doc_id,
-		"doc_type": "purchase_order",
+		"doc_type": purchase_order_doc_type,
 		"status": "active",
+		"issuer_org_id": issuer_org_id,
+		"issuer_marker": _build_issuer_marker(purchase_order_doc_type, issuer_org_id),
 
 		"commodity_id": commodity_id,
 		"quantity": quantity,
@@ -2246,11 +2272,15 @@ func _create_bill_of_sale_for_sale(
 ) -> String:
 	var doc_id: String = "FDOC-%04d" % next_freight_doc_id
 	next_freight_doc_id += 1
+	var issuer_org_id: String = _resolve_issuer_org_id_for_doc(market_kind)
+	var bill_of_sale_doc_type: String = "bill_of_sale"
 
 	var doc := {
 		"doc_id": doc_id,
-		"doc_type": "bill_of_sale",
+		"doc_type": bill_of_sale_doc_type,
 		"status": "active",
+		"issuer_org_id": issuer_org_id,
+		"issuer_marker": _build_issuer_marker(bill_of_sale_doc_type, issuer_org_id),
 
 		"system_id": system_id,
 		"location_id": location_id,
@@ -2499,4 +2529,3 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 			var text := Economy.get_price_list_text_for_system_at(current_system_id, time_tick, "legal")
 			DisplayServer.clipboard_set(text)
-
