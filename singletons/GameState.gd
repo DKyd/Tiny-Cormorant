@@ -72,7 +72,9 @@ func _ready() -> void:
 
 
 func advance_time(reason: String) -> void:
-	time_tick += 1
+	var tick_delta: int = 1
+	time_tick += tick_delta
+	_apply_customs_scrutiny_decay(tick_delta)
 	var message: String = reason.strip_edges()
 	if message == "":
 		message = "Time advanced"
@@ -80,7 +82,6 @@ func advance_time(reason: String) -> void:
 		message = message.substr(0, message.length() - 1)
 	Log.add_entry("%s. +1 tick." % message)
 	emit_signal("time_advanced", time_tick, reason)
-
 
 func _advance_time_ticks(ticks: int, reason: String) -> void:
 	if ticks <= 0:
@@ -265,6 +266,7 @@ func get_current_location() -> Dictionary:
 const CUSTOMS_PRESSURE_LOW_MAX: float = 0.33
 const CUSTOMS_PRESSURE_ELEVATED_MAX: float = 0.66
 const CUSTOMS_PRESSURE_ESCALATION_DELTA: float = 0.05
+const CUSTOMS_SCRUTINY_DECAY_PER_TICK: float = 0.005
 const CUSTOMS_SCRUTINY_DELTA_FIELD: String = "customs_scrutiny_delta"
 const CUSTOMS_SCRUTINY_DELTA_SOURCE: String = "customs_scrutiny"
 const CUSTOMS_LEVEL2_VIOLATION_WINDOW_TICKS: int = 24
@@ -413,6 +415,29 @@ func _set_customs_scrutiny_delta_for_location(jurisdiction_id: String, delta_val
 	Galaxy.locations[jurisdiction_id] = location
 	return true
 
+
+func _apply_customs_scrutiny_decay(tick_delta: int) -> void:
+	if tick_delta <= 0:
+		return
+	var decay_amount: float = max(0.0, CUSTOMS_SCRUTINY_DECAY_PER_TICK) * float(tick_delta)
+	if decay_amount <= 0.0:
+		return
+	var location_ids: Array = Galaxy.locations.keys()
+	location_ids.sort()
+	for location_id_variant in location_ids:
+		var location_id: String = String(location_id_variant).strip_edges()
+		if location_id == "":
+			continue
+		var location: Dictionary = Galaxy.get_location(location_id)
+		if location.is_empty():
+			continue
+		var current_delta: float = _get_customs_scrutiny_delta_from_location(location)
+		if current_delta <= 0.0:
+			continue
+		var next_delta: float = max(0.0, current_delta - decay_amount)
+		if is_equal_approx(next_delta, current_delta):
+			continue
+		_set_customs_scrutiny_delta_for_location(location_id, next_delta)
 
 func _get_customs_scrutiny_deltas_by_location() -> Dictionary:
 	var result: Dictionary = {}
@@ -2529,3 +2554,4 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 			var text := Economy.get_price_list_text_for_system_at(current_system_id, time_tick, "legal")
 			DisplayServer.clipboard_set(text)
+
