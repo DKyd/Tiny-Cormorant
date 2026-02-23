@@ -8,6 +8,11 @@ const INVARIANT_ID_QTY: String = "L2INV-001"
 const INVARIANT_ID_ROUTE: String = "L2INV-002"
 const INVARIANT_ID_TIME: String = "L2INV-003"
 const INVARIANT_ID_CONTAINER: String = "L2INV-004"
+const INVARIANT_ID_BILL_SOURCE_PRESENCE: String = "L2INV-005"
+const INVARIANT_ID_BILL_SOURCE_TOTALS: String = "L2INV-006"
+const INVARIANT_ID_BILL_SOURCE_DOC_VALIDITY: String = "L2INV-007"
+const INVARIANT_ID_BILL_SOURCE_DESTROYED: String = "L2INV-008"
+const INVARIANT_ID_BILL_SOURCE_OVERSELL: String = "L2INV-009"
 
 
 static func evaluate(context: Dictionary = {}) -> Array:
@@ -19,6 +24,11 @@ static func evaluate(context: Dictionary = {}) -> Array:
 	results.append(_evaluate_origin_destination_consistency_policy_disabled())
 	results.append(_evaluate_timestamp_order_consistency(docs_by_id))
 	results.append(_evaluate_container_meta_consistency(docs_by_id))
+	results.append(_evaluate_bill_source_presence(docs_by_id))
+	results.append(_evaluate_bill_source_totals(docs_by_id))
+	results.append(_evaluate_bill_source_doc_validity(docs_by_id))
+	results.append(_evaluate_bill_source_destroyed_status(docs_by_id))
+	results.append(_evaluate_bill_source_oversell(docs_by_id))
 	return results
 
 
@@ -514,3 +524,577 @@ static func _evaluate_container_meta_consistency(docs_by_id: Dictionary) -> Dict
 			"docs_with_required_fields": docs_with_required_fields,
 		}
 	)
+
+
+
+static func _collect_bill_line_entries(docs_by_id: Dictionary) -> Array:
+	var entries: Array = []
+	var doc_ids: Array = docs_by_id.keys()
+	doc_ids.sort()
+	for doc_id_variant in doc_ids:
+		var doc_id: String = String(doc_id_variant).strip_edges()
+		if doc_id == "":
+			continue
+		var doc_variant = docs_by_id[doc_id_variant]
+		if not (doc_variant is Dictionary):
+			continue
+		var doc: Dictionary = doc_variant
+		if String(doc.get("doc_type", "")).strip_edges() != "bill_of_sale":
+			continue
+		var bill_doc_id: String = String(doc.get("doc_id", doc_id)).strip_edges()
+		if bill_doc_id == "":
+			bill_doc_id = doc_id
+		var cargo_lines_variant = doc.get("cargo_lines", [])
+		if not (cargo_lines_variant is Array):
+			entries.append({
+				"bill_doc_id": bill_doc_id,
+				"line_index": -1,
+				"commodity_id": "",
+				"sold_qty": 0,
+				"sources": null,
+			})
+			continue
+		var cargo_lines: Array = cargo_lines_variant
+		for line_index in range(cargo_lines.size()):
+			var line_variant = cargo_lines[line_index]
+			if not (line_variant is Dictionary):
+				continue
+			var line: Dictionary = line_variant
+			var sold_qty: int = int(line.get("sold_qty", line.get("declared_qty", line.get("quantity", 0))))
+			entries.append({
+				"bill_doc_id": bill_doc_id,
+				"line_index": line_index,
+				"commodity_id": String(line.get("commodity_id", "")).strip_edges(),
+				"sold_qty": sold_qty,
+				"sources": line.get("sources", null),
+			})
+	return entries
+
+
+static func _extract_source_availability_for_math(docs_by_id: Dictionary) -> Dictionary:
+	var availability: Dictionary = {}
+	var doc_ids: Array = docs_by_id.keys()
+	doc_ids.sort()
+	for doc_id_variant in doc_ids:
+		var doc_id: String = String(doc_id_variant).strip_edges()
+		if doc_id == "":
+			continue
+		var doc_variant = docs_by_id[doc_id_variant]
+		if not (doc_variant is Dictionary):
+			continue
+		var doc: Dictionary = doc_variant
+		var doc_type: String = String(doc.get("doc_type", "")).strip_edges()
+		if doc_type != "purchase_order" and doc_type != "contract":
+			continue
+		var source_doc_id: String = String(doc.get("doc_id", doc_id)).strip_edges()
+		if source_doc_id == "":
+			source_doc_id = doc_id
+		var commodity_qty: Dictionary = {}
+		var cargo_lines_variant = doc.get("cargo_lines", [])
+		if cargo_lines_variant is Array:
+			var cargo_lines: Array = cargo_lines_variant
+			for line_variant in cargo_lines:
+				if not (line_variant is Dictionary):
+					continue
+				var line: Dictionary = line_variant
+				var commodity_id: String = String(line.get("commodity_id", "")).strip_edges()
+				if commodity_id == "":
+					continue
+				var qty: int = int(line.get("declared_qty", line.get("quantity", 0)))
+				if qty <= 0:
+					continue
+				commodity_qty[commodity_id] = int(commodity_qty.get(commodity_id, 0)) + qty
+		else:
+			var commodity_id: String = String(doc.get("commodity_id", "")).strip_edges()
+			var qty: int = int(doc.get("quantity", 0))
+			if commodity_id != "" and qty > 0:
+				commodity_qty[commodity_id] = qty
+		availability[source_doc_id] = {
+			"commodity_qty": commodity_qty,
+			"has_quantity_data": not commodity_qty.is_empty(),
+		}
+	return availability
+
+
+static func _sort_chain_issues(issues: Array) -> void:
+	for i in range(issues.size()):
+		for j in range(i + 1, issues.size()):
+			var left_variant = issues[i]
+			var right_variant = issues[j]
+			if not (left_variant is Dictionary) or not (right_variant is Dictionary):
+				continue
+			var left: Dictionary = left_variant
+			var right: Dictionary = right_variant
+			var left_bill: String = String(left.get("bill_doc_id", ""))
+			var right_bill: String = String(right.get("bill_doc_id", ""))
+			var left_line: int = int(left.get("line_index", -1))
+			var right_line: int = int(right.get("line_index", -1))
+			var left_source: int = int(left.get("source_index", -1))
+			var right_source: int = int(right.get("source_index", -1))
+			var left_reason: String = String(left.get("reason", ""))
+			var right_reason: String = String(right.get("reason", ""))
+			var should_swap: bool = false
+			if right_bill < left_bill:
+				should_swap = true
+			elif right_bill == left_bill and right_line < left_line:
+				should_swap = true
+			elif right_bill == left_bill and right_line == left_line and right_source < left_source:
+				should_swap = true
+			elif right_bill == left_bill and right_line == left_line and right_source == left_source and right_reason < left_reason:
+				should_swap = true
+			if should_swap:
+				issues[i] = right
+				issues[j] = left
+
+
+static func _evaluate_bill_source_presence(docs_by_id: Dictionary) -> Dictionary:
+	var line_entries: Array = _collect_bill_line_entries(docs_by_id)
+	if line_entries.is_empty():
+		return _result(
+			INVARIANT_ID_BILL_SOURCE_PRESENCE,
+			STATUS_NOT_EVALUABLE,
+			"none",
+			3,
+			"Bill-of-sale source presence not evaluable: no bill-of-sale documents found.",
+			_build_not_evaluable_details("missing_bill_of_sale_docs", ["docs.bill_of_sale"])
+		)
+	var issues: Array = []
+	for entry_variant in line_entries:
+		if not (entry_variant is Dictionary):
+			continue
+		var entry: Dictionary = entry_variant
+		var sold_qty: int = int(entry.get("sold_qty", 0))
+		if sold_qty <= 0:
+			continue
+		var sources_variant = entry.get("sources", null)
+		var has_sources: bool = sources_variant is Array and not (sources_variant as Array).is_empty()
+		if has_sources:
+			continue
+		issues.append({
+			"reason": "missing_sources",
+			"bill_doc_id": String(entry.get("bill_doc_id", "")),
+			"line_index": int(entry.get("line_index", -1)),
+			"source_index": -1,
+			"commodity_id": String(entry.get("commodity_id", "")),
+			"sold_qty": sold_qty,
+		})
+	if not issues.is_empty():
+		_sort_chain_issues(issues)
+		return _result(
+			INVARIANT_ID_BILL_SOURCE_PRESENCE,
+			STATUS_FAIL,
+			"suspicious",
+			3,
+			"Bill-of-sale lines are missing required source references.",
+			{
+				"reason": "missing_sources",
+				"issue_count": issues.size(),
+				"issues": issues,
+			}
+		)
+	return _result(
+		INVARIANT_ID_BILL_SOURCE_PRESENCE,
+		STATUS_PASS,
+		"none",
+		3,
+		"Bill-of-sale lines include source references."
+	)
+
+
+static func _evaluate_bill_source_totals(docs_by_id: Dictionary) -> Dictionary:
+	var line_entries: Array = _collect_bill_line_entries(docs_by_id)
+	if line_entries.is_empty():
+		return _result(
+			INVARIANT_ID_BILL_SOURCE_TOTALS,
+			STATUS_NOT_EVALUABLE,
+			"none",
+			3,
+			"Bill-of-sale source totals not evaluable: no bill-of-sale documents found.",
+			_build_not_evaluable_details("missing_bill_of_sale_docs", ["docs.bill_of_sale"])
+		)
+	var issues: Array = []
+	for entry_variant in line_entries:
+		if not (entry_variant is Dictionary):
+			continue
+		var entry: Dictionary = entry_variant
+		var sold_qty: int = int(entry.get("sold_qty", 0))
+		if sold_qty <= 0:
+			continue
+		var sources_variant = entry.get("sources", null)
+		if sources_variant != null and not (sources_variant is Array):
+			issues.append({
+				"reason": "sources_field_not_array",
+				"bill_doc_id": String(entry.get("bill_doc_id", "")),
+				"line_index": int(entry.get("line_index", -1)),
+				"source_index": -1,
+				"commodity_id": String(entry.get("commodity_id", "")),
+				"sold_qty": sold_qty,
+			})
+			continue
+		if not (sources_variant is Array):
+			continue
+		var sources: Array = sources_variant
+		var total_source_qty: int = 0
+		for source_variant in sources:
+			if not (source_variant is Dictionary):
+				continue
+			var source: Dictionary = source_variant
+			var source_qty: int = int(source.get("qty", 0))
+			if source_qty <= 0:
+				continue
+			total_source_qty += source_qty
+		if total_source_qty == sold_qty:
+			continue
+		issues.append({
+			"reason": "source_total_mismatch",
+			"bill_doc_id": String(entry.get("bill_doc_id", "")),
+			"line_index": int(entry.get("line_index", -1)),
+			"source_index": -1,
+			"commodity_id": String(entry.get("commodity_id", "")),
+			"sold_qty": sold_qty,
+			"sourced_qty": total_source_qty,
+		})
+	if not issues.is_empty():
+		_sort_chain_issues(issues)
+		return _result(
+			INVARIANT_ID_BILL_SOURCE_TOTALS,
+			STATUS_FAIL,
+			"invalid",
+			3,
+			"Bill-of-sale source totals do not match sold quantities.",
+			{
+				"reason": "source_total_mismatch",
+				"issue_count": issues.size(),
+				"issues": issues,
+			}
+		)
+	return _result(
+		INVARIANT_ID_BILL_SOURCE_TOTALS,
+		STATUS_PASS,
+		"none",
+		3,
+		"Bill-of-sale source totals match sold quantities."
+	)
+
+
+static func _evaluate_bill_source_doc_validity(docs_by_id: Dictionary) -> Dictionary:
+	var line_entries: Array = _collect_bill_line_entries(docs_by_id)
+	if line_entries.is_empty():
+		return _result(
+			INVARIANT_ID_BILL_SOURCE_DOC_VALIDITY,
+			STATUS_NOT_EVALUABLE,
+			"none",
+			3,
+			"Bill-of-sale source validity not evaluable: no bill-of-sale documents found.",
+			_build_not_evaluable_details("missing_bill_of_sale_docs", ["docs.bill_of_sale"])
+		)
+	var source_availability: Dictionary = _extract_source_availability_for_math(docs_by_id)
+	var issues: Array = []
+	for entry_variant in line_entries:
+		if not (entry_variant is Dictionary):
+			continue
+		var entry: Dictionary = entry_variant
+		var sold_qty: int = int(entry.get("sold_qty", 0))
+		if sold_qty <= 0:
+			continue
+		var sources_variant = entry.get("sources", null)
+		if not (sources_variant is Array):
+			continue
+		var sources: Array = sources_variant
+		for source_index in range(sources.size()):
+			var source_variant = sources[source_index]
+			if not (source_variant is Dictionary):
+				continue
+			var source: Dictionary = source_variant
+			var source_doc_id: String = String(source.get("doc_id", "")).strip_edges()
+			var source_qty: int = int(source.get("qty", 0))
+			if source_doc_id == "" or source_qty <= 0:
+				issues.append({
+					"reason": "invalid_source_entry",
+					"severity": "suspicious",
+					"bill_doc_id": String(entry.get("bill_doc_id", "")),
+					"line_index": int(entry.get("line_index", -1)),
+					"source_index": source_index,
+					"source_doc_id": source_doc_id,
+					"source_qty": source_qty,
+				})
+				continue
+			if not docs_by_id.has(source_doc_id):
+				issues.append({
+					"reason": "missing_source_doc",
+					"severity": "invalid",
+					"bill_doc_id": String(entry.get("bill_doc_id", "")),
+					"line_index": int(entry.get("line_index", -1)),
+					"source_index": source_index,
+					"source_doc_id": source_doc_id,
+				})
+				continue
+			var source_doc_variant = docs_by_id[source_doc_id]
+			if not (source_doc_variant is Dictionary):
+				issues.append({
+					"reason": "missing_source_doc",
+					"severity": "invalid",
+					"bill_doc_id": String(entry.get("bill_doc_id", "")),
+					"line_index": int(entry.get("line_index", -1)),
+					"source_index": source_index,
+					"source_doc_id": source_doc_id,
+				})
+				continue
+			var source_doc: Dictionary = source_doc_variant
+			var source_doc_type: String = String(source_doc.get("doc_type", "")).strip_edges()
+			if source_doc_type != "purchase_order" and source_doc_type != "contract":
+				issues.append({
+					"reason": "disallowed_source_doc_type",
+					"severity": "invalid",
+					"bill_doc_id": String(entry.get("bill_doc_id", "")),
+					"line_index": int(entry.get("line_index", -1)),
+					"source_index": source_index,
+					"source_doc_id": source_doc_id,
+					"source_doc_type": source_doc_type,
+				})
+				continue
+			var source_math: Dictionary = source_availability.get(source_doc_id, {})
+			if not bool(source_math.get("has_quantity_data", false)):
+				issues.append({
+					"reason": "missing_source_quantity_data",
+					"severity": "suspicious",
+					"bill_doc_id": String(entry.get("bill_doc_id", "")),
+					"line_index": int(entry.get("line_index", -1)),
+					"source_index": source_index,
+					"source_doc_id": source_doc_id,
+				})
+				continue
+			var commodity_id: String = String(entry.get("commodity_id", "")).strip_edges()
+			var commodity_qty: Dictionary = source_math.get("commodity_qty", {})
+			if int(commodity_qty.get(commodity_id, 0)) <= 0:
+				issues.append({
+					"reason": "source_missing_commodity",
+					"severity": "invalid",
+					"bill_doc_id": String(entry.get("bill_doc_id", "")),
+					"line_index": int(entry.get("line_index", -1)),
+					"source_index": source_index,
+					"source_doc_id": source_doc_id,
+					"commodity_id": commodity_id,
+				})
+	if not issues.is_empty():
+		_sort_chain_issues(issues)
+		var severity: String = "suspicious"
+		for issue_variant in issues:
+			if not (issue_variant is Dictionary):
+				continue
+			var issue: Dictionary = issue_variant
+			if String(issue.get("severity", "")).strip_edges() == "invalid":
+				severity = "invalid"
+				break
+		return _result(
+			INVARIANT_ID_BILL_SOURCE_DOC_VALIDITY,
+			STATUS_FAIL,
+			severity,
+			3,
+			"Bill-of-sale source documents failed validity checks.",
+			{
+				"issue_count": issues.size(),
+				"issues": issues,
+			}
+		)
+	return _result(
+		INVARIANT_ID_BILL_SOURCE_DOC_VALIDITY,
+		STATUS_PASS,
+		"none",
+		3,
+		"Bill-of-sale source documents are valid."
+	)
+
+
+static func _evaluate_bill_source_destroyed_status(docs_by_id: Dictionary) -> Dictionary:
+	var line_entries: Array = _collect_bill_line_entries(docs_by_id)
+	if line_entries.is_empty():
+		return _result(
+			INVARIANT_ID_BILL_SOURCE_DESTROYED,
+			STATUS_NOT_EVALUABLE,
+			"none",
+			3,
+			"Bill-of-sale source destruction check not evaluable: no bill-of-sale documents found.",
+			_build_not_evaluable_details("missing_bill_of_sale_docs", ["docs.bill_of_sale"])
+		)
+	var issues: Array = []
+	for entry_variant in line_entries:
+		if not (entry_variant is Dictionary):
+			continue
+		var entry: Dictionary = entry_variant
+		var sold_qty: int = int(entry.get("sold_qty", 0))
+		if sold_qty <= 0:
+			continue
+		var sources_variant = entry.get("sources", null)
+		if not (sources_variant is Array):
+			continue
+		var sources: Array = sources_variant
+		for source_index in range(sources.size()):
+			var source_variant = sources[source_index]
+			if not (source_variant is Dictionary):
+				continue
+			var source: Dictionary = source_variant
+			var source_doc_id: String = String(source.get("doc_id", "")).strip_edges()
+			if source_doc_id == "" or not docs_by_id.has(source_doc_id):
+				continue
+			var source_doc_variant = docs_by_id[source_doc_id]
+			if not (source_doc_variant is Dictionary):
+				continue
+			var source_doc: Dictionary = source_doc_variant
+			if not bool(source_doc.get("is_destroyed", false)):
+				continue
+			issues.append({
+				"reason": "destroyed_source_doc",
+				"bill_doc_id": String(entry.get("bill_doc_id", "")),
+				"line_index": int(entry.get("line_index", -1)),
+				"source_index": source_index,
+				"source_doc_id": source_doc_id,
+			})
+	if not issues.is_empty():
+		_sort_chain_issues(issues)
+		return _result(
+			INVARIANT_ID_BILL_SOURCE_DESTROYED,
+			STATUS_FAIL,
+			"invalid",
+			3,
+			"Bill-of-sale references include destroyed source documents.",
+			{
+				"reason": "destroyed_source_doc",
+				"issue_count": issues.size(),
+				"issues": issues,
+			}
+		)
+	return _result(
+		INVARIANT_ID_BILL_SOURCE_DESTROYED,
+		STATUS_PASS,
+		"none",
+		3,
+		"Bill-of-sale sources do not reference destroyed documents."
+	)
+
+
+static func _evaluate_bill_source_oversell(docs_by_id: Dictionary) -> Dictionary:
+	var line_entries: Array = _collect_bill_line_entries(docs_by_id)
+	if line_entries.is_empty():
+		return _result(
+			INVARIANT_ID_BILL_SOURCE_OVERSELL,
+			STATUS_NOT_EVALUABLE,
+			"none",
+			3,
+			"Bill-of-sale oversell check not evaluable: no bill-of-sale documents found.",
+			_build_not_evaluable_details("missing_bill_of_sale_docs", ["docs.bill_of_sale"])
+		)
+	var source_availability: Dictionary = _extract_source_availability_for_math(docs_by_id)
+	var sold_by_source: Dictionary = {}
+	var missing_availability_issues: Array = []
+	for entry_variant in line_entries:
+		if not (entry_variant is Dictionary):
+			continue
+		var entry: Dictionary = entry_variant
+		var commodity_id: String = String(entry.get("commodity_id", "")).strip_edges()
+		if commodity_id == "":
+			continue
+		var sold_qty: int = int(entry.get("sold_qty", 0))
+		if sold_qty <= 0:
+			continue
+		var sources_variant = entry.get("sources", null)
+		if not (sources_variant is Array):
+			continue
+		var sources: Array = sources_variant
+		for source_index in range(sources.size()):
+			var source_variant = sources[source_index]
+			if not (source_variant is Dictionary):
+				continue
+			var source: Dictionary = source_variant
+			var source_doc_id: String = String(source.get("doc_id", "")).strip_edges()
+			var source_qty: int = int(source.get("qty", 0))
+			if source_doc_id == "" or source_qty <= 0:
+				continue
+			if not docs_by_id.has(source_doc_id):
+				continue
+			var source_doc_variant = docs_by_id[source_doc_id]
+			if not (source_doc_variant is Dictionary):
+				continue
+			var source_doc: Dictionary = source_doc_variant
+			var source_doc_type: String = String(source_doc.get("doc_type", "")).strip_edges()
+			if source_doc_type != "purchase_order" and source_doc_type != "contract":
+				continue
+			var source_math: Dictionary = source_availability.get(source_doc_id, {})
+			var has_qty_data: bool = bool(source_math.get("has_quantity_data", false))
+			var commodity_qty: Dictionary = source_math.get("commodity_qty", {})
+			var has_commodity: bool = commodity_qty.has(commodity_id)
+			if not has_qty_data or not has_commodity:
+				missing_availability_issues.append({
+					"reason": "missing_availability_for_source",
+					"bill_doc_id": String(entry.get("bill_doc_id", "")),
+					"line_index": int(entry.get("line_index", -1)),
+					"source_index": source_index,
+					"source_doc_id": source_doc_id,
+					"commodity_id": commodity_id,
+				})
+				continue
+			var key: String = "%s|%s" % [source_doc_id, commodity_id]
+			sold_by_source[key] = int(sold_by_source.get(key, 0)) + source_qty
+	if not missing_availability_issues.is_empty():
+		_sort_chain_issues(missing_availability_issues)
+		return _result(
+			INVARIANT_ID_BILL_SOURCE_OVERSELL,
+			STATUS_FAIL,
+			"suspicious",
+			3,
+			"Bill-of-sale oversell check failed: missing availability for one or more sources.",
+			{
+				"reason": "missing_availability_for_source",
+				"issue_count": missing_availability_issues.size(),
+				"issues": missing_availability_issues,
+			}
+		)
+	var oversold_issues: Array = []
+	var sold_keys: Array = sold_by_source.keys()
+	sold_keys.sort()
+	for sold_key_variant in sold_keys:
+		var sold_key: String = String(sold_key_variant)
+		var parts: Array = sold_key.split("|")
+		if parts.size() != 2:
+			continue
+		var source_doc_id: String = parts[0]
+		var commodity_id: String = parts[1]
+		var sold_qty: int = int(sold_by_source.get(sold_key, 0))
+		var source_math: Dictionary = source_availability.get(source_doc_id, {})
+		var commodity_qty: Dictionary = source_math.get("commodity_qty", {})
+		var available_qty: int = int(commodity_qty.get(commodity_id, 0))
+		if sold_qty <= available_qty:
+			continue
+		oversold_issues.append({
+			"reason": "source_oversold",
+			"bill_doc_id": "",
+			"line_index": -1,
+			"source_index": -1,
+			"source_doc_id": source_doc_id,
+			"commodity_id": commodity_id,
+			"sold_qty": sold_qty,
+			"available_qty": available_qty,
+		})
+	if not oversold_issues.is_empty():
+		_sort_chain_issues(oversold_issues)
+		return _result(
+			INVARIANT_ID_BILL_SOURCE_OVERSELL,
+			STATUS_FAIL,
+			"invalid",
+			3,
+			"Bill-of-sale sources are oversold against available documentary quantities.",
+			{
+				"reason": "source_oversold",
+				"issue_count": oversold_issues.size(),
+				"issues": oversold_issues,
+			}
+		)
+	return _result(
+		INVARIANT_ID_BILL_SOURCE_OVERSELL,
+		STATUS_PASS,
+		"none",
+		3,
+		"Bill-of-sale source quantities are not oversold."
+	)
+
+
