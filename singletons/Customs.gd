@@ -2,6 +2,7 @@
 extends Node
 
 const CustomsLevel2Audit = preload("res://scripts/customs/CustomsLevel2Audit.gd")
+const CustomsLevel1Audit = preload("res://scripts/customs/CustomsLevel1Audit.gd")
 
 # chance of customs inspection by pressure bucket
 var inspection_chance := {
@@ -177,6 +178,30 @@ func evaluate_level2_cross_document_invariants(
 	return _evaluate_cross_document_invariants(inspection_ctx, precomputed_audit)
 
 
+func _build_level1_context(system_id: String, location_id: String, action: String) -> Dictionary:
+	var chain_snapshot: Dictionary = GameState.get_freightdoc_chain_snapshot()
+	return {
+		"system_id": system_id,
+		"location_id": location_id,
+		"action": action,
+		"tick": int(chain_snapshot.get("tick", GameState.time_tick)),
+		"docs": _normalize_level2_docs_for_audit(chain_snapshot.get("docs", {})),
+		"cargo": GameState.cargo.duplicate(true),
+	}
+
+
+func _resolve_actual_inspection_depth(report: Dictionary) -> int:
+	var depth_fields: Array[String] = [
+		"depth",
+		"inspection_depth",
+		"max_depth_reached",
+	]
+	for field in depth_fields:
+		if report.has(field):
+			return max(0, int(report.get(field, 0)))
+	return 0
+
+
 func run_sale_check(system_id: String, location_id: String) -> void:
 	if system_id == "" or location_id == "":
 		return
@@ -198,6 +223,10 @@ func run_sale_check(system_id: String, location_id: String) -> void:
 		"action": "SELL_CARGO_LEGAL",
 		"max_depth": max_depth,
 	})
+	if _resolve_actual_inspection_depth(report) >= 1:
+		report["level1_audit"] = CustomsLevel1Audit.build_level1_audit(
+			_build_level1_context(system_id, location_id, "SELL_CARGO_LEGAL")
+		)
 	_log_inspection("Sale", system_id, location_id, report)
 
 func run_departure_check(system_id: String, location_id: String) -> void:
@@ -221,6 +250,10 @@ func run_departure_check(system_id: String, location_id: String) -> void:
 		"action": "PORT_DEPARTURE_CLEARANCE",
 		"max_depth": max_depth,
 	})
+	if _resolve_actual_inspection_depth(report) >= 1:
+		report["level1_audit"] = CustomsLevel1Audit.build_level1_audit(
+			_build_level1_context(system_id, location_id, "PORT_DEPARTURE_CLEARANCE")
+		)
 	_log_inspection("Departure clearance", system_id, location_id, report)
 
 func run_entry_check(system_id: String, location_id: String = "") -> void:
@@ -246,4 +279,8 @@ func run_entry_check(system_id: String, location_id: String = "") -> void:
 		"action": "ENTRY_CLEARANCE",
 		"max_depth": max_depth,
 	})
+	if _resolve_actual_inspection_depth(report) >= 1:
+		report["level1_audit"] = CustomsLevel1Audit.build_level1_audit(
+			_build_level1_context(system_id, location_id, "ENTRY_CLEARANCE")
+		)
 	_log_inspection("Entry clearance", system_id, location_id, report)
