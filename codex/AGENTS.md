@@ -29,6 +29,7 @@ Codex governance lives under `codex/`.
 - Run the git preflight gate before any implementation or governance edits.
 - Stop before implementation if the working tree is dirty, contains staged changes, contains untracked files, or is behind origin.
 - Do not modify files outside the whitelist in the active `job.md`.
+- Treat planning job outputs as advisory unless they are converted into a complete future `job.md` or the human explicitly authorizes an active run to continue.
 - Do not modify `data/**`.
 - Do not modify `scenes/MainGame.tscn` unless explicitly allowed by `job.md`.
 - No refactors unless explicitly requested.

@@ -128,6 +128,10 @@ It is not mandatory for small or contained jobs.
     - `template.md`
     - `rules.md`
     - `config.md`
+  - `planning/`
+    - `template.md`
+    - `rules.md`
+    - `config.md`
   - `governance/`
     - `template.md`
     - `rules.md`
@@ -161,16 +165,22 @@ Use when fixing broken behavior, crashes, or regressions with minimal changes.
 ### `refactor/`
 Use when improving structure or readability without functional changes.
 
+### `planning/`
+Use when reconciling roadmap state, decomposing milestones, sequencing candidate jobs, or scoping implementation safely without authorizing runtime changes.
+
 ### `governance/`
 Use when updating Codex process, policy, templates, rules, or other governance assets without changing runtime behavior.
 
 If unsure:
 1. `bugfix` if something is broken
 2. `feature` if something new is being added
-3. `governance` if the change is process or policy only
-4. `refactor` only when explicitly improving existing code
+3. `planning` if the change is roadmap, milestone, or non-executable job-sequencing work
+4. `governance` if the change is process or policy only
+5. `refactor` only when explicitly improving existing code
 
 If ambiguity remains, Codex must stop and ask.
+
+Planning job outputs are advisory until converted into complete executable job templates or explicit active-run instructions.
 
 ---
 
