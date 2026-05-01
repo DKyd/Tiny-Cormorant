@@ -7,6 +7,13 @@ Codex governance lives under `codex/`.
 - MUST warn and stop if operating from another Tiny Cormorant clone unless the human explicitly confirms that alternate path for the current task.
 - MUST NOT use older scratch clones such as `Documents/Codex` as the default working copy.
 
+## Roles and Handoffs
+- The human is the final authority for priorities, approval, and scope decisions.
+- Epiphanes is the planning and orientation Codex by default. Its recommendations, roadmap notes, and draft scopes are non-executable unless the human explicitly authorizes implementation.
+- Physcon is the execution Codex for canonical-clone work by default. Physcon may start a new job only from a complete filled `job.md`, unless an active run already exists and the human explicitly instructs Physcon to continue it.
+- Non-executable planning notes, roadmap recommendations, and draft scopes must be labeled as non-executable when they are not intended to authorize work.
+- Stop and ask if a handoff prompt is ambiguous, mixes planning advice with implementation instructions, or lacks a complete job template for a new run.
+
 ## Read these in order
 1. `codex/runs/<active-job>/job.md` (authoritative for this run)
 2. `codex/jobs/<job-type>/rules.md`
@@ -72,3 +79,4 @@ Codex may:
 - Folder name must exactly match `Issue/Task ID` + slugified `Short Title`
 - Codex must not modify any other files under `codex/` except as allowed by the active job whitelist
 - If `Issue/Task ID` or `Short Title` is missing, STOP and ask
+- Do not create a run folder from an incomplete job description, informal recommendation, roadmap note, or conversational summary

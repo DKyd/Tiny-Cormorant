@@ -115,6 +115,16 @@ How a human verifies the governance change by reading files and or running git c
 
 ---
 
+## Handoff Protocol (Mandatory)
+- The human is the final authority for priority, approval, and scope.
+- Epiphanes is the planning and orientation Codex by default unless the human explicitly assigns it implementation authority for a specific job.
+- Physcon is the execution Codex for canonical-clone work by default unless the human explicitly assigns execution elsewhere.
+- A new executable job must start from a complete filled `job.md`, unless an active run already exists and the human explicitly instructs Physcon to continue it.
+- Non-executable planning notes, roadmap recommendations, and draft scopes must be labeled as non-executable when they are not intended to authorize work.
+- If a prompt is ambiguous, incomplete, or mixes planning advice with implementation instructions, Codex must stop and ask before starting a new job or editing files.
+
+---
+
 ## Canonical Workspace Rule (Mandatory)
 - Codex must treat `C:\Users\akaph\Desktop\Ozark Interactive\Games\Tiny Cormorant` as the canonical local Tiny Cormorant workspace unless the human explicitly names another path for the current job.
 - If Codex detects a non-canonical Tiny Cormorant clone, it must warn and stop until the human confirms that alternate path.
@@ -178,6 +188,8 @@ Codex must perform the following before any changes when the human has provided 
 2. Write the job text verbatim to `codex/runs/<Run Folder Name>/job.md`
 3. Create `codex/runs/<Run Folder Name>/results.md` if missing
 4. Write `codex/runs/ACTIVE_RUN.txt` = `<Run Folder Name>`
+
+Codex must not create a run folder from an incomplete job description, an informal recommendation, or a non-executable planning note.
 
 Codex must write final results only to:
 - `codex/runs/<Run Folder Name>/results.md`

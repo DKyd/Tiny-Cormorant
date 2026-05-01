@@ -17,16 +17,26 @@ All work must be performed through a job created from a predefined job type.
 
 ---
 
+## Roles and Handoffs
+- The human is the final authority for priority, approval, and scope.
+- Epiphanes is the planning and orientation Codex by default. Recommendations, roadmap notes, and draft scopes from Epiphanes are non-executable unless the human explicitly authorizes implementation.
+- Physcon is the execution Codex for canonical-clone work by default. Physcon may start a new job only from a complete filled `job.md`, unless the active run already exists and the human explicitly instructs Physcon to continue it.
+- Discussion, recommendations, and roadmap thinking must be distinguished from executable job authorization.
+- If a prompt is ambiguous, mixes planning advice with implementation instructions, or lacks a complete job template for a new run, Codex must stop and ask.
+
+---
+
 ## High-Level Workflow
 1. A Git issue or task is identified.
 2. The human selects an appropriate job type.
-3. A job instance is created under `codex/runs/`.
-4. The job template is filled out completely as `job.md`.
-5. Codex runs the preflight gate from the active clone before making changes.
-6. Codex executes the job strictly within the rules of that job type.
-7. Codex stages only allowed changes.
-8. Codex prints the staged diff review gate.
-9. If the staged set is whitelist-clean and no gate violation exists, Codex runs closeout and writes `results.md`.
+3. For a new executable job, the human provides a complete filled `job.md`.
+4. A job instance is created under `codex/runs/`.
+5. The job template is stored as `job.md`.
+6. Physcon runs the preflight gate from the active clone before making changes.
+7. Physcon executes the job strictly within the rules of that job type.
+8. Physcon stages only allowed changes.
+9. Physcon prints the staged diff review gate.
+10. If the staged set is whitelist-clean and no gate violation exists, Physcon runs closeout and writes `results.md`.
 
 Codex must not:
 - invent new workflows
@@ -34,6 +44,7 @@ Codex must not:
 - combine unrelated changes
 - modify files outside the declared scope
 - continue after a git gate stop condition without human resolution
+- treat recommendations, roadmap notes, or informal chat summaries as executable job authorization by themselves
 
 ---
 
@@ -221,3 +232,4 @@ Stop and ask for clarification.
 - Codex may create a new run folder only when the human has provided a complete job template for the current task and the new paths are allowed by that job.
 - Codex must not write `results.md` anywhere except `codex/runs/<active-run>/results.md`.
 - Codex must not create, modify, or rely on undocumented clone-selection behavior.
+- Codex must not create a run folder from an incomplete job description or mixed planning-and-implementation prompt.

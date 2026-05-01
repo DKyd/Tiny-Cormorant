@@ -8,6 +8,14 @@ Governance jobs modify process and policy, not gameplay.
 - If Codex detects a non-canonical Tiny Cormorant clone, it must warn and stop.
 - Older scratch clones, including `Documents/Codex`, must not be treated as the default working copy.
 
+## Roles and Handoffs
+- The human is the final authority for priority, approval, and scope.
+- Epiphanes is the planning and orientation Codex by default unless the human explicitly assigns it implementation authority for a specific job.
+- Physcon is the execution Codex for canonical-clone work by default unless the human explicitly assigns execution elsewhere.
+- Recommendations, roadmap notes, and draft scopes are non-executable unless the human explicitly converts them into a complete job template or explicitly authorizes continuation of an active run.
+- Governance must preserve a clear boundary between planning discussion and executable job authorization.
+- Codex must stop and ask if a handoff prompt is ambiguous, incomplete, or mixes planning advice with implementation instructions.
+
 ## Allowed Intent
 - Amend governance documents (AGENTS, Codex rules or configs, job templates, README, CONTEXT).
 - Add or update job types under `codex/jobs/**`.
@@ -22,6 +30,7 @@ Governance jobs modify process and policy, not gameplay.
 - Any new governance rules must be auditable and testable by reading files and or running `git` commands.
 - Rules must be phrased as MUST or MUST NOT where appropriate.
 - Governance must keep run-folder bootstrap authority consistent across the active governance surfaces.
+- Governance must not allow an incomplete job description or informal recommendation to become executable scope by itself.
 
 ## Files and New Files
 - Modifications are restricted to the whitelist in the active `job.md`.
