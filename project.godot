@@ -28,7 +28,7 @@ Economy="*res://singletons/Economy.gd"
 Contracts="*res://singletons/Contracts.gd"
 Log="*res://singletons/Log.gd"
 Customs="*res://singletons/Customs.gd"
-FeedbackCapture="*uid://djwab4xr50ujm"
+FeedbackCapture="*res://singletons/FeedbackCapture.gd"
 
 [display]
 
