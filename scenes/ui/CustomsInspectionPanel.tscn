@@ -88,6 +88,25 @@ text = "None"
 [node name="SurfaceAuditPanel" parent="MarginContainer/VBoxContainer" instance=ExtResource("2_surface")]
 layout_mode = 2
 
+[node name="Level2AuditLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Level 2 Documentary Audit"
+
+[node name="Level2AuditStatus" type="Label" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "No Level 2 documentary audit attached."
+
+[node name="Level2AuditFindings" type="RichTextLabel" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+fit_content = true
+scroll_active = false
+text = "No Level 2 documentary audit attached."
+
+[node name="Level2AuditBoundary" type="Label" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Level 2 findings are documentary-only. They can increase scrutiny, but this panel does not apply fines, seizures, holds, cargo denial, or travel blocking."
+
 [node name="DocSummaryLabel" type="Label" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Document Summary"
