@@ -92,6 +92,7 @@ bin/
 
 __pycache__/
 *.pyc
+.desloppify/
 
 # Godot editor cache (do not version)
 .godot/
