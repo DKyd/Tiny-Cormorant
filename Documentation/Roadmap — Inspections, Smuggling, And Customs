@@ -1,286 +1,316 @@
-# Roadmap — Inspections, Smuggling, and Customs  
-**(Rebased to Current Code State)**
+# Roadmap - Inspections, Smuggling, and Customs
+**(Reconciled Through issue-0118)**
 
 > **Status:** Authoritative roadmap slice  
-> **Audience:** Developer + Codex  
-> **Scope:** Inspections and smuggling through **Level 1**, with deterministic triggers, player-facing previews, and zero enforcement  
-> **Hard constraint:** No fines, seizures, holds, or Port Authority simulation until ship crew systems exist
+> **Audience:** Human, Epiphanes, and Physcon  
+> **Scope:** Customs, inspections, smuggling-risk surfacing, documentary audits, and pressure-only progression  
+> **Hard constraints:** No fines, seizures, holds, cargo denial, travel blocking, reputation effects, physical inspections, or Port Authority simulation in the near-term roadmap unless a later milestone explicitly authorizes them
 
 ---
 
 ## Roadmap Philosophy
 
-This roadmap follows three hard rules:
+This roadmap keeps five non-negotiable rules:
 
-1. **Perception before simulation** — players understand risk before it acts  
-2. **Paperwork before force** — friction lives in documents, not punishment  
-3. **Infrastructure before outcomes** — detection primitives precede consequences  
+1. **Perception before simulation** - players understand risk before it acts  
+2. **Paperwork before force** - customs friction lives in documents and scrutiny before punishment  
+3. **Infrastructure before outcomes** - audit and preview systems arrive before heavier consequences  
+4. **Pressure before enforcement** - the next consequence layer is scrutiny and depth bias, not denial or seizure  
+5. **Governed increments only** - future work must be split into small, reviewable, whitelist-bound jobs
 
-Each phase is:
-- shippable on its own  
-- deterministic  
-- explainable  
-- forward-compatible  
+Each milestone should remain:
+- deterministic
+- explainable
+- shippable on its own
+- forward-compatible
+- non-executable as planning output until converted into a complete future job template
 
 ---
 
-## Phase 0 — World Pressure & Perception (COMPLETE)
+## Current State Snapshot
+
+The previous roadmap was stale because it still treated "Level 1 consequences" as the next phase. Recent completed runs show the repository is already beyond that point in several important ways:
+
+- Read-only inspection preview exists and is surfaced to the player.
+- Pressure-only scrutiny escalation exists, persists across save/load, and decays deterministically over time.
+- Deterministic depth bias from recent Level 2 violations exists and is surfaced in both the Port header and inspection preview.
+- Level 1 audit payloads are formalized and can be surfaced in the inspection UI.
+- Level 2 documentary audit infrastructure exists, including invariant classification, chain-coherence checks, richer diagnostics, and canonical audit-pipeline plumbing.
+- Runtime cargo reconciliation is explicitly deferred out of Level 2 and reserved for a future Level 3 milestone.
+
+This means the current frontier is **not** "turn on Level 1 consequences." The frontier is:
+- improving read-only and pressure-only documentary audit surfacing
+- validating milestone boundaries against runtime behavior
+- preparing future Level 3 reconciliation data without crossing into enforcement
+
+---
+
+## Phase 0 - World Pressure and Perception  
+**(COMPLETE)**
 
 > **Purpose:** Make the universe legible before it becomes dangerous.
 
-### Implemented & Stable
-
-- Deterministic organization influence (government / cartel)
-- Black market access gating
-- Read-only customs pressure derivation
-- Customs pressure UI surfacing
-- Organization presence display
-- Developer-facing influence inspector
-- Freight documents as first-class mutable objects
-- Evidence model primitives:
+### Implemented and stable
+- deterministic organization influence
+- black market access gating
+- read-only customs pressure derivation
+- customs pressure UI surfacing
+- organization presence display
+- developer-facing influence inspector
+- freight documents as first-class mutable objects
+- basic evidence-model primitives:
   - edit events
   - provenance
   - container metadata
 
 ### Guarantees
+- no inspections
+- no enforcement
+- no penalties
+- no save/load consequence side effects
 
-- No inspections
-- No enforcement
-- No penalties
-- No persistence side effects
-
-✅ **Phase 0 is complete and closed.**
+Status: complete and closed.
 
 ---
 
-## Phase 1 — Paperwork Formalism & Deterministic Inspections  
+## Phase 1 - Paperwork Formalism and Deterministic Inspections  
 **(COMPLETE)**
 
-> **Purpose:** Make sloppy paperwork detectable — without punishment.
+> **Purpose:** Make sloppy paperwork detectable without punishment.
 
 ### Implemented
+- required surface-compliance fields by document type
+- cargo line validation
+- container metadata validation
+- action-scoped requirements for:
+  - entry clearance
+  - legal cargo sale
+  - port departure clearance
+- deterministic customs pressure calculation
+- deterministic jurisdiction selection
+- deterministic inspection roll seeded by action context
+- active Level 1 inspection execution on:
+  - system entry
+  - legal cargo sale
+  - port departure
 
-#### Document Formalism
-- Required fields per document type (`SURFACE_COMPLIANCE_RULES`)
-- Cargo line validation
-- Container metadata validation
-- Action-scoped requirements:
-  - `ENTRY_CLEARANCE`
-  - `SELL_CARGO_LEGAL`
-  - `PORT_DEPARTURE_CLEARANCE`
-- Immutable edit-event evidence model
+### Guarantees
+- inspection classification is explainable
+- no cargo, credit, or document mutation from inspection outcomes
+- no enforcement outcomes
 
-#### Deterministic Inspection Infrastructure
-- Deterministic customs pressure calculation
-- Deterministic jurisdiction selection:
-  - docked → current location
-  - not docked → highest-pressure location in system (lexicographic tie-break)
-- Deterministic inspection roll:
-  - seeded by `(system_id, location_id, action, time_tick)`
-  - randomness affects **whether**, never **what**
-
-#### Active Inspection Execution (Level 1)
-- Entry clearance inspections
-- Legal cargo sale inspections
-- Port departure inspections
-- `GameState.run_customs_inspection()`:
-  - evaluates surface compliance evidence
-  - produces explainable classification
-  - emits completion signals
-- No cargo, credit, or document mutation
-
-### Explicitly Out of Scope
-
-- No fines
-- No cargo denial
-- No travel blocking
-- No reputation effects
-- No Port Authority simulation
-
-✅ **Phase 1 is complete and closed.**
+Status: complete and closed.
 
 ---
 
-## Phase 1.5 — Inspection Trigger Completion  
+## Phase 1.5 - Inspection Trigger Completion  
 **(COMPLETE)**
 
-> **Purpose:** Ensure inspections occur *only* at correct player-action boundaries.
+> **Purpose:** Ensure inspections occur only at correct player-action boundaries.
 
-### Completed Wiring
+### Completed wiring
+- system entry clearance: deterministic, arrival-only
+- legal cargo sale: pressure-gated and deterministic
+- port departure clearance: post-affordability, pre-mutation
 
-| Trigger | Status |
-|------|------|
-| System entry clearance | ✔ Deterministic, arrival-only |
-| Legal cargo sale | ✔ Pressure-gated + deterministic |
-| Port departure clearance | ✔ Post-affordability, pre-mutation |
+### Guardrails
+- inspections occur only at explicit player-action boundaries
+- triggers are deterministic and pressure-gated
+- failed actions do not cause phantom inspections
+- player action is not blocked by inspection outcomes in this phase family
 
-### Guardrails Enforced
-
-- All triggers are player-action boundaries
-- All triggers are deterministic and pressure-gated
-- No trigger mutates cargo, credits, or documents
-- No trigger blocks player action
-
-### Outcome
-
-- Inspections feel consistent and fair
-- No “phantom” inspections on failed actions
-- Logs align with player expectations
-
-✅ **Phase 1.5 is complete and closed.**
+Status: complete and closed.
 
 ---
 
-## Phase 2 — Read-Only Inspection Preview (Player Education)  
+## Phase 2 - Read-Only Inspection Preview and Scrutiny Surfacing  
 **(COMPLETE)**
 
-> **Purpose:** Teach players how Customs thinks before consequences exist.
+> **Purpose:** Teach players how Customs thinks before stronger consequence layers exist.
 
-### Implemented Features
+### Implemented
+- advisory inspection preview helper in `GameState`
+- qualitative likelihood derived from pressure
+- deterministic jurisdiction selection in preview
+- deterministic max-depth preview
+- scrutiny state surfaced in the Port header
+- preview text includes:
+  - likelihood
+  - scrutiny state
+  - final resolved max depth
+  - deterministic reasons when available
+- safe fallback behavior when context is missing
 
-- New helper:
-  ```gdscript
-  GameState.get_inspection_preview(context) -> Dictionary
-Preview provides:
+### Guarantees
+- no inspection rolls occur during preview
+- no state mutation occurs during preview
+- no enforcement is introduced
 
-qualitative likelihood (derived from pressure bucket)
+Status: complete and closed.
 
-maximum possible inspection depth (currently Level 1)
+---
 
-deterministic jurisdiction selection
+## Phase 3 - Pressure-Only Consequences and Scrutiny Memory  
+**(SUBSTANTIALLY COMPLETE)**
 
-human-readable reasons
+> **Purpose:** Let inspections matter through scrutiny and pressure only, while preserving the no-enforcement boundary.
 
-UI Surfacing
-Displayed in Port header near Customs pressure
+### Implemented
+- failed invalid inspections can increase customs scrutiny
+- scrutiny persistence across save/load
+- deterministic scrutiny decay over time
+- deterministic recent-violation memory for Level 2 outcomes
+- deterministic inspection-depth bias from recent Level 2 violations
+- bounded pruning of stale scrutiny memory
+- compact and deterministic customs log visibility for deeper audit summaries
 
-Explicitly labeled “Inspection preview (advisory)”
+### Current outcome model
+- pass -> no consequence
+- documentary suspicion or invalidity -> pressure and scrutiny consequences only
+- no denial of sale, travel, cargo, or credits in this phase
 
-Fail-closed behavior when context is missing
+### Remaining ambiguity
+- recent run evidence is clear that pressure-only consequence mechanics exist, but runtime manual verification remains advisable to confirm the exact escalation matrix for Level 1 versus Level 2 outcomes under live play.
 
-Guarantees
-No inspections triggered
+Status: substantially complete for the intended no-enforcement scope.  
+Recommended next work is validation and tighter surfacing, not broader punishment.
 
-No RNG rolled
+---
 
-No state mutation
+## Phase 4 - Level 2 Documentary Audit Infrastructure  
+**(SUBSTANTIALLY COMPLETE)**
 
-No log entries emitted
+> **Purpose:** Enable deeper document-only detection without action, cargo reconciliation, or enforcement.
 
-✅ Phase 2 is complete and closed.
+### Implemented
+- Level 2 audit wrapper and canonical pipeline
+- deterministic Level 2 classification and findings payloads
+- cross-document invariant infrastructure
+- chain-coherence invariants for source references and oversell-style documentary problems
+- richer `not_evaluable` reasons and diagnostics
+- compact deterministic Level 2 log summaries and samples
+- issuer metadata insertion for newly created docs plus Level 1 issuer validation
+- legacy Level 2 path deprecated in favor of a single canonical audit path
+- explicit Level 2 purity boundary:
+  - cargo snapshot reconciliation is disabled by policy until Level 3
 
-Phase 3 — Level 1 Consequences (Pressure-Only)
-(NEXT)
+### What this phase now means
+- Level 2 is no longer merely "ready."
+- Level 2 exists today as a read-only documentary audit layer.
+- Its current purpose is evidence, logging, scrutiny bias, and future expansion readiness.
 
-Purpose: Introduce consequences without enforcement.
+### Remaining gaps
+- player-facing surfacing of Level 2 detail is still weaker than the underlying payload quality
+- runtime/manual validation gaps remain for some invariant combinations
+- the roadmap should not claim cargo reconciliation or enforcement here
 
-Activation
-Level 1 checks already active at:
+Status: substantially complete as infrastructure.  
+Next safe work is read-only surfacing and targeted validation, not enforcement.
 
-port departure
+---
 
-legal cargo sale
+## Phase 5 - Level 3 Reconciliation Data Primitives  
+**(FUTURE)**
 
-system entry
+> **Purpose:** Prepare the data foundation for read-only reconciliation checks without crossing into punishment.
 
-Planned Outcomes
-Pass → nothing happens
+### Not yet implemented as gameplay capability
+- hull baseline mass
+- container tare weights
+- commodity mass-per-unit
+- tolerance rules for documentary-versus-physical reconciliation
 
-Fail →
+### Explicit evidence for deferment
+- recent Level 2 work intentionally disabled runtime cargo reconciliation until Level 3 by policy
+- this means Level 3 should begin with data primitives and read-only validation logic, not with enforcement
 
-customs pressure increases
+### Safe boundary
+- initial Level 3 jobs should remain read-only or pressure-only
+- no fines, no seizure, no holds, no travel blocking
 
-inspection logs recorded
+Status: future milestone.
 
-Explicitly Not Included
-No fines
+---
 
-No holds
+## Phase 6 - Level 3 Read-Only Reconciliation and Probable Cause  
+**(FUTURE, AFTER PHASE 5 DATA PRIMITIVES)**
 
-No denial of sale or travel
+> **Purpose:** Make sealed-container smuggling riskier in high-security contexts while preserving the no-enforcement boundary.
 
-No cargo seizure
+### Intended features
+- documentary-versus-physical reconciliation checks
+- probable-cause flags
+- stronger scrutiny or pressure escalation
+- deterministic activation in higher-security contexts or after accumulated evidence
 
-➡️ This is the next active phase of the epic.
+### Explicitly not included
+- no forced offloads
+- no holds
+- no fines
+- no seizure
+- no travel denial
 
-Phase 4 — Document Audit Infrastructure (Level 2 Ready)
-Purpose: Enable deep detection without action.
+Status: future milestone after Phase 5 data work.
 
-Features
-Container capacity metadata
+---
 
-Sovereignty / issuer stamps
+## Deferred Milestones (Do Not Start Yet)
 
-Cross-document invariants:
+### Deferred A - Enforcement
+- fines
+- seizures
+- holds
+- forced offloads
+- cargo denial
+- travel blocking
+- reputation effects
 
-manifest ↔ bill of sale
+### Deferred B - Physical Inspections
+- container opening
+- warrant mechanics
+- scan gameplay
 
-bill of sale ↔ container
+### Deferred C - Port Authority Simulation
+- crew inspections
+- operational failures
+- ship compliance checks
+- broader authority simulation
 
-Activation Scope
-Core worlds
+These remain deferred until the roadmap explicitly advances past pressure-only and read-only documentary phases.
 
-Capital systems
+---
 
-Outcomes
-Pressure escalation
+## Recommended Next Governed Sequence
 
-Rich inspection logs
+The safest next implementation sequence is:
 
-Phase 5 — Reconciliation Data (Level 3 Ready)
-Purpose: Make sealed-container smuggling risky in high-security space.
+1. **Read-only Level 2 surfacing and validation**
+   - improve player-facing presentation of the already-existing Level 2 documentary audit payload
+   - verify the current pressure-only and scrutiny behaviors under live runtime conditions
 
-Features
-Hull baseline mass
+2. **Remaining documentary-audit completion work**
+   - only where manual validation shows clear gaps in the current Level 2 invariant set
+   - keep each addition narrow and auditable
 
-Container tare weights
+3. **Level 3 data primitives**
+   - add reconciliation-supporting data without enforcement
 
-Commodity mass-per-unit
+4. **Level 3 read-only reconciliation**
+   - introduce probable-cause style flags and pressure escalation only after the data layer exists
 
-Tolerance rules
+This sequence intentionally keeps:
+- enforcement deferred
+- physical inspections deferred
+- Port Authority simulation deferred
+- Desloppify findings subordinate to the feature roadmap unless a future governed job explicitly says otherwise
 
-Activation
-Very high-security systems
+---
 
-Or triggered by accumulated evidence
+## Guardrails (Non-Negotiable)
 
-Outcomes
-Probable-cause flags
-
-Pressure escalation only
-
-Explicitly Deferred (Do Not Start Yet)
-Deferred A — Enforcement
-Fines
-
-Seizures
-
-Holds
-
-Forced offloads
-
-Deferred B — Physical Inspections
-Container opening
-
-Warrant mechanics
-
-Scan gameplay
-
-Deferred C — Port Authority Simulation
-Crew inspections
-
-Operational failures
-
-Ship compliance checks
-
-Guardrails (Non-Negotiable)
-No punishment without prior player education
-
-No inspection bypasses document evidence
-
-Randomness never decides outcomes
-
-Legal trade remains low-friction
-
-Canon Reminder
-Smuggling is a paperwork game until it becomes a crew game.
+- No punishment without prior player education.
+- No roadmap note or candidate job is executable by itself.
+- Randomness may influence whether an inspection occurs, but not what the evidence means.
+- Legal trade should remain low-friction.
+- Refactors should remain separate from behavior changes unless a future job explicitly justifies the coupling.
+- Smuggling remains a paperwork-and-scrutiny game until the roadmap explicitly authorizes crew-level or enforcement-level systems.
