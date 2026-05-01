@@ -11,8 +11,8 @@
 ---
 
 ## Goal
-Describe the governance outcome in 1–3 sentences.
-Focus on process/policy behavior, not implementation.
+Describe the governance outcome in 1-3 sentences.
+Focus on process or policy behavior, not implementation.
 
 ---
 
@@ -48,7 +48,7 @@ Write the new rule(s) in MUST / MUST NOT language.
 ---
 
 ## Proposed Approach
-High-level plan (3–6 bullets). Boundaries only.
+High-level plan (3-6 bullets). Boundaries only.
 
 -
 -
@@ -65,7 +65,7 @@ Only these files may be edited.
 ---
 
 ## Files: Forbidden to Modify (Blacklist)
-These files/directories must not be touched.
+These files or directories must not be touched.
 
 - `data/**`
 - `scenes/MainGame.tscn`
@@ -85,7 +85,7 @@ If Yes, list exact new file paths:
 ---
 
 ## Acceptance Criteria (Must Be Testable)
-Objectively verifiable “done.”
+Objectively verifiable "done."
 
 - [ ]
 - [ ]
@@ -94,7 +94,7 @@ Objectively verifiable “done.”
 ---
 
 ## Verification Steps (Non-Game)
-How a human verifies the governance change (reading files and/or git commands).
+How a human verifies the governance change by reading files and or running git commands.
 
 1.
 2.
@@ -108,15 +108,22 @@ How a human verifies the governance change (reading files and/or git commands).
 ---
 
 ## Governance & Review Gates (Mandatory)
-- Codex must not make changes until required preflight/review steps are complete.
+- Codex must not make changes until required preflight and review steps are complete.
 - Codex must present diffs for review before declaring results final.
 - Gate B approvals must include scope proof (`git status`, `git diff --stat`, full `git diff`).
-- If scope/whitelist/non-goals are violated, Codex must stop and report the issue.
+- If scope, whitelist, or non-goals are violated, Codex must stop and report the issue.
+
+---
+
+## Canonical Workspace Rule (Mandatory)
+- Codex must treat `C:\Users\akaph\Desktop\Ozark Interactive\Games\Tiny Cormorant` as the canonical local Tiny Cormorant workspace unless the human explicitly names another path for the current job.
+- If Codex detects a non-canonical Tiny Cormorant clone, it must warn and stop until the human confirms that alternate path.
+- Older scratch clones, including `Documents/Codex`, must not be used as the default working copy.
 
 ---
 
 ## Git Preflight Gate (Mandatory)
-Before ANY code changes, Codex must run and report:
+Before any code changes, Codex must run and report:
 
 - `git branch --show-current`
 - `git status --short`
@@ -127,17 +134,16 @@ Before ANY code changes, Codex must run and report:
 - Preferred wrapper: `powershell -ExecutionPolicy Bypass -File codex/tools/git_gates.ps1 -Mode Preflight`
 
 Rules:
-- If `git status --short` is not empty (modified OR untracked files), Codex MUST STOP and ask the user to choose ONE:
-  A) Stash WIP (must include untracked): `git stash push -u -m "wip: <short description>"`
-  B) Run the current issue’s Closeout Gate (stage → staged diff review → commit → push)
-- If `git status -sb` shows the branch is behind origin (e.g. `[behind N]`), Codex MUST STOP and instruct `git pull --ff-only` (or stash-or-closeout first if the tree is dirty).
-- Codex must not proceed with any implementation until the working tree is clean AND the branch is not behind origin.
+- If `git status --short` is not empty because of modified, staged, or untracked files, Codex must stop and ask the human to resolve the stop condition.
+- If `git status -sb` shows the branch is behind origin, Codex must stop and instruct `git pull --ff-only` after any required cleanup.
+- Codex must not proceed with implementation until the working tree is clean and the branch is not behind origin.
+- Hard preflight failures should be machine-detectable where practical, including nonzero script exit codes.
 
 ## Git Postflight & Closeout Gate (Mandatory)
 After implementation is complete, Codex must perform these gates in order:
 
 1) Review Gate (Staged Diff)
-- Stage ONLY:
+- Stage only:
   - `codex/runs/ACTIVE_RUN.txt`
   - `codex/runs/<Run Folder Name>/**`
   - Whitelisted files for this job
@@ -145,15 +151,15 @@ After implementation is complete, Codex must perform these gates in order:
   - `git diff --stat --staged`
   - `git diff --staged`
 - Show staged diffs, then auto-closeout unless a gate violation is detected.
-- STOP and request user input only if a gate violation or ambiguity is detected.
+- Stop and request user input only if a gate violation or ambiguity is detected.
 
 2) Closeout Gate (Commit + Push)
-- If all gates pass and the staged set is whitelist-clean, Codex MUST auto-run closeout immediately (no explicit approval required).
-- STOP conditions (user input required):
+- If all gates pass and the staged set is whitelist-clean, Codex must auto-run closeout immediately.
+- Stop conditions (user input required):
   - Working tree is dirty.
   - Branch is behind origin.
-  - Staged set includes files outside ACTIVE_RUN.txt, codex/runs/<Run Folder Name>/**, or job whitelist.
-  - Scope/whitelist/blacklist conflict or ambiguous instruction.
+  - Staged set includes files outside `ACTIVE_RUN.txt`, `codex/runs/<Run Folder Name>/**`, or the job whitelist.
+  - Scope, whitelist, or blacklist instructions conflict or are ambiguous.
 - Run:
   - `git commit -m "<Issue/Task ID>: <Short Title>"`
   - `git push --porcelain`
@@ -161,17 +167,17 @@ After implementation is complete, Codex must perform these gates in order:
   - `git log --oneline -n 3`
   - `git show HEAD:codex/runs/ACTIVE_RUN.txt`
   - `git status --short` (must be clean)
-- STOP.
+- Stop.
 
 ---
 ## Codex Scaffolding & Output Requirements (Mandatory)
 
-Codex must perform the following before any changes:
+Codex must perform the following before any changes when the human has provided a complete job template:
 
-1) Create `codex/runs/<Run Folder Name>/`
-2) Write this job verbatim to `codex/runs/<Run Folder Name>/job.md`
-3) Create `codex/runs/<Run Folder Name>/results.md` if missing
-4) Write `codex/runs/ACTIVE_RUN.txt` = `<Run Folder Name>`
+1. Create `codex/runs/<Run Folder Name>/`
+2. Write the job text verbatim to `codex/runs/<Run Folder Name>/job.md`
+3. Create `codex/runs/<Run Folder Name>/results.md` if missing
+4. Write `codex/runs/ACTIVE_RUN.txt` = `<Run Folder Name>`
 
 Codex must write final results only to:
 - `codex/runs/<Run Folder Name>/results.md`

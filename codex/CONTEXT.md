@@ -1,16 +1,23 @@
-# Tiny Cormorant — Project Context
+# Tiny Cormorant - Project Context
 
-This document defines **project-wide truths, conventions, and constraints** for the Tiny Cormorant Godot project.
+This document defines project-wide truths, conventions, and constraints for the Tiny Cormorant Godot project.
 
 All Codex jobs must comply with this context unless explicitly overridden by a job.
 
-If information is missing, Codex must **not assume**. When in doubt, ask.
+If information is missing, Codex must not assume. When in doubt, ask.
+
+---
+
+## Project Orientation
+- Canonical local workspace: `C:\Users\akaph\Desktop\Ozark Interactive\Games\Tiny Cormorant`
+- Default branch used by current governance workflows: `master`
+- Core tool surfaces expected to share the canonical clone: VSCode Codex, Desktop Codex, Godot, and human review tooling
+- Non-canonical scratch clones, including older `Documents/Codex` worktrees, must not silently become the default source of truth
 
 ---
 
 ## Project Overview
-
-**Tiny Cormorant** is a 2D space trading simulation.
+Tiny Cormorant is a 2D space trading simulation.
 
 Core gameplay pillars:
 - Trading and market interaction
@@ -18,52 +25,43 @@ Core gameplay pillars:
 - Economic feedback driven by systems, not scripted events
 - Player-driven decision making over reflex gameplay
 
-Design priority: **clarity, debuggability, extensibility** over premature optimization.
+Design priority: clarity, debuggability, extensibility over premature optimization.
 
 ---
 
 ## Engine & Language
-
-- Engine: **Godot**
-- Godot version: **4.x** (pin exact minor version when known)
-- Language: **GDScript**
-- Target perspective: **2D / top-down**
+- Engine: Godot
+- Pinned Godot version: 4.6
+- Language: GDScript
+- Target perspective: 2D / top-down
 - No C# unless explicitly introduced later
 
-Codex must follow idiomatic GDScript and Godot best practices for the pinned major version.
+Codex must follow idiomatic GDScript and Godot best practices for Godot 4.6 unless a job explicitly documents another version.
 
 ---
 
 ## Repository Structure (High Level)
-
 Primary directories:
-- `scenes/` — Godot scenes (`.tscn`)
-- `scripts/` — Gameplay and UI scripts
-- `singletons/` — Autoloaded global systems
-- `data/` — Static or semi-static data (resources, configs)
+- `scenes/` - Godot scenes (`.tscn`)
+- `scripts/` - Gameplay and UI scripts
+- `singletons/` - Autoloaded global systems
+- `data/` - Static or semi-static data (resources, configs)
+- `codex/` - Codex governance, job definitions, and run records
 
 Do not invent new top-level folders without approval.
 
 ---
 
-## Godot Version Pin (Required for Accuracy)
-
-- Current engine major version: Godot 4.x
-- Pin the exact minor version (e.g., 4.2.2) in this document when known.
-- Until pinned: Codex must avoid version-sensitive APIs unless verified in repo usage.
-
 ## Protected Areas (Default)
-
 These areas are protected by default unless explicitly whitelisted by a job:
-
-- `data/**` (static/semi-static data)
+- `data/**` (static or semi-static data)
 - `scenes/MainGame.tscn` (gameplay root UI composition)
+- `.godot/**` (editor churn)
 
 ---
 
 ## Singletons & Global State
-
-Global systems are implemented as **autoload singletons** under `singletons/`.
+Global systems are implemented as autoload singletons under `singletons/`.
 
 Rules:
 - Singletons manage shared state and cross-scene coordination
@@ -74,11 +72,10 @@ Rules:
 ---
 
 ## Scenes & Scripts
-
 Conventions:
-- One primary script per scene (unless the job explicitly requires otherwise)
-- Scene scripts coordinate behavior; logic-heavy systems belong in dedicated scripts/singletons
-- Avoid fragile/deep node paths where possible
+- One primary script per scene unless the job explicitly requires otherwise
+- Scene scripts coordinate behavior; logic-heavy systems belong in dedicated scripts or singletons
+- Avoid fragile or deep node paths where possible
 
 Prefer:
 - Clear node naming
@@ -88,24 +85,21 @@ Prefer:
 ---
 
 ## UI Rules
-
 - UI logic must not own authoritative game state.
-- Game state changes flow through systems/singletons, not UI widgets.
+- Game state changes flow through systems or singletons, not UI widgets.
 
 ---
 
 ## UI Conventions (Gameplay HUD Ownership)
-
 - There is exactly one gameplay root UI scene responsible for persistent HUD elements.
-- Persistent HUD elements (e.g., LogPanel) must be instantiated **exactly once** by the gameplay root UI scene (currently `scenes/MainGame.tscn`).
-- Feature panels and sub-scenes must **not** instance persistent HUD elements.
-- If a new gameplay root scene is introduced, it must either reuse `scenes/MainGame.tscn` or include the same persistent HUD elements exactly once (no duplicates).
-- LogPanel is a singleton UI instance **by convention** (not an autoload); it is owned by the gameplay root UI.
+- Persistent HUD elements (for example `LogPanel`) must be instantiated exactly once by the gameplay root UI scene, currently `scenes/MainGame.tscn`.
+- Feature panels and sub-scenes must not instance persistent HUD elements.
+- If a new gameplay root scene is introduced, it must either reuse `scenes/MainGame.tscn` or include the same persistent HUD elements exactly once.
+- `LogPanel` is a singleton UI instance by convention, not an autoload; it is owned by the gameplay root UI.
 
 ---
 
 ## Data & Economy
-
 Prefer:
 - Data-driven definitions where possible
 - Separation of data from presentation
@@ -115,7 +109,6 @@ Prefer:
 ---
 
 ## Coding Standards
-
 - No unused variables or dead code
 - No commented-out blocks left behind
 - Prefer small, readable functions
@@ -125,12 +118,12 @@ Prefer:
 ---
 
 ## Change Discipline
-
 Codex must:
 - Make the smallest change that satisfies the job
 - Avoid speculative refactors
 - Avoid touching unrelated files
-- Explain *why* a change exists, not just *what* changed
+- Explain why a change exists, not just what changed
+- Run the required git gates from the active clone before implementation and closeout
 
 If a change would benefit from a refactor, recommend it; do not perform it automatically.
 
@@ -139,17 +132,16 @@ All changes must follow the staged diff review process defined in `codex/README.
 ---
 
 ## Assumptions Codex Must NOT Make
-
 - Do not assume multiplayer
-- Do not assume save/load systems unless present
+- Do not assume save or load systems unless present
 - Do not assume persistence formats
 - Do not assume future features
 - Do not assume performance constraints beyond reason
+- Do not assume a non-canonical clone is safe to use without explicit human confirmation
 
 Only work with what is explicitly present.
 
 ---
 
 ## Final Instruction
-
-When uncertain: **Stop and ask.**
+When uncertain: stop and ask.
