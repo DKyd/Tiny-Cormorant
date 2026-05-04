@@ -11,6 +11,7 @@ const COMMODITIES: Dictionary = {
 		"category": "raw",
 		"base_price": 50.0,
 		"weight_per_unit": 1.0,
+		"customs_mass_per_unit": 1.0,
 		"producer_types": ["mining"],
 		"consumer_types": ["industrial"]
 	},
@@ -20,6 +21,7 @@ const COMMODITIES: Dictionary = {
 		"category": "raw",
 		"base_price": 60.0,
 		"weight_per_unit": 1.0,
+		"customs_mass_per_unit": 1.0,
 		"producer_types": ["mining"],
 		"consumer_types": ["industrial"]
 	},
@@ -29,6 +31,7 @@ const COMMODITIES: Dictionary = {
 		"category": "raw_rare",
 		"base_price": 500.0,
 		"weight_per_unit": 1.0,
+		"customs_mass_per_unit": 1.0,
 		"producer_types": ["mining"],
 		"consumer_types": ["industrial"]
 	},
@@ -38,6 +41,7 @@ const COMMODITIES: Dictionary = {
 		"category": "raw_rare",
 		"base_price": 400.0,
 		"weight_per_unit": 1.0,
+		"customs_mass_per_unit": 1.0,
 		"producer_types": ["mining"],
 		"consumer_types": ["industrial"]
 	},
@@ -47,6 +51,7 @@ const COMMODITIES: Dictionary = {
 		"category": "raw",
 		"base_price": 40.0,
 		"weight_per_unit": 1.0,
+		"customs_mass_per_unit": 1.0,
 		"producer_types": ["mining"],
 		"consumer_types": ["industrial", "agri"]
 	},
@@ -56,6 +61,7 @@ const COMMODITIES: Dictionary = {
 		"category": "raw",
 		"base_price": 70.0,
 		"weight_per_unit": 1.0,
+		"customs_mass_per_unit": 1.0,
 		"producer_types": ["mining"],
 		"consumer_types": ["industrial"]
 	},
@@ -65,6 +71,7 @@ const COMMODITIES: Dictionary = {
 		"category": "raw_recycled",
 		"base_price": 30.0,
 		"weight_per_unit": 1.0,
+		"customs_mass_per_unit": 1.0,
 		"producer_types": ["mining", "industrial"],
 		"consumer_types": ["industrial"]
 	},
@@ -74,6 +81,7 @@ const COMMODITIES: Dictionary = {
 		"category": "food_bulk",
 		"base_price": 45.0,
 		"weight_per_unit": 1.0,
+		"customs_mass_per_unit": 1.0,
 		"producer_types": ["agri"],
 		"consumer_types": ["industrial", "mining"]
 	},
@@ -83,6 +91,7 @@ const COMMODITIES: Dictionary = {
 		"category": "food_processed",
 		"base_price": 60.0,
 		"weight_per_unit": 1.0,
+		"customs_mass_per_unit": 1.0,
 		"producer_types": ["agri"],
 		"consumer_types": ["mining", "industrial"]
 	},
@@ -92,6 +101,7 @@ const COMMODITIES: Dictionary = {
 		"category": "food_fresh",
 		"base_price": 80.0,
 		"weight_per_unit": 1.0,
+		"customs_mass_per_unit": 1.0,
 		"producer_types": ["agri"],
 		"consumer_types": ["industrial", "mining"]
 	},
@@ -101,6 +111,7 @@ const COMMODITIES: Dictionary = {
 		"category": "livestock",
 		"base_price": 120.0,
 		"weight_per_unit": 2.0,
+		"customs_mass_per_unit": 2.0,
 		"producer_types": ["agri"],
 		"consumer_types": ["industrial", "mining"]
 	},
@@ -110,6 +121,7 @@ const COMMODITIES: Dictionary = {
 		"category": "consumer",
 		"base_price": 90.0,
 		"weight_per_unit": 1.0,
+		"customs_mass_per_unit": 1.0,
 		"producer_types": ["agri"],
 		"consumer_types": ["industrial", "mining"]
 	},
@@ -119,6 +131,7 @@ const COMMODITIES: Dictionary = {
 		"category": "utility",
 		"base_price": 35.0,
 		"weight_per_unit": 1.0,
+		"customs_mass_per_unit": 1.0,
 		"producer_types": ["agri", "mining"],
 		"consumer_types": ["industrial", "mining"]
 	},
@@ -128,6 +141,7 @@ const COMMODITIES: Dictionary = {
 		"category": "stimulant",
 		"base_price": 150.0,
 		"weight_per_unit": 0.5,
+		"customs_mass_per_unit": 0.5,
 		"producer_types": ["agri"],
 		"consumer_types": ["industrial", "luxury"]
 	},
@@ -137,6 +151,7 @@ const COMMODITIES: Dictionary = {
 		"category": "manufactured",
 		"base_price": 200.0,
 		"weight_per_unit": 1.0,
+		"customs_mass_per_unit": 1.0,
 		"producer_types": ["industrial"],
 		"consumer_types": ["mining", "agri"]
 	},
@@ -146,6 +161,7 @@ const COMMODITIES: Dictionary = {
 		"category": "manufactured",
 		"base_price": 220.0,
 		"weight_per_unit": 1.0,
+		"customs_mass_per_unit": 1.0,
 		"producer_types": ["industrial"],
 		"consumer_types": ["mining", "agri"]
 	},
@@ -155,6 +171,7 @@ const COMMODITIES: Dictionary = {
 		"category": "manufactured",
 		"base_price": 260.0,
 		"weight_per_unit": 0.5,
+		"customs_mass_per_unit": 0.5,
 		"producer_types": ["industrial"],
 		"consumer_types": ["mining", "agri", "industrial"]
 	},
@@ -164,6 +181,7 @@ const COMMODITIES: Dictionary = {
 		"category": "medical",
 		"base_price": 240.0,
 		"weight_per_unit": 0.5,
+		"customs_mass_per_unit": 0.5,
 		"producer_types": ["industrial"],
 		"consumer_types": ["mining", "agri", "industrial"]
 	},
@@ -173,6 +191,7 @@ const COMMODITIES: Dictionary = {
 		"category": "chemical",
 		"base_price": 190.0,
 		"weight_per_unit": 1.0,
+		"customs_mass_per_unit": 1.0,
 		"producer_types": ["industrial"],
 		"consumer_types": ["mining", "agri"]
 	},
@@ -182,6 +201,7 @@ const COMMODITIES: Dictionary = {
 		"category": "manufactured",
 		"base_price": 150.0,
 		"weight_per_unit": 2.0,
+		"customs_mass_per_unit": 2.0,
 		"producer_types": ["industrial"],
 		"consumer_types": ["mining", "agri"]
 	},
@@ -191,6 +211,7 @@ const COMMODITIES: Dictionary = {
 		"category": "luxury",
 		"base_price": 350.0,
 		"weight_per_unit": 0.5,
+		"customs_mass_per_unit": 0.5,
 		"producer_types": ["industrial", "agri"],
 		"consumer_types": ["industrial"]
 	},
@@ -200,6 +221,7 @@ const COMMODITIES: Dictionary = {
 		"category": "luxury",
 		"base_price": 320.0,
 		"weight_per_unit": 0.5,
+		"customs_mass_per_unit": 0.5,
 		"producer_types": ["agri"],
 		"consumer_types": ["industrial", "luxury"]
 	},
@@ -209,6 +231,7 @@ const COMMODITIES: Dictionary = {
 		"category": "luxury",
 		"base_price": 600.0,
 		"weight_per_unit": 0.5,
+		"customs_mass_per_unit": 0.5,
 		"producer_types": ["industrial"],
 		"consumer_types": ["luxury"]
 	},
@@ -218,6 +241,7 @@ const COMMODITIES: Dictionary = {
 		"category": "illicit",
 		"base_price": 800.0,
 		"weight_per_unit": 0.5,
+		"customs_mass_per_unit": 0.5,
 		"producer_types": ["agri", "industrial"],
 		"consumer_types": ["luxury"]
 	}
