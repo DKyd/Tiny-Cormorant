@@ -42,3 +42,60 @@ const RECONCILIATION_TOLERANCE_POLICIES: Dictionary = {
 		"unknown_commodity_mass_result": "not_evaluable"
 	}
 }
+
+static func get_all_container_class_ids() -> Array:
+	return CONTAINER_CLASSES.keys()
+
+static func get_container_class(class_id: String) -> Dictionary:
+	var normalized_id: String = class_id.strip_edges()
+	if normalized_id == "":
+		return {}
+	var record_variant = CONTAINER_CLASSES.get(normalized_id, null)
+	if not (record_variant is Dictionary):
+		return {}
+	var record: Dictionary = record_variant
+	if String(record.get("class_id", "")).strip_edges() != normalized_id:
+		return {}
+	return record.duplicate(true)
+
+static func get_default_container_class() -> Dictionary:
+	return get_container_class(DEFAULT_CONTAINER_CLASS_ID)
+
+static func get_container_tare_mass(class_id: String, fallback: float = -1.0) -> float:
+	var record: Dictionary = get_container_class(class_id)
+	if record.is_empty():
+		return fallback
+	return _get_non_negative_float(record, "tare_mass", fallback)
+
+static func get_container_max_cargo_mass(class_id: String, fallback: float = -1.0) -> float:
+	var record: Dictionary = get_container_class(class_id)
+	if record.is_empty():
+		return fallback
+	return _get_non_negative_float(record, "max_cargo_mass", fallback)
+
+static func get_all_tolerance_policy_ids() -> Array:
+	return RECONCILIATION_TOLERANCE_POLICIES.keys()
+
+static func get_tolerance_policy(policy_id: String) -> Dictionary:
+	var normalized_id: String = policy_id.strip_edges()
+	if normalized_id == "":
+		return {}
+	var record_variant = RECONCILIATION_TOLERANCE_POLICIES.get(normalized_id, null)
+	if not (record_variant is Dictionary):
+		return {}
+	var record: Dictionary = record_variant
+	if String(record.get("policy_id", "")).strip_edges() != normalized_id:
+		return {}
+	return record.duplicate(true)
+
+static func get_default_tolerance_policy() -> Dictionary:
+	return get_tolerance_policy(DEFAULT_TOLERANCE_POLICY_ID)
+
+static func _get_non_negative_float(record: Dictionary, field_name: String, fallback: float) -> float:
+	var value_variant = record.get(field_name, null)
+	if not (value_variant is int or value_variant is float):
+		return fallback
+	var value: float = float(value_variant)
+	if value < 0.0:
+		return fallback
+	return value

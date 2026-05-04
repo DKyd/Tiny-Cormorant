@@ -252,3 +252,16 @@ static func get_all_ids() -> Array:
 
 static func get_commodity(id: String) -> Dictionary:
 	return COMMODITIES.get(id, null)
+
+static func get_customs_mass_per_unit(id: String, fallback: float = -1.0) -> float:
+	var normalized_id: String = id.strip_edges()
+	if normalized_id == "" or not COMMODITIES.has(normalized_id):
+		return fallback
+	var commodity: Dictionary = COMMODITIES[normalized_id]
+	var mass_variant = commodity.get("customs_mass_per_unit", null)
+	if not (mass_variant is int or mass_variant is float):
+		return fallback
+	var mass: float = float(mass_variant)
+	if mass < 0.0:
+		return fallback
+	return mass
