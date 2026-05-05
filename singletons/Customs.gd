@@ -3,6 +3,7 @@ extends Node
 
 const CustomsLevel2Audit = preload("res://scripts/customs/CustomsLevel2Audit.gd")
 const CustomsLevel1Audit = preload("res://scripts/customs/CustomsLevel1Audit.gd")
+const CustomsLevel3Reconciliation = preload("res://scripts/customs/CustomsLevel3Reconciliation.gd")
 
 # chance of customs inspection by pressure bucket
 var inspection_chance := {
@@ -151,6 +152,31 @@ func run_level_2_audit(context: Dictionary = {}) -> Dictionary:
 	if not normalized_context.has("cargo"):
 		normalized_context["cargo"] = GameState.cargo.duplicate(true)
 	return CustomsLevel2Audit.build_level2_audit(normalized_context)
+
+
+func run_level_3_reconciliation(context: Dictionary = {}) -> Dictionary:
+	var normalized_context: Dictionary = context.duplicate(true)
+	if String(normalized_context.get("system_id", "")).strip_edges() == "":
+		normalized_context["system_id"] = GameState.current_system_id
+	if String(normalized_context.get("location_id", "")).strip_edges() == "":
+		var current_location_id: String = String(GameState.current_location_id).strip_edges()
+		if current_location_id != "":
+			normalized_context["location_id"] = current_location_id
+	if String(normalized_context.get("action", "")).strip_edges() == "":
+		normalized_context["action"] = "UNKNOWN_ACTION"
+	var docs_variant = normalized_context.get("docs", null)
+	if docs_variant == null:
+		var chain_snapshot: Dictionary = GameState.get_freightdoc_chain_snapshot()
+		docs_variant = chain_snapshot.get("docs", {})
+		if not normalized_context.has("tick"):
+			normalized_context["tick"] = int(chain_snapshot.get("tick", GameState.time_tick))
+	elif not normalized_context.has("tick"):
+		normalized_context["tick"] = int(GameState.time_tick)
+
+	normalized_context["docs"] = _normalize_level2_docs_for_audit(docs_variant)
+	if not normalized_context.has("cargo"):
+		normalized_context["cargo"] = GameState.cargo.duplicate(true)
+	return CustomsLevel3Reconciliation.build_level3_reconciliation_report(normalized_context)
 
 
 func _evaluate_cross_document_invariants(

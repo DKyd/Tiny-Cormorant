@@ -1727,6 +1727,16 @@ func run_customs_inspection(context: Dictionary = {}) -> Dictionary:
 		),
 		"CUSTOMS"
 	)
+	if max_depth >= 3:
+		var level3_chain_snapshot: Dictionary = get_freightdoc_chain_snapshot()
+		report["level3_reconciliation"] = Customs.run_level_3_reconciliation({
+			"docs": level3_chain_snapshot.get("docs", {}),
+			"cargo": cargo.duplicate(true),
+			"tick": int(level3_chain_snapshot.get("tick", time_tick)),
+			"action": action,
+			"system_id": system_id,
+			"location_id": location_id,
+		})
 	emit_signal("customs_inspection_completed", report)
 	return report
 
@@ -2554,4 +2564,3 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 			var text := Economy.get_price_list_text_for_system_at(current_system_id, time_tick, "legal")
 			DisplayServer.clipboard_set(text)
-
