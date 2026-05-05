@@ -8,6 +8,7 @@
 - Confirmed the same project headless startup succeeds outside the sandbox and reaches normal early boot/contract generation.
 - Confirmed the issue-0131 script-style command does not crash outside the sandbox; it fails cleanly because `CustomsLevel3Reconciliation.gd` is a pure static helper and does not inherit `SceneTree` or `MainLoop`.
 - Added human-observed visible Windows application error evidence showing the Godot 4.6.1 Windows executable can also present a memory-read crash dialog, so the crash evidence is not limited to CLI/headless text output.
+- Added human-observed resolution evidence: after setting the Tiny Cormorant project folder in OneDrive to "Always keep on this device," Godot 4.6.1 opened the project successfully.
 - No `.godot/**`, `.uid`, project, runtime, script, data, scene, singleton, or governance churn appeared.
 
 ## Capability Definition
@@ -178,6 +179,19 @@ Result:
 - This suggests the crash can surface in the Godot Windows executable itself as a visible application error, not only as headless validation console output.
 - This job did not attempt to fix or further reproduce the visible GUI error, by scope.
 
+### 8. Human-Observed OneDrive Hydration Resolution
+Observed outside Codex command execution:
+
+```text
+After setting the Tiny Cormorant project folder in OneDrive to "Always keep on this device," Godot 4.6.1 opened the project successfully.
+```
+
+Result:
+- `resolution evidence`
+- This points away from Tiny Cormorant project code as the likely cause of the editor-startup failure.
+- Current best explanation: the OneDrive Desktop canonical path is usable for Godot validation only when the project folder is fully local/hydrated, not partially represented by OneDrive placeholder/sync state.
+- This job did not modify OneDrive settings, project settings, runtime files, `.godot/**`, or governance files.
+
 ## Working Tree / Churn Check
 After every launch attempt, `git status --short` showed only:
 
@@ -200,7 +214,7 @@ No churn appeared under:
 
 ## Crash Characterization
 Current best classification:
-- `Godot Windows executable / environment crash with sandboxed headless reproduction`, medium risk
+- `OneDrive hydration / environment-sensitive Godot executable crash`, medium risk
 
 What the evidence supports:
 - The Godot binary is valid and responds to `--version`.
@@ -209,6 +223,7 @@ What the evidence supports:
 - The same project headless startup succeeds outside the sandbox.
 - The issue-0131 script-style command does not crash outside the sandbox; it reports a normal command-shape error because a pure helper script is not executable via `--script`.
 - A visible Windows application error was also observed for `Godot_v4.6.1-stable_win64.exe`, with a memory-read failure at address `0x0000000000000058`.
+- After marking the project folder "Always keep on this device" in OneDrive, Godot 4.6.1 opened the project successfully.
 
 What remains unresolved:
 - Normal editor/game launch was not checked in this job because it would require a visible GUI launch/interaction outside the non-GUI planning scope.
@@ -221,10 +236,12 @@ What this does not look like now:
 - Not a confirmed `CustomsLevel3Reconciliation.gd` parse/runtime bug.
 - Not the old `FeedbackCapture` UID autoload blocker from `issue-0121`.
 - Not proven headless-only, because visible Windows application error evidence now exists.
+- Not currently pointing to Tiny Cormorant project code as root cause; the newest evidence points to OneDrive placeholder/sync hydration or local file availability.
 
 ## Dependencies and Blockers
 Resolved for future validation:
 - Project headless startup works outside the sandbox with the known Godot 4.6.1 console binary.
+- Human-observed editor startup works after the OneDrive project folder is fully local/hydrated via "Always keep on this device."
 
 Still blocked:
 - Running Godot project startup inside the sandbox is unreliable and can produce signal 11.
@@ -233,6 +250,7 @@ Still blocked:
 
 ## Recommended Validation Strategy
 For near-term Level 3 work:
+- Ensure the OneDrive Desktop project folder is fully local/hydrated before running Godot editor or runtime validation.
 - Use escalated Godot headless commands for project startup validation when the command is important and sandboxed Godot crashes.
 - Do not treat sandboxed signal 11 as project failure without rerunning outside the sandbox.
 - Add a future narrow validation harness before live Level 3 inspection integration.
@@ -312,6 +330,7 @@ Do not schedule a project-startup bugfix based on current evidence. The failing 
 
 ## Governance / Path Follow-Up
 - The current confirmed clone path remains `C:\Users\akaph\OneDrive\Desktop\Ozark Interactive\Games\Tiny Cormorant`, which is the Desktop path resolved through Windows/OneDrive redirection on this machine.
+- This path appears usable for Godot only when the project folder is fully local/hydrated, such as after OneDrive "Always keep on this device" is applied.
 - This job did not modify governance files.
 
 ## Non-Goals Preserved
