@@ -7,6 +7,7 @@
 - Confirmed project headless startup crashes with signal 11 inside the sandbox.
 - Confirmed the same project headless startup succeeds outside the sandbox and reaches normal early boot/contract generation.
 - Confirmed the issue-0131 script-style command does not crash outside the sandbox; it fails cleanly because `CustomsLevel3Reconciliation.gd` is a pure static helper and does not inherit `SceneTree` or `MainLoop`.
+- Added human-observed visible Windows application error evidence showing the Godot 4.6.1 Windows executable can also present a memory-read crash dialog, so the crash evidence is not limited to CLI/headless text output.
 - No `.godot/**`, `.uid`, project, runtime, script, data, scene, singleton, or governance churn appeared.
 
 ## Capability Definition
@@ -161,6 +162,22 @@ Result:
 - No signal 11.
 - The command is not a valid direct-call harness because the helper is intentionally a static helper, not an executable `SceneTree` or `MainLoop`.
 
+### 7. Human-Observed Visible Windows Application Error
+Observed outside Codex command execution:
+
+```text
+Window title:
+Godot_v4.6.1-stable_win64.exe - Application Error
+
+Message:
+The instruction at 0x00007FF77E12794 referenced memory at 0x0000000000000058. The memory could not be read.
+```
+
+Result:
+- `additional crash evidence`
+- This suggests the crash can surface in the Godot Windows executable itself as a visible application error, not only as headless validation console output.
+- This job did not attempt to fix or further reproduce the visible GUI error, by scope.
+
 ## Working Tree / Churn Check
 After every launch attempt, `git status --short` showed only:
 
@@ -183,7 +200,7 @@ No churn appeared under:
 
 ## Crash Characterization
 Current best classification:
-- `environment/sandbox-related headless crash`, medium risk
+- `Godot Windows executable / environment crash with sandboxed headless reproduction`, medium risk
 
 What the evidence supports:
 - The Godot binary is valid and responds to `--version`.
@@ -191,16 +208,19 @@ What the evidence supports:
 - Project headless startup crashes inside the sandbox.
 - The same project headless startup succeeds outside the sandbox.
 - The issue-0131 script-style command does not crash outside the sandbox; it reports a normal command-shape error because a pure helper script is not executable via `--script`.
+- A visible Windows application error was also observed for `Godot_v4.6.1-stable_win64.exe`, with a memory-read failure at address `0x0000000000000058`.
 
 What remains unresolved:
 - Normal editor/game launch was not checked in this job because it would require a visible GUI launch/interaction outside the non-GUI planning scope.
 - The exact Godot engine subsystem that crashes inside the sandbox is unknown because the backtrace lacks symbols.
+- The exact conditions for the visible Windows application error are unknown because it was reported as human-observed evidence rather than reproduced inside this planning run.
 - Direct Level 3 helper report validation still needs an executable validation wrapper or manual Godot-driven call path.
 
 What this does not look like now:
 - Not a confirmed project-startup bug.
 - Not a confirmed `CustomsLevel3Reconciliation.gd` parse/runtime bug.
 - Not the old `FeedbackCapture` UID autoload blocker from `issue-0121`.
+- Not proven headless-only, because visible Windows application error evidence now exists.
 
 ## Dependencies and Blockers
 Resolved for future validation:
