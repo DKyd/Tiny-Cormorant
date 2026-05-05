@@ -107,6 +107,25 @@ layout_mode = 2
 autowrap_mode = 3
 text = "Level 2 findings are documentary-only. They can increase scrutiny, but this panel does not apply fines, seizures, holds, cargo denial, or travel blocking."
 
+[node name="Level3ReconciliationLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Level 3 Reconciliation"
+
+[node name="Level3ReconciliationStatus" type="Label" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "No Level 3 reconciliation attached."
+
+[node name="Level3ReconciliationFindings" type="RichTextLabel" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+fit_content = true
+scroll_active = false
+text = "No Level 3 reconciliation attached."
+
+[node name="Level3ReconciliationBoundary" type="Label" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Level 3 compares declared paperwork against the current cargo snapshot. This panel is informational only and does not apply fines, holds, seizures, cargo denial, or travel blocking."
+
 [node name="DocSummaryLabel" type="Label" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Document Summary"
